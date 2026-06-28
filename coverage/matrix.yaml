@@ -12,24 +12,38 @@
 #
 # `req:` lists the conformance requirement ids this cell satisfies. The ids are
 # self-contained and source-neutral: they name what the interface must do, not
-# where the requirement originated. The provenance of each id (which upstream
-# certification programme it traces to) lives only in the private requirements
-# feed mounted at coverage/requirements/ — never in this public record.
+# where the requirement originated. The provenance of an EXTENDED id (which
+# upstream certification programme it traces to) lives only in the private
+# requirements feed mounted at coverage/requirements/ — never in this record.
 #
-# path: "native" (Surface B, public client API) | "mse" (Surface A, rialtomse*sink)
-# status: "covered" | "planned" | "gap" (requirement unmet by Rialto today)
+# tier:  core     — interface-conformance, derived from the Rialto external
+#                   interface contract itself. The CORE set is the drop-in /
+#                   transform-safety gate: a new Rialto must uphold the same
+#                   external contract as the old one. Run first; must be green.
+#        extended — app/player-requirement conformance (Phase 2), layered on top.
+#
+# path:  native (Surface B, public client API) | mse (Surface A, rialtomse*sink)
+#        | both (a consistency case asserting the two surfaces agree)
+#
+# A requirement is surface-neutral. Where the same backend fact is exposed on
+# both surfaces it appears as one row PER path — same RC id, two cases — plus a
+# `path: both` consistency row that asserts the two surfaces agree. Tests are
+# never path-agnostic: each case drives exactly one surface as itself.
+#
+# status: covered | planned | gap (requirement unmet by Rialto today)
 #
 # Phase 0 seeds the schema and the smoke-case rows. L1→L4 ingestion fills it out.
 
-schemaVersion: 1
+schemaVersion: 2
 abiVersion: 5            # kPlatformBackendAbiVersion this record describes
 
 # --- Operations (the IMediaPipeline / IMediaKeys / IWebAudioPlayer functions) -
 operations:
   - op: getSupportedMimeTypes
     interface: IMediaPipelineCapabilities
+    tier: core
     path: native
-    req: [RC-FMT-001]
+    req: [RC-CORE-CAPS-001]
     expected: "Reports the MSE mime types the target supports for a source type"
     case: "L1CapabilitiesTests.BaselineVideoMimeTypeSupportIsConsistent"
     abi: 1
@@ -37,8 +51,9 @@ operations:
 
   - op: isMimeTypeSupported
     interface: IMediaPipelineCapabilities
+    tier: core
     path: native
-    req: [RC-FMT-001]
+    req: [RC-CORE-CAPS-001]
     expected: "Agrees with getSupportedMimeTypes for a queried codec"
     case: "L1CapabilitiesTests.BaselineVideoMimeTypeSupportIsConsistent"
     abi: 1
@@ -46,8 +61,9 @@ operations:
 
   - op: isVideoMaster
     interface: IMediaPipelineCapabilities
+    tier: core
     path: native
-    req: [RC-AVSYNC-001]
+    req: [RC-CORE-CAPS-002]
     expected: "Returns status and writes the video-master out-param"
     case: "L1CapabilitiesTests.IsVideoMasterReportsStatus"
     abi: 3
@@ -56,30 +72,72 @@ operations:
 # --- Properties (sink/decoder properties) × path ------------------------------
 properties:
   - prop: element-registration
+    tier: core
     path: mse
-    req: [RC-MSE-001]
-    expected: "rialtomse{audio,video}sink registered under documented names"
+    req: [RC-CORE-MSE-001]
+    expected: "rialtomse{audio,video,subtitle}sink registered under documented names"
     case: "L1SinkRegistrationTests.VideoSinkRegistered, L1SinkRegistrationTests.AudioSinkRegistered"
     abi: 1
     status: covered
 
+  - prop: is-master
+    interface: rialtomsevideosink
+    tier: core
+    path: mse
+    req: [RC-CORE-CAPS-002]   # same requirement as native isVideoMaster
+    expected: "video sink 'is-master' read-only property reflects platform video-master state"
+    case: "L1VideoSinkPropertyTests.IsMasterReflectsCapability"   # planned
+    abi: 3
+    status: planned
+
 # --- Codecs × path ------------------------------------------------------------
 codecs:
   - codec: h264
+    tier: core
     path: native
-    req: [RC-CODEC-AVC]
-    expected: "AVC advertised and a real AVC stream plays end-to-end"
+    req: [RC-CORE-CODEC-AVC]
+    expected: "AVC advertised by the capabilities API and a real AVC stream plays end-to-end"
     case: "L1CapabilitiesTests.BaselineVideoMimeTypeSupportIsConsistent"   # L4 E2E case to follow
     abi: 1
     status: covered
 
+  - codec: h264
+    tier: core
+    path: mse
+    req: [RC-CORE-CODEC-AVC]
+    expected: "rialtomsevideosink advertises video/x-h264 in its sink-pad caps"
+    case: "L1SinkRegistrationTests.VideoSinkAdvertisesAvcCaps"   # planned
+    abi: 1
+    status: planned
+
+# --- Cross-surface consistency (the two paths must agree, §2) ------------------
+consistency:
+  - req: [RC-CORE-CAPS-001]
+    tier: core
+    path: both
+    expected: "Each codec in native getSupportedMimeTypes maps to a caps entry the matching sink advertises"
+    case: "L2CapabilityConsistencyTests.SupportedMimesMatchSinkCaps"   # planned
+    abi: 1
+    status: planned
+
+  - req: [RC-CORE-CAPS-002]
+    tier: core
+    path: both
+    expected: "native isVideoMaster() agrees with rialtomsevideosink 'is-master'"
+    case: "L2CapabilityConsistencyTests.VideoMasterNativeMatchesMse"   # planned
+    abi: 3
+    status: planned
+
 # --- Known coverage gaps (surfacing unmet requirements is a primary point, §5)-
 gaps:
-  - req: [RC-DRM-FPS-001]
+  - req: [RC-EXT-DRM-FPS-001]
+    tier: extended
+    path: native
     surface: "IMediaKeys / IMediaKeysCapabilities"
     detail: >
-      A conformance requirement covers the com.apple.fps key system. Rialto
-      advertises Widevine and PlayReady (com.widevine.alpha,
-      com.microsoft.playready) but not com.apple.fps. FPS is a flagged coverage
-      gap and a backlog item (add the FPS key system to Rialto/OCDM).
+      An extended conformance requirement covers the com.apple.fps key system.
+      IMediaKeysCapabilities::getSupportedKeySystems advertises Widevine and
+      PlayReady (com.widevine.alpha, com.microsoft.playready) but not
+      com.apple.fps. FPS is a flagged coverage gap and a backlog item (add the
+      FPS key system to Rialto/OCDM).
     status: gap

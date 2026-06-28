@@ -40,7 +40,7 @@ same cases give the same verdict, so any diff is a real regression or an
 intended new behaviour.
 
 This is **real end-to-end testing against real content — not a mock test**. The
-verdict is conformance to the premium-OTT requirements, not an internal contract.
+verdict is conformance to the published requirements, not an internal contract.
 
 ## Harness
 
@@ -87,11 +87,27 @@ In practice ut-raft installs the package and runs it — see [raft/](raft/).
 | **L1** | `UT_TESTS_L1` | function — each public function on its own: return status, params, state machine; sink element/property behaviour + caps |
 | **L2** | `UT_TESTS_L2` | module — one module as a whole (load/attach/play/pause/seek/EOS, position, caps) |
 | **L3** | `UT_TESTS_L3` | group — subsystems together so a fault is localisable (SVP, playback, DRM group) |
-| **L4** | `UT_TESTS_L4` | full-stream E2E — real elementary streams + real DRM; the §5 premium-OTT matrix is the pass/fail |
+| **L4** | `UT_TESTS_L4` | full-stream E2E — real elementary streams + real DRM; the §5 coverage matrix is the pass/fail |
 
 Group IDs are **selective-run filters only** (`-e`/`-d`); ut-core runs every
 registered suite by default. The same cases run identically on every platform —
 only the cross-compiler differs.
+
+## Test tiers (what is being conformed to)
+
+Orthogonal to level, every case belongs to one tier:
+
+| Tier | Group ID | Meaning |
+|---|---|---|
+| **CORE** | `UT_TESTS_CORE` | interface conformance — derived from the Rialto external interface contract itself ([coverage/rc-core-catalog.yaml](coverage/rc-core-catalog.yaml)). The **drop-in / transform-safety gate**: a new Rialto must uphold the same external contract as the old one. Run first; must be green. |
+| **EXTENDED** | `UT_TESTS_EXTENDED` | app/player-requirement conformance layered on top; provenance lives in the private requirements feed. |
+
+A requirement (`RC-*` id) is **surface-neutral**. Where the same backend fact is
+exposed on both surfaces it is tested **once per path** — a native case and an
+MSE case, same id — plus a **consistency** case asserting the two agree. Tests
+are never path-agnostic: each case drives exactly one surface as itself.
+
+Run the gate alone with the tier filter, e.g. `./rialto_conformance -e UT_TESTS_CORE`.
 
 ## Platform applicability is data, not code
 

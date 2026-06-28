@@ -39,8 +39,8 @@ namespace rialto::conformance
 /**
  * Base fixture for Surface A (MSE sink) cases.
  *
- * Brings up a minimal GStreamer pipeline owned by the test (as a premium-OTT
- * app would), into which the rialtomse*sink elements are plugged by name. No
+ * Brings up a minimal GStreamer pipeline owned by the test (as an external
+ * media app would), into which the rialtomse*sink elements are plugged by name. No
  * Rialto internal headers are included — the sinks are obtained from the
  * GStreamer registry exactly as an external app sees them.
  */
