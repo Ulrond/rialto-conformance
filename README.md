@@ -95,19 +95,33 @@ only the cross-compiler differs.
 
 ## Test tiers (what is being conformed to)
 
-Orthogonal to level, every case belongs to one tier:
+Orthogonal to level, every case declares one tier:
 
-| Tier | Group ID | Meaning |
-|---|---|---|
-| **CORE** | `UT_TESTS_CORE` | interface conformance — derived from the Rialto external interface contract itself ([coverage/rc-core-catalog.yaml](coverage/rc-core-catalog.yaml)). The **drop-in / transform-safety gate**: a new Rialto must uphold the same external contract as the old one. Run first; must be green. |
-| **EXTENDED** | `UT_TESTS_EXTENDED` | app/player-requirement conformance layered on top; provenance lives in the private requirements feed. |
+| Tier | Meaning |
+|---|---|
+| **CORE** | interface conformance — derived from the Rialto external interface contract itself ([coverage/rc-core-catalog.yaml](coverage/rc-core-catalog.yaml)). The **drop-in / transform-safety gate**: a new Rialto must uphold the same external contract as the old one. Run first; must be green. |
+| **EXTENDED** | app/player-requirement conformance layered on top; provenance lives in the private requirements feed. |
+
+The L1–L4 group ids are ut-core's **level** axis. Tier is a second, independent
+axis the suite selects at runtime — a case declares `CONFORMANCE_CORE_TEST()` or
+`CONFORMANCE_EXTENDED_TEST()` at the top of its body (the same self-skip idiom as
+the capability/ABI gates), and the active selection is read from the
+`RIALTO_CONFORMANCE_TIER` environment variable:
+
+```bash
+RIALTO_CONFORMANCE_TIER=core     ./rialto_conformance -a -p deviceConfig.yaml  # the gate
+RIALTO_CONFORMANCE_TIER=extended ./rialto_conformance -a -p deviceConfig.yaml
+./rialto_conformance -a -p deviceConfig.yaml                                   # both (default)
+```
+
+Because tier gating is an in-test skip, it composes with the ut-core level filter
+(e.g. `RIALTO_CONFORMANCE_TIER=core ./rialto_conformance -e UT_TESTS_L1`) without
+the two contending for the GoogleTest filter.
 
 A requirement (`RC-*` id) is **surface-neutral**. Where the same backend fact is
 exposed on both surfaces it is tested **once per path** — a native case and an
 MSE case, same id — plus a **consistency** case asserting the two agree. Tests
 are never path-agnostic: each case drives exactly one surface as itself.
-
-Run the gate alone with the tier filter, e.g. `./rialto_conformance -e UT_TESTS_CORE`.
 
 ## Platform applicability is data, not code
 

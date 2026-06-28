@@ -111,20 +111,21 @@ python raft/suites/test_rialto_conformance.py --config raft/rack_config.yml \
 
 ## Start here next
 
-1. **Wire the CORE/EXTENDED run-groups** into ut-core selective-run
-   (`UT_TESTS_CORE` / `UT_TESTS_EXTENDED`) so the gate runs alone
-   (`-e UT_TESTS_CORE`), orthogonal to the L1–L4 level groups.
-2. **Author the CORE cases** against `coverage/rc-core-catalog.yaml`, climbing
-   L1 → L4 (README table). Each case traces to a `coverage/matrix.yaml` row
-   (`RC-CORE-*` + path + expected + ABI); negative/quiet-fail reqs are first-class.
-   Needs a target with an installed Rialto + GStreamer to run green.
-3. **Phase 2 — EXTENDED / app-requirement conformance.** Create the comcast-sky
+1. **Author the CORE cases** against `coverage/rc-core-catalog.yaml`, climbing
+   L1 → L4 (README table). Each case declares its tier (`CONFORMANCE_CORE_TEST()`,
+   `include/conformance/TierGate.h`) plus any cap/ABI gate, and traces to a
+   `coverage/matrix.yaml` row (`RC-CORE-*` + path + expected + ABI);
+   negative/quiet-fail reqs are first-class. Needs a target with an installed
+   Rialto + GStreamer to run green. (Tier axis is wired: the gate runs alone via
+   `RIALTO_CONFORMANCE_TIER=core`, orthogonal to the `-e UT_TESTS_Ln` level
+   groups — ut-core owns the L1–L4 group enum, so tier is an in-test self-skip.)
+2. **Phase 2 — EXTENDED / app-requirement conformance.** Create the comcast-sky
    private feed repo via Comcast DevHub (bare `gh repo create` is blocked — needs
    a `DevHub-Application-ID`), push the local feed, mount it at
    `coverage/requirements/` (gitignored), add `RC-EXT-*` ids + the `RC-*`
    crosswalk, and grow the matrix. The public suite cites only `RC-*` ids; partner
    provenance stays in the private feed, never in this repo.
-4. **Real assets.** `assets/manifest.yaml` has placeholder `REPLACE_ME` URLs +
+3. **Real assets.** `assets/manifest.yaml` has placeholder `REPLACE_ME` URLs +
    zeroed checksums — point at free-to-use clips and implement `ContentLoader`.
 
 ## Open items / to verify on real hardware

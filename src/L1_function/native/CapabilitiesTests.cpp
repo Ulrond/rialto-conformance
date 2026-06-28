@@ -36,6 +36,7 @@
 #include "conformance/AbiVersion.h"
 #include "conformance/CapabilityGate.h"
 #include "conformance/Surfaces.h"
+#include "conformance/TierGate.h"
 
 #include "IMediaPipelineCapabilities.h"
 
@@ -63,6 +64,8 @@ UT_ADD_TEST_TO_GROUP(L1CapabilitiesTests, UT_TESTS_L1);
  */
 UT_ADD_TEST(L1CapabilitiesTests, CreateFactoryAndObject)
 {
+    CONFORMANCE_CORE_TEST();
+
     auto factory = IMediaPipelineCapabilitiesFactory::createFactory();
     UT_ASSERT_NOT_NULL_FATAL(factory.get());
 
@@ -74,11 +77,13 @@ UT_ADD_TEST(L1CapabilitiesTests, CreateFactoryAndObject)
  * getSupportedMimeTypes(VIDEO) reports a non-empty list, and isMimeTypeSupported()
  * agrees with it for H.264.
  *
- * NOT gated: H.264 is baseline-required for premium OTT, so it is tested
+ * NOT gated: H.264 is a baseline-required codec, so it is tested
  * unconditionally — its absence is a conformance FAILURE, not a skip.
  */
 UT_ADD_TEST(L1CapabilitiesTests, BaselineVideoMimeTypeSupportIsConsistent)
 {
+    CONFORMANCE_CORE_TEST();
+
     auto factory = IMediaPipelineCapabilitiesFactory::createFactory();
     UT_ASSERT_NOT_NULL_FATAL(factory.get());
     auto caps = factory->createMediaPipelineCapabilities();
@@ -105,6 +110,7 @@ UT_ADD_TEST(L1CapabilitiesTests, BaselineVideoMimeTypeSupportIsConsistent)
  */
 UT_ADD_TEST(L1CapabilitiesTests, Av1MimeTypeSupportedWhenDeclared)
 {
+    CONFORMANCE_CORE_TEST();
     CONFORMANCE_REQUIRE_CAP("codecs.video.av1");
 
     auto factory = IMediaPipelineCapabilitiesFactory::createFactory();
@@ -122,6 +128,7 @@ UT_ADD_TEST(L1CapabilitiesTests, Av1MimeTypeSupportedWhenDeclared)
  */
 UT_ADD_TEST(L1CapabilitiesTests, IsVideoMasterReportsStatus)
 {
+    CONFORMANCE_CORE_TEST();
     CONFORMANCE_REQUIRE_ABI(3);
 
     auto factory = IMediaPipelineCapabilitiesFactory::createFactory();

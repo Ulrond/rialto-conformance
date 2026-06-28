@@ -31,6 +31,7 @@
 #include <ut.h>
 
 #include "conformance/Surfaces.h"
+#include "conformance/TierGate.h"
 
 #include <gst/gst.h>
 
@@ -69,6 +70,7 @@ UT_ADD_TEST_TO_GROUP(L1SinkRegistrationTests, UT_TESTS_L1);
  */
 UT_ADD_TEST(L1SinkRegistrationTests, VideoSinkRegistered)
 {
+    CONFORMANCE_CORE_TEST();
     assertSinkRegistered(kVideoSink);
 }
 
@@ -77,5 +79,6 @@ UT_ADD_TEST(L1SinkRegistrationTests, VideoSinkRegistered)
  */
 UT_ADD_TEST(L1SinkRegistrationTests, AudioSinkRegistered)
 {
+    CONFORMANCE_CORE_TEST();
     assertSinkRegistered(kAudioSink);
 }
