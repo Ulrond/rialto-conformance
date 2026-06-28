@@ -22,21 +22,30 @@ and exactly where to start next.
 
 | What | Location |
 |---|---|
-| **This repo (the suite)** | `/home/gew04/git/fast/sky/rialto-conformance` — local git, **not pushed** |
-| **Target GitHub repo** | `Ulrond/rialto-conformance` (public) — **not created yet** (held for review) |
+| **This repo (the suite)** | `/home/gew04/git/fast/sky/rialto-conformance` — **published** at [Ulrond/rialto-conformance](https://github.com/Ulrond/rialto-conformance) (public, branch `master`) |
+| **Private requirements feed** | `/home/gew04/git/fast/sky/rialto-conformance-requirements` — local git; comcast-sky push **blocked** (org requires a `DevHub-Application-ID` at repo creation). Mounts into the public checkout at `coverage/requirements/` (gitignored). |
 | **Requirements doc** | `../rialto_test_suite/docs/EXTERNAL-INTERFACE-CONFORMANCE-REQUIREMENTS.md` (not under git) |
 | **Rialto API reference (local)** | `../rialto_test_suite/external/rialto-develop` (rdkcentral/rialto @ v0.22.2) |
 | **Tracking issues** | `Ulrond/rialto` #7 (harness), #2 (native session admission), #9 (in-tree suite re-cut) |
 
-`gh` is authed as **Ulrond**. Local commits so far: `8c13532` (scaffold),
-`fbc8653` (install model + raft-shaped gate).
+`gh` has two accounts: **Ulrond** (public repo; orgs sky-uk/rdkcentral/qtasks)
+and **gerald-weatherup_comcast** (the only one that reaches comcast-sky). Use
+per-command tokens (`gh auth token --user <acct>` → `GH_TOKEN` / token-over-HTTPS
+push), never `gh auth switch`, so the right account always acts. Public history
+was squashed to a single clean commit before first push (the pre-scrub commits
+contained source/partner names); do not restore that old history.
 
-## Status — Phase 0 (ut-core bring-up + packaging): DONE, local-only
+## Status — Phase 0 DONE + published; Phase 1 (CORE requirement catalogue) DONE
 
-The harness is stood up and the §7 layout is in place, committed locally, **not
-pushed** pending review. A green end-to-end build needs a host/target with an
-installed Rialto + GStreamer (absent on this dev box by design — the suite links
-them on the target, never builds them). Shell/Python/YAML pass syntax/parse checks.
+The harness + §7 layout are in place and **published** (public repo, branch
+`master`). The suite is **source-neutral**: requirements are cited by suite-owned
+`RC-*` ids only — no partner/app names anywhere in the public tree (enforced; the
+provenance lives only in the private feed). Phase 1 enumerated the external
+interface contract into **118 `RC-CORE-*` requirements**
+([coverage/rc-core-catalog.yaml](coverage/rc-core-catalog.yaml)) — the CORE
+drop-in/transform-safety gate. A green end-to-end build needs a host/target with
+an installed Rialto + GStreamer (absent on this dev box by design — the suite
+links them on the target, never builds them). Shell/Python/YAML pass parse checks.
 
 ## Install / build / run
 
@@ -76,6 +85,14 @@ python raft/suites/test_rialto_conformance.py --config raft/rack_config.yml \
 6. **ABI-versioned, additive.** Cases declare the ABI they entered at
    (`CONFORMANCE_REQUIRE_ABI(n)`); an older certified backend is never failed by a
    newer additive case. Current `kPlatformBackendAbiVersion = 5`.
+7. **Two tiers, orthogonal to L1–L4.** **CORE** = interface conformance
+   (`coverage/rc-core-catalog.yaml`, the `RC-CORE-*` ids) — the drop-in /
+   transform-safety gate, run first. **EXTENDED** = app/player conformance
+   (Phase 2, fed by the private requirements feed). A requirement is
+   surface-neutral: where a fact is exposed on both surfaces it is tested once per
+   **path** (native + mse), plus a `path: both` **consistency** case. Tests are
+   never path-agnostic — each case drives one surface as itself; no shared
+   wrapper runs one body on both paths.
 
 ## What exists now
 
@@ -87,22 +104,26 @@ python raft/suites/test_rialto_conformance.py --config raft/rack_config.yml \
   MSE `rialtomse*sink` registration (`src/L1_function/mse/`). L2–L4 trees
   scaffolded (empty).
 - `profiles/` schema + example; `raft/` rack+device config + the `RAFTUnitTestCase`
-  adjudicator; `coverage/matrix.yaml` seeded incl. the FairPlay gap;
-  `assets/manifest.yaml`; `packaging/package.sh`.
+  adjudicator; `assets/manifest.yaml`; `packaging/package.sh`.
+- **`coverage/rc-core-catalog.yaml`** — the 118 `RC-CORE-*` interface-conformance
+  requirements (Phase 1). **`coverage/matrix.yaml`** — coverage view (tier +
+  path + case + status) referencing those ids; the FairPlay gap sits in EXTENDED.
 
 ## Start here next
 
-1. **Decide: create + push `Ulrond/rialto-conformance`** (held for review). Until
-   then nothing leaves this box.
-2. **Climb the levels L1 → L4** (README table). Author the full case set first,
-   then run on whatever target is available; applicability is the capability gate,
-   never platform-specific test code. Each case traces to a `coverage/matrix.yaml`
-   row (req ref + expected + ABI).
-3. **Requirement-catalog ingestion** (gates L4). Mount the private requirements
-   feed at `coverage/requirements/` (gitignored — see its README), add `RC-*`
-   crosswalk entries, and grow the matrix. The public suite cites only `RC-*`
-   ids; partner provenance stays in the private feed, never in this repo. Can run
-   parallel to L1–L2.
+1. **Wire the CORE/EXTENDED run-groups** into ut-core selective-run
+   (`UT_TESTS_CORE` / `UT_TESTS_EXTENDED`) so the gate runs alone
+   (`-e UT_TESTS_CORE`), orthogonal to the L1–L4 level groups.
+2. **Author the CORE cases** against `coverage/rc-core-catalog.yaml`, climbing
+   L1 → L4 (README table). Each case traces to a `coverage/matrix.yaml` row
+   (`RC-CORE-*` + path + expected + ABI); negative/quiet-fail reqs are first-class.
+   Needs a target with an installed Rialto + GStreamer to run green.
+3. **Phase 2 — EXTENDED / app-requirement conformance.** Create the comcast-sky
+   private feed repo via Comcast DevHub (bare `gh repo create` is blocked — needs
+   a `DevHub-Application-ID`), push the local feed, mount it at
+   `coverage/requirements/` (gitignored), add `RC-EXT-*` ids + the `RC-*`
+   crosswalk, and grow the matrix. The public suite cites only `RC-*` ids; partner
+   provenance stays in the private feed, never in this repo.
 4. **Real assets.** `assets/manifest.yaml` has placeholder `REPLACE_ME` URLs +
    zeroed checksums — point at free-to-use clips and implement `ContentLoader`.
 
