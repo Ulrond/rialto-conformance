@@ -69,6 +69,46 @@ operations:
     abi: 3
     status: covered
 
+  - op: getSupportedKeySystems
+    interface: IMediaKeysCapabilities
+    tier: core
+    path: native
+    req: [RC-CORE-KEYSCAP-001]
+    expected: "Capabilities singleton obtainable; supported-key-systems query callable"
+    case: "L1KeysCapabilitiesTests.CapabilitiesObtainable"
+    abi: 1
+    status: covered
+
+  - op: supportsKeySystem
+    interface: IMediaKeysCapabilities
+    tier: core
+    path: native
+    req: [RC-CORE-KEYSCAP-002]
+    expected: "Agrees with getSupportedKeySystems; any string is a legal query, unsupported -> false"
+    case: "L1KeysCapabilitiesTests.SupportsKeySystemConsistentWithList"
+    abi: 1
+    status: covered
+
+  - op: getSupportedKeySystemVersion
+    interface: IMediaKeysCapabilities
+    tier: core
+    path: native
+    req: [RC-CORE-KEYSCAP-003]
+    expected: "Writes a version and returns true for a supported system; unsupported -> false"
+    case: "L1KeysCapabilitiesTests.SupportedKeySystemVersionContract"
+    abi: 1
+    status: covered
+
+  - op: isServerCertificateSupported
+    interface: IMediaKeysCapabilities
+    tier: core
+    path: native
+    req: [RC-CORE-KEYSCAP-004]
+    expected: "Legal query for any key system; unsupported -> false, not an error"
+    case: "L1KeysCapabilitiesTests.ServerCertificateQueryIsLegal"
+    abi: 1
+    status: covered
+
 # --- Properties (sink/decoder properties) × path ------------------------------
 properties:
   - prop: element-registration

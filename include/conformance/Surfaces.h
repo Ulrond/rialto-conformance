@@ -29,7 +29,7 @@
  *               the rialtomse{audio,video}sink + text-track elements present on
  *               the target. Under test: element names, properties, caps.
  *   Surface B — Native client API: drive playback through Rialto's published
- *               C++ interfaces (media/public/include/*) and their callbacks.
+ *               C++ interfaces (the media/public/include headers) and callbacks.
  */
 
 #include <ut.h>
