@@ -1,0 +1,48 @@
+# Copyright 2026 RDK Management
+# SPDX-License-Identifier: Apache-2.0
+#
+# deviceConfig for the LINUX software platform (python_raft device-config shape).
+#
+# Linux is treated as just another platform: the backend underneath is the
+# software Rialto built by ../build-rialto.sh (NATIVE_BUILD), not a SoC. This is
+# the profile to load when running the suite against that local software stack:
+#   RIALTO_CONFORMANCE_TIER=core ./build/bin/rialto_conformance -a \
+#       -p profiles/deviceConfig.linux.yaml
+#
+# The capability gate under `rialto:` records what the software platform exposes.
+# The standard required surface (MSE audio/video/text sinks, the core native
+# interfaces, baseline H.264 + AAC) is mandatory and tested unconditionally; only
+# variable features are toggled here. Set a toggle false if the local software
+# build does not provide that feature.
+
+deviceConfig:
+  cpe1:
+    platform: "linux-native"        # the Linux software platform (not a SoC family)
+    model: "native-software"
+    prompt: "$ "
+
+    rialto:
+      abiVersion: 5
+
+      codecs:
+        video:
+          hevc: false               # software backend: enable per what NATIVE_BUILD provides
+          vp9: false
+          av1: false
+        audio:
+          eac3: false
+          ac4: false
+          opus: false
+
+      drm:
+        widevine: false             # no real CDM in the stubbed software build
+        playready: false
+        fairplay: false             # com.apple.fps — unmet by Rialto (coverage/matrix.yaml gap)
+        secureVideoPath: false
+
+      passthrough:
+        hdr: false
+        hfr: false
+        uhd4k: false
+        uhd8k: false
+        atmos: false

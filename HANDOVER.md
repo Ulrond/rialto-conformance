@@ -64,8 +64,13 @@ python raft/suites/test_rialto_conformance.py --config raft/rack_config.yml \
    in `framework.lock` at a fixed ref into the gitignored `framework/`: ut-core
    5.1.0, python_raft 1.8.2, ut-raft 2.1.2, **rialto v0.22.2**, rialto-gstreamer
    v0.20.1 (ut-control 2.1.0 + GoogleTest 1.15.2 come from ut-core's build.sh).
-   The Rialto sources are the **API reference the cases compile against**; the
-   suite never builds Rialto and links only the installed `libRialtoClient`.
+   The Rialto sources are the **API reference the cases compile against**; by
+   default the build links only the *installed* `libRialtoClient` (real targets).
+   **Amended:** Linux is a first-class platform — `build-rialto.sh` opt-in builds
+   Rialto + rialto-gstreamer via their own `NATIVE_BUILD` (platform deps stubbed)
+   into `framework/.native-install`, which the Makefile auto-discovers. So the
+   suite *can* build a software Rialto on request; the default (link installed)
+   is unchanged. Linux profile: `profiles/deviceConfig.linux.yaml`.
 2. **Platform-agnostic; gate on platform FEATURES, not SoC.** One binary, same
    cases everywhere. There are **no per-SoC profiles**. A SoC may be capable of
    something its platform does not support, and two platforms on one SoC can

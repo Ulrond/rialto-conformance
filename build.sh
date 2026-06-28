@@ -23,8 +23,11 @@
 # Framework deps (ut-core, ut-raft, the Rialto API reference, ...) are INSTALLED
 # at fixed versions by install.sh into the gitignored framework/ area, never
 # committed. This script ensures they are installed, then delegates to ut-core's
-# Makefile. It does NOT build Rialto — the suite links only the public client
-# library, resolved on the build host/target.
+# Makefile. By default it does NOT build Rialto — the suite links an installed
+# libRialtoClient, resolved on the build host/target (correct for real targets).
+#
+# To run on a Linux host with no hardware Rialto, build the software stack first
+# with ./build-rialto.sh; the Makefile then auto-discovers it. See build-rialto.sh.
 #
 # Usage:
 #   ./build.sh                 # linux target, VARIANT=CPP

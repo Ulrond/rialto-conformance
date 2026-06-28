@@ -45,6 +45,18 @@ XCFLAGS := -std=c++17 -DNDEBUG
 # as a fallback. The runtime library (libRialtoClient) is resolved via pkg-config
 # from the Rialto installed on the build host/target — the suite never builds it.
 PKG_CONFIG ?= pkg-config
+
+# Opt-in local software platform: if build-rialto.sh has built a native Rialto,
+# its install prefix carries RialtoClient.pc + libRialtoClient. Auto-discover it
+# (no env needed) and prepend to PKG_CONFIG_PATH BEFORE the pkg-config queries
+# below, plus an rpath so the binary finds the built libs at runtime. Absent on a
+# real target — there the installed platform Rialto is resolved instead.
+RIALTO_NATIVE_PREFIX := $(ROOT_DIR)/framework/.native-install
+ifneq ($(wildcard $(RIALTO_NATIVE_PREFIX)/lib/pkgconfig/RialtoClient.pc),)
+export PKG_CONFIG_PATH := $(RIALTO_NATIVE_PREFIX)/lib/pkgconfig:$(PKG_CONFIG_PATH)
+RIALTO_NATIVE_LIBDIR := $(RIALTO_NATIVE_PREFIX)/lib
+endif
+
 RIALTO_SRC_INC := $(ROOT_DIR)/framework/rialto/media/public/include
 RIALTO_CFLAGS := $(shell $(PKG_CONFIG) --cflags RialtoClient 2>/dev/null)
 ifneq ($(wildcard $(RIALTO_SRC_INC)),)
@@ -64,6 +76,11 @@ endif
 
 XCFLAGS += $(RIALTO_CFLAGS) $(GST_CFLAGS)
 YLDFLAGS := $(RIALTO_LIBS) $(GST_LIBS)
+
+# rpath to the locally-built Rialto (software platform), when present.
+ifneq ($(strip $(RIALTO_NATIVE_LIBDIR)),)
+YLDFLAGS += -Wl,-rpath,$(RIALTO_NATIVE_LIBDIR) -L$(RIALTO_NATIVE_LIBDIR)
+endif
 
 # For an arm target, vendor libs (incl. the installed RialtoClient) live under
 # libs/ and need an rpath so the deployed binary finds them on the device.

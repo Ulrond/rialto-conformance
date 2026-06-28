@@ -35,9 +35,16 @@ It tests two surfaces, and only these — never internal wiring:
 
 The suite is a standalone **installable package**. It links **only** Rialto's
 public client library + headers and drives the sink elements present on the
-target. **It does not build Rialto** — point it at any installed build and the
-same cases give the same verdict, so any diff is a real regression or an
+target. By default **it does not build Rialto** — point it at any installed build
+and the same cases give the same verdict, so any diff is a real regression or an
 intended new behaviour.
+
+**Linux is just another platform.** Where a real target has a hardware-backed
+Rialto installed, a Linux host can run the *full* suite against a **software**
+Rialto: [build-rialto.sh](build-rialto.sh) builds Rialto + rialto-gstreamer via
+their own `NATIVE_BUILD` (platform deps stubbed) into a local prefix that
+[build.sh](build.sh) auto-discovers. Same one binary, same cases — only the
+backend underneath is software rather than a SoC.
 
 This is **real end-to-end testing against real content — not a mock test**. The
 verdict is conformance to the published requirements, not an internal contract.
@@ -63,13 +70,20 @@ ut-raft **2.1.2**, rialto **v0.22.2**, rialto-gstreamer **v0.20.1**; ut-control
 ./install.sh               # clone+pin the framework deps into framework/ (once)
 ./build.sh                 # build VARIANT=CPP for linux  (runs install.sh if needed)
 ./build.sh TARGET=arm      # cross-compile for an arm target
+
+# Linux software platform (no hardware Rialto) — build the backend once, then
+# build.sh auto-discovers it and the suite runs the full set locally:
+./build-rialto.sh --deps   # build Rialto + rialto-gstreamer (NATIVE_BUILD); --deps apt-installs deps (root)
+./build.sh
 ```
 
 The downstream [Makefile](Makefile) sets `SRC_DIRS`/`INC_DIRS`, takes the public
 API headers from the pinned `framework/rialto`, links only `libRialtoClient`
 (via pkg-config) + GStreamer, and delegates to ut-core. Output binary:
-`build/bin/rialto_conformance`. **Rialto is never built here** — the suite links
-the installed public client lib on the host/target.
+`build/bin/rialto_conformance`. The suite links the **installed** public client
+lib on the host/target; the build itself does not compile Rialto. The exception
+is the opt-in Linux software platform — `build-rialto.sh` produces a local
+`libRialtoClient` the Makefile then resolves via pkg-config, no source change.
 
 ## Run (standalone, on a target with Rialto installed)
 
