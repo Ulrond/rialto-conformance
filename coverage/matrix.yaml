@@ -1,0 +1,85 @@
+# Copyright 2026 RDK Management
+# SPDX-License-Identifier: Apache-2.0
+#
+# Requirements-derived coverage record & traceability (§5).
+#
+# The versioned matrix. Each cell ties a global media-playback conformance
+# requirement (suite-owned `RC-*` id) to the Rialto surface it drives, the
+# conformance case that proves it, and the ABI version it entered at. Axes are
+# property×path, codec×path, op×path — never container (HLS/DASH demux is above
+# Rialto) and never platform (platform applicability is the capability gate,
+# profiles/, not a matrix axis).
+#
+# `req:` lists the conformance requirement ids this cell satisfies. The ids are
+# self-contained and source-neutral: they name what the interface must do, not
+# where the requirement originated. The provenance of each id (which upstream
+# certification programme it traces to) lives only in the private requirements
+# feed mounted at coverage/requirements/ — never in this public record.
+#
+# path: "native" (Surface B, public client API) | "mse" (Surface A, rialtomse*sink)
+# status: "covered" | "planned" | "gap" (requirement unmet by Rialto today)
+#
+# Phase 0 seeds the schema and the smoke-case rows. L1→L4 ingestion fills it out.
+
+schemaVersion: 1
+abiVersion: 5            # kPlatformBackendAbiVersion this record describes
+
+# --- Operations (the IMediaPipeline / IMediaKeys / IWebAudioPlayer functions) -
+operations:
+  - op: getSupportedMimeTypes
+    interface: IMediaPipelineCapabilities
+    path: native
+    req: [RC-FMT-001]
+    expected: "Reports the MSE mime types the target supports for a source type"
+    case: "L1CapabilitiesTests.BaselineVideoMimeTypeSupportIsConsistent"
+    abi: 1
+    status: covered
+
+  - op: isMimeTypeSupported
+    interface: IMediaPipelineCapabilities
+    path: native
+    req: [RC-FMT-001]
+    expected: "Agrees with getSupportedMimeTypes for a queried codec"
+    case: "L1CapabilitiesTests.BaselineVideoMimeTypeSupportIsConsistent"
+    abi: 1
+    status: covered
+
+  - op: isVideoMaster
+    interface: IMediaPipelineCapabilities
+    path: native
+    req: [RC-AVSYNC-001]
+    expected: "Returns status and writes the video-master out-param"
+    case: "L1CapabilitiesTests.IsVideoMasterReportsStatus"
+    abi: 3
+    status: covered
+
+# --- Properties (sink/decoder properties) × path ------------------------------
+properties:
+  - prop: element-registration
+    path: mse
+    req: [RC-MSE-001]
+    expected: "rialtomse{audio,video}sink registered under documented names"
+    case: "L1SinkRegistrationTests.VideoSinkRegistered, L1SinkRegistrationTests.AudioSinkRegistered"
+    abi: 1
+    status: covered
+
+# --- Codecs × path ------------------------------------------------------------
+codecs:
+  - codec: h264
+    path: native
+    req: [RC-CODEC-AVC]
+    expected: "AVC advertised and a real AVC stream plays end-to-end"
+    case: "L1CapabilitiesTests.BaselineVideoMimeTypeSupportIsConsistent"   # L4 E2E case to follow
+    abi: 1
+    status: covered
+
+# --- Known coverage gaps (surfacing unmet requirements is a primary point, §5)-
+gaps:
+  - req: [RC-DRM-FPS-001]
+    surface: "IMediaKeys / IMediaKeysCapabilities"
+    detail: >
+      A conformance requirement covers the com.apple.fps key system. Rialto
+      advertises Widevine and PlayReady (com.widevine.alpha,
+      com.microsoft.playready) but not com.apple.fps. FPS is a flagged coverage
+      gap and a backlog item (add the FPS key system to Rialto/OCDM).
+    status: gap

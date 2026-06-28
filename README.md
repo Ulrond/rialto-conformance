@@ -1,0 +1,149 @@
+<!--
+Copyright 2026 RDK Management
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+SPDX-License-Identifier: Apache-2.0
+-->
+
+# rialto-conformance
+
+A **version-independent, platform-independent conformance suite** for Rialto's
+**northbound external interfaces**, verifying they conform to a catalogue of
+**global media-playback conformance requirements**. Each requirement is a
+suite-owned, source-neutral `RC-*` id describing what the interface must do; the
+provenance of those ids is kept out of this repo (see
+[coverage/requirements/](coverage/requirements/)).
+
+It tests two surfaces, and only these — never internal wiring:
+
+- **Surface A — MSE GStreamer sink** — the `rialtomse{audio,video}sink` and
+  text-track sink elements (`rialto-gstreamer`): element names, properties, and
+  caps negotiation.
+- **Surface B — Native client API** — the published C++ interfaces in
+  `media/public/include/*` and their client/event callbacks.
+
+The suite is a standalone **installable package**. It links **only** Rialto's
+public client library + headers and drives the sink elements present on the
+target. **It does not build Rialto** — point it at any installed build and the
+same cases give the same verdict, so any diff is a real regression or an
+intended new behaviour.
+
+This is **real end-to-end testing against real content — not a mock test**. The
+verdict is conformance to the premium-OTT requirements, not an internal contract.
+
+## Harness
+
+| Layer | Role |
+|---|---|
+| **ut-core** (`VARIANT=CPP` → GoogleTest) | case/assertion structure, run modes, xUnit reporting. Built via its **Makefile** (not CMake). |
+| **ut-control** | KVP profile engine, logging, control-plane helpers. Pulled by ut-core's `build.sh`. |
+| **ut-raft** (on python_raft) | host-side orchestration: deploy the binary, run it `-a -p <profile>`, adjudicate xUnit. |
+| **rialto + rialto-gstreamer** | the API reference the cases are written against (public client headers + the `rialtomse*sink` surface). **Not built here.** |
+
+All of the above are **installed at fixed versions by [install.sh](install.sh)**
+into the gitignored `framework/` area — never committed. The pins live in
+[framework.lock](framework.lock): ut-core **5.1.0**, python_raft **1.8.2**,
+ut-raft **2.1.2**, rialto **v0.22.2**, rialto-gstreamer **v0.20.1**; ut-control
+**2.1.0** + GoogleTest **1.15.2** are pulled by ut-core's `build.sh`.
+
+## Install + build
+
+```bash
+./install.sh               # clone+pin the framework deps into framework/ (once)
+./build.sh                 # build VARIANT=CPP for linux  (runs install.sh if needed)
+./build.sh TARGET=arm      # cross-compile for an arm target
+```
+
+The downstream [Makefile](Makefile) sets `SRC_DIRS`/`INC_DIRS`, takes the public
+API headers from the pinned `framework/rialto`, links only `libRialtoClient`
+(via pkg-config) + GStreamer, and delegates to ut-core. Output binary:
+`build/bin/rialto_conformance`. **Rialto is never built here** — the suite links
+the installed public client lib on the host/target.
+
+## Run (standalone, on a target with Rialto installed)
+
+```bash
+./rialto_conformance -a -p deviceConfig.yaml     # automated xUnit + capability profile
+./rialto_conformance -b -p deviceConfig.yaml     # basic stdout
+```
+
+In practice ut-raft installs the package and runs it — see [raft/](raft/).
+
+## Test levels (scope of test, not platform)
+
+| Level | Group ID | Scope |
+|---|---|---|
+| **L1** | `UT_TESTS_L1` | function — each public function on its own: return status, params, state machine; sink element/property behaviour + caps |
+| **L2** | `UT_TESTS_L2` | module — one module as a whole (load/attach/play/pause/seek/EOS, position, caps) |
+| **L3** | `UT_TESTS_L3` | group — subsystems together so a fault is localisable (SVP, playback, DRM group) |
+| **L4** | `UT_TESTS_L4` | full-stream E2E — real elementary streams + real DRM; the §5 premium-OTT matrix is the pass/fail |
+
+Group IDs are **selective-run filters only** (`-e`/`-d`); ut-core runs every
+registered suite by default. The same cases run identically on every platform —
+only the cross-compiler differs.
+
+## Platform applicability is data, not code
+
+One binary, the same cases everywhere. The suite never branches on platform
+identity — applicability is a **capability gate** on **platform features**, never
+a code fork. The gate is on what the target's *platform* supports/exposes, **not
+SoC capability**: a SoC may be capable of something the platform built on it does
+not support, and two platforms on one SoC can expose different feature sets — so
+there are no per-SoC profiles.
+
+**Only genuinely-variable features are gated.** The standard required surface —
+the MSE audio/video/text sinks, the core native interfaces, and baseline
+H.264 + AAC — is mandatory and tested **unconditionally**: its absence is a
+conformance **failure**, not a skip.
+
+- **End state** — the platform API reports the requirements it exposes; the suite
+  reads them at runtime and self-selects its applicable cases.
+- **Interim / fallback** — the per-target `deviceConfig` (python_raft shape,
+  `deviceConfig: → cpe1: → platform:`; see
+  [profiles/deviceConfig.example.yaml](profiles/deviceConfig.example.yaml))
+  carries the per-platform feature toggles under `rialto:`. Cases read them with
+  `UT_KVP_PROFILE_GET_BOOL("deviceConfig/cpe1/rialto/<key>")` and self-skip via
+  `UT_IGNORE_TEST()` when a feature is off. Retired per backend as each gains
+  dynamic capability reporting.
+
+Adding a target adds one `deviceConfig` (named by config) and a `raft/` entry —
+**no new test code**.
+
+## Layout
+
+```text
+install.sh            install pinned framework deps (framework.lock) into framework/
+build.sh · Makefile   build VARIANT=CPP; link only libRialtoClient + GStreamer
+framework.lock        pinned versions of ut-core / ut-raft / rialto API reference
+include/conformance/  CapabilityGate.h · AbiVersion.h · ContentLoader.h · Surfaces.h
+src/                  main.cpp + L1_function/ L2_module/ L3_group/ L4_e2e/ (native/ + mse/)
+coverage/             matrix.yaml + requirements/ (gitignored private-feed mount)
+profiles/             deviceConfig.schema.yaml + deviceConfig.example.yaml  (capability gate)
+raft/                 rack_config.yml · device_config.yml · suites/  (deploy/run/adjudicate)
+assets/               manifest.yaml — real streams fetched at run start, never committed
+packaging/            package.sh — bundle binary + profiles + raft scripts
+framework/            install.sh target — ut-core/ut-control/ut-raft/rialto (NOT committed)
+```
+
+## Certification model
+
+A backend declares its ABI version via `rialtoPlatformBackendAbiVersion()`;
+passing the vN suite certifies that backend at vN (currently **v5**). Bumps are
+**additive** — a certified backend is not re-certified by a later additive bump.
+The versioned `coverage/matrix.yaml` is the traceability record: "Rialto @ ABI vN
++ backend X meets conformance requirements {RC-…}."
+
+## Licence
+
+Apache-2.0. New files carry the `RDK Management` copyright header.

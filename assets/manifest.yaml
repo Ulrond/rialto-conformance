@@ -1,0 +1,44 @@
+# Copyright 2026 RDK Management
+# SPDX-License-Identifier: Apache-2.0
+#
+# Central asset registry (§7.1) — real elementary streams, fetched not vendored.
+#
+# Real streams are NOT committed. A case declares its asset dependency by `id`;
+# at the start of a raft run the suite downloads any needed asset that is missing
+# into assets/cache/ (verified against the checksum here), then proceeds. Prefer
+# open-source / non-copyright, free-to-use content. Bump this manifest — not the
+# tree — to upgrade the corpus.
+#
+# Each entry:
+#   id        : stable handle a case requests (ContentLoader::require("<id>"))
+#   codec     : elementary-stream codec
+#   keySystem : "" if clear, else the DRM key system the stream is encrypted for
+#   mimeType  : MSE/native mime the surface negotiates
+#   url       : source download URL
+#   sha256    : checksum the loader verifies the cached file against
+#   licence   : SPDX id or licence note — must be free-to-use / non-copyright
+
+assets:
+  - id: h264-1080p-clear
+    codec: h264
+    keySystem: ""
+    mimeType: video/h264
+    url: "https://REPLACE_ME/open/h264-1080p.h264"
+    sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+    licence: "CC0-1.0"
+
+  - id: aac-stereo-clear
+    codec: aac
+    keySystem: ""
+    mimeType: audio/mp4
+    url: "https://REPLACE_ME/open/aac-stereo.aac"
+    sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+    licence: "CC0-1.0"
+
+  - id: h264-1080p-widevine
+    codec: h264
+    keySystem: com.widevine.alpha
+    mimeType: video/h264
+    url: "https://REPLACE_ME/open/h264-1080p-cenc.h264"
+    sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+    licence: "CC0-1.0 (clear sample re-encrypted with a test key)"

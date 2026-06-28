@@ -1,0 +1,48 @@
+# Copyright 2026 RDK Management
+# SPDX-License-Identifier: Apache-2.0
+#
+# EXAMPLE deviceConfig (python_raft device-config shape) — the on-target ut-core
+# KVP profile, loaded with `rialto_conformance -a -p <deviceConfig>` (§3 req 2).
+#
+# This is the template a deployment copies to raft/device_config.yml and edits
+# per target. The `rialto:` block is the capability gate: it lists only the
+# VARIABLE platform features. The standard required surface (MSE audio/video/text
+# sinks, the core native interfaces, baseline H.264 + AAC) is mandatory and
+# tested unconditionally — absence is a FAILURE, never a skip — so it is not
+# listed here.
+#
+# The gate is platform-supported features, NOT SoC capability; there are no
+# per-SoC profiles. Schema + key docs: deviceConfig.schema.yaml. The values below
+# enable a full feature set so every gated case is exercised.
+
+deviceConfig:
+  cpe1:
+    platform: "reference"     # config-named target instance — not a SoC family
+    model: "reference"
+    prompt: "root@target:~#"
+
+    rialto:
+      abiVersion: 5
+
+      codecs:
+        video:
+          hevc: true
+          vp9: true
+          av1: true
+        audio:
+          eac3: true
+          ac4: true
+          opus: true
+
+      drm:
+        widevine: true
+        playready: true
+        fairplay: false        # com.apple.fps — unmet by Rialto (coverage/matrix.yaml gap)
+        secureVideoPath: true
+
+      passthrough:
+        hdr: true
+        hfr: true
+        uhd4k: true
+        uhd8k: false
+        atmos: true

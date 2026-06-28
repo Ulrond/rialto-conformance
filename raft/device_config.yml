@@ -1,0 +1,54 @@
+# Copyright 2026 RDK Management
+# SPDX-License-Identifier: Apache-2.0
+#
+# python_raft device config (auto-loaded via rack_config includes, or
+# --deviceConfig) — the canonical python_raft shape:
+#     deviceConfig: > cpe1: > platform: / model: / prompt:
+#
+# This single file does double duty (the raft convention):
+#   * python_raft reads platform/model/prompt to drive the target;
+#   * it IS the on-target ut-core KVP profile — ut-raft ships it and the binary
+#     loads it with `-p`, reading the capability gate under `rialto:`.
+#
+# raft is GIVEN the target by config and has NO concept of the platform; the
+# suite never branches on platform identity. The `rialto:` block gates only
+# VARIABLE features (the standard required surface is tested unconditionally).
+# Swapping the backend = editing this config, never the tests. Schema +
+# full-feature template: ../profiles/deviceConfig.example.yaml.
+
+deviceConfig:
+  cpe1:
+    platform: "reference-target"   # config-named target instance — not a SoC family
+    model: "reference"
+    prompt: "root@target:~#"
+
+    # Where ut-raft installs the package + collects results on this target.
+    conformance:
+      installDir: "/opt/rialto-conformance"
+      binary: "rialto_conformance"
+      resultsDir: "/opt/rialto-conformance/results"
+
+    # Capability gate (platform-supported variable features only) — read on the
+    # target via UT_KVP_PROFILE_GET_BOOL("deviceConfig/cpe1/rialto/<key>").
+    rialto:
+      abiVersion: 5
+      codecs:
+        video:
+          hevc: true
+          vp9: true
+          av1: false
+        audio:
+          eac3: true
+          ac4: false
+          opus: true
+      drm:
+        widevine: true
+        playready: true
+        fairplay: false
+        secureVideoPath: false
+      passthrough:
+        hdr: false
+        hfr: false
+        uhd4k: false
+        uhd8k: false
+        atmos: false

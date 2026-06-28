@@ -1,0 +1,63 @@
+# Copyright 2026 RDK Management
+# SPDX-License-Identifier: Apache-2.0
+#
+# deviceConfig capability-gate schema (§3 req 2) — raft cpe:/platform: shape.
+#
+# A deviceConfig follows python_raft's device-config convention:
+#     deviceConfig: > cpe1: > platform: / model: / prompt:
+# (see python_raft examples/configs/example_device_config.yml). It is shipped to
+# the target and loaded by the on-target binary as the ut-core KVP profile
+# (`rialto_conformance -a -p <deviceConfig>`). The conformance capability gate is
+# nested under the cpe at `rialto:`; cases read it with
+# UT_KVP_PROFILE_GET_BOOL("deviceConfig/cpe1/rialto/<key>") and self-skip via
+# UT_IGNORE_TEST() when a feature is off (see include/conformance/CapabilityGate.h).
+#
+# ONLY VARIABLE features are gated here. The standard required surface — the MSE
+# audio/video/text sinks, the core native interfaces (IControl, IMediaPipeline,
+# IMediaKeys, IWebAudioPlayer), and the baseline H.264 + AAC codecs — is
+# MANDATORY and tested UNCONDITIONALLY: its absence is a FAILURE, not a skip. Do
+# not add toggles for required features; a toggle means "this genuinely varies
+# between platforms".
+#
+# The gate is on PLATFORM-SUPPORTED features, not SoC capability — a SoC may be
+# capable of more than its platform supports, and two platforms on one SoC can
+# differ. There are no per-SoC profiles; one deviceConfig describes one target.
+# The interim bridge (this file) is retired per backend as each reports its
+# capabilities dynamically.
+#
+# Keys use dot or slash notation (ut-control normalises). Value types noted.
+
+deviceConfig:
+  cpe1:                       # one CPE per deviceConfig (the target this run drives)
+    platform: string          # config-named target instance — NOT a SoC family
+    model: string
+    prompt: string            # console prompt (raft)
+
+    rialto:                   # rialto-conformance capability gate (variable features only)
+      abiVersion: uint32      # platform-backend ABI version this target reports (§4); gates additive cases
+
+      # Optional/advanced codecs (H.264 + AAC are baseline-required, not listed).
+      codecs:
+        video:
+          hevc: bool          # H.265
+          vp9: bool
+          av1: bool
+        audio:
+          eac3: bool
+          ac4: bool
+          opus: bool
+
+      # DRM key systems the platform provisions (varies per target).
+      drm:
+        widevine: bool        # com.widevine.alpha
+        playready: bool       # com.microsoft.playready
+        fairplay: bool        # com.apple.fps — unmet by Rialto today (coverage/matrix.yaml gap)
+        secureVideoPath: bool # SVP
+
+      # Render/passthrough capabilities (HDR / HFR / 4K-8K / Atmos).
+      passthrough:
+        hdr: bool
+        hfr: bool
+        uhd4k: bool
+        uhd8k: bool
+        atmos: bool

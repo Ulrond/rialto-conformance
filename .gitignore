@@ -1,0 +1,34 @@
+# Framework testing suite — installed at fixed versions by install.sh, never
+# committed (§4). ut-core, ut-control, ut-raft, python_raft + the Rialto API
+# reference all live here.
+/framework/
+
+# Python venv created by install.sh for the raft host deps
+/python_venv/
+*.installed
+
+# Build output
+/build/
+*.o
+*.a
+*.so
+*.so.*
+
+# Real elementary streams — downloaded at run start, never committed (§7.1)
+/assets/cache/
+
+# Private requirements feed — mounted from the access-gated requirements repo,
+# never committed here. Only the mount-point README is tracked. Partner
+# provenance (the RC-* crosswalk + catalogues) lives in that private repo.
+/coverage/requirements/*
+!/coverage/requirements/README.md
+
+# Local session marker — not part of the suite
+.lastlogin
+
+# ut-core / ut-raft run artefacts
+*.log
+*.xml
+__pycache__/
+*.pyc
+/logs/

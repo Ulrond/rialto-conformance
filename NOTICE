@@ -1,0 +1,22 @@
+rialto-conformance
+Copyright 2026 RDK Management
+
+This product includes software developed by RDK Management and contributors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+This repository fetches, but does not redistribute, the following projects at
+build time (see build.sh); each retains its own licence:
+
+  - rdkcentral/ut-core      (Apache-2.0)  test runner, VARIANT=CPP / GoogleTest
+  - rdkcentral/ut-control   (Apache-2.0)  KVP profile engine, logging, control plane
+  - rdkcentral/ut-raft      (Apache-2.0)  host-side orchestration (on python_raft)
+  - google/googletest       (BSD-3-Clause) GoogleTest 1.15.2
+
+This suite links against, but does not build or redistribute, Rialto's public
+client library (libRialtoClient) and its public headers, and drives the
+rialtomse*sink GStreamer elements as installed on the target.

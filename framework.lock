@@ -1,0 +1,19 @@
+# Copyright 2026 RDK Management
+# SPDX-License-Identifier: Apache-2.0
+#
+# Pinned external dependencies — the "framework testing suite" (§4).
+#
+# These are INSTALLED at fixed versions by install.sh into the gitignored
+# framework/ area. They are NEVER merged/committed into this repo. install.sh
+# clones each only if absent and checks out the exact ref (the ut-raft clone_repo
+# idiom). ut-control (2.1.0) + GoogleTest (1.15.2) are not listed here: ut-core's
+# own build.sh pulls them at its pinned versions.
+#
+# Format (whitespace-separated):  name  repo_url  ref  role
+# Lines starting with # and blank lines are ignored.
+
+ut-core           https://github.com/rdkcentral/ut-core.git           5.1.0     test runner (VARIANT=CPP / GoogleTest)
+python_raft       https://github.com/rdkcentral/python_raft.git       1.8.2     raft core (host orchestration)
+ut-raft           https://github.com/rdkcentral/ut-raft.git           2.1.2     raft plugin: drive ut-core binaries
+rialto            https://github.com/rdkcentral/rialto.git            v0.22.2   API reference: public client headers (Surface B)
+rialto-gstreamer  https://github.com/rdkcentral/rialto-gstreamer.git  v0.20.1   API reference: rialtomse*sink (Surface A)
