@@ -73,8 +73,8 @@ ut-raft **2.1.2**, rialto **v0.22.2**, rialto-gstreamer **v0.20.1**; ut-control
 
 # Linux software platform (no hardware Rialto) — build the backend once, then
 # build.sh auto-discovers it and the suite runs the full set locally:
-./build-rialto.sh --deps   # build Rialto + rialto-gstreamer (NATIVE_BUILD); --deps apt-installs deps (root)
-./build.sh
+./build-rialto.sh          # installs Rialto's native build deps (root) then builds the software stack
+./build.sh                 # --no-deps skips the dep install for hosts that already provision them
 ```
 
 The downstream [Makefile](Makefile) sets `SRC_DIRS`/`INC_DIRS`, takes the public
