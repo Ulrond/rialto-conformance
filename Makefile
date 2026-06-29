@@ -37,7 +37,12 @@ TARGET_EXEC := rialto_conformance
 SRC_DIRS := $(ROOT_DIR)/src
 INC_DIRS := $(ROOT_DIR)/include
 
-XCFLAGS := -std=c++17 -DNDEBUG
+# We never touch ut-core's own compile flags (CFLAGS/CXXFLAGS/XCFLAGS) — those are
+# ut-core's. The sanctioned caller extension points are INC_DIRS (ut-core folds
+# these into BOTH the .c and .cpp compiles via INC_FLAGS) and YLDFLAGS (folded
+# into the link). So we contribute the Rialto + GStreamer include DIRECTORIES to
+# INC_DIRS and their libraries to YLDFLAGS, and otherwise leave ut-core's build
+# alone (g++ defaults to gnu++17, which the suite is written against).
 
 # --- Surface B: Rialto's PUBLIC client library + headers ----------------------
 # Headers (the API reference the cases are written against) come from the pinned
@@ -58,9 +63,10 @@ RIALTO_NATIVE_LIBDIR := $(RIALTO_NATIVE_PREFIX)/lib
 endif
 
 RIALTO_SRC_INC := $(ROOT_DIR)/framework/rialto/media/public/include
-RIALTO_CFLAGS := $(shell $(PKG_CONFIG) --cflags RialtoClient 2>/dev/null)
+# Include DIRECTORIES (strip the -I from pkg-config --cflags) for INC_DIRS.
+RIALTO_INC := $(patsubst -I%,%,$(filter -I%,$(shell $(PKG_CONFIG) --cflags RialtoClient 2>/dev/null)))
 ifneq ($(wildcard $(RIALTO_SRC_INC)),)
-RIALTO_CFLAGS += -I$(RIALTO_SRC_INC)
+RIALTO_INC += $(RIALTO_SRC_INC)
 endif
 RIALTO_LIBS   := $(shell $(PKG_CONFIG) --libs   RialtoClient 2>/dev/null)
 ifeq ($(strip $(RIALTO_LIBS)),)
@@ -68,13 +74,14 @@ RIALTO_LIBS := -lRialtoClient
 endif
 
 # --- Surface A: GStreamer core/base, to introspect rialtomse*sink elements ----
-GST_CFLAGS := $(shell $(PKG_CONFIG) --cflags gstreamer-1.0 gstreamer-app-1.0 2>/dev/null)
-GST_LIBS   := $(shell $(PKG_CONFIG) --libs   gstreamer-1.0 gstreamer-app-1.0 2>/dev/null)
+GST_INC  := $(patsubst -I%,%,$(filter -I%,$(shell $(PKG_CONFIG) --cflags gstreamer-1.0 gstreamer-app-1.0 2>/dev/null)))
+GST_LIBS := $(shell $(PKG_CONFIG) --libs gstreamer-1.0 gstreamer-app-1.0 2>/dev/null)
 ifeq ($(strip $(GST_LIBS)),)
 GST_LIBS := -lgstreamer-1.0 -lgstapp-1.0 -lgobject-2.0 -lglib-2.0
 endif
 
-XCFLAGS += $(RIALTO_CFLAGS) $(GST_CFLAGS)
+# Sanctioned ut-core hooks: include dirs via INC_DIRS, libraries via YLDFLAGS.
+INC_DIRS += $(RIALTO_INC) $(GST_INC)
 YLDFLAGS := $(RIALTO_LIBS) $(GST_LIBS)
 
 # rpath to the locally-built Rialto (software platform), when present.
@@ -90,7 +97,7 @@ YLDFLAGS += -Wl,-rpath,$(HAL_LIB_DIR) -L$(HAL_LIB_DIR)
 export HAL_LIB_DIR
 endif
 
-export TOP_DIR BIN_DIR SRC_DIRS INC_DIRS TARGET TARGET_EXEC VARIANT XCFLAGS YLDFLAGS
+export TOP_DIR BIN_DIR SRC_DIRS INC_DIRS TARGET TARGET_EXEC VARIANT YLDFLAGS
 
 .PHONY: build clean cleanall framework
 

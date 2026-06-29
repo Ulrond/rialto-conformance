@@ -46,6 +46,7 @@
 
 #include <ut.h>
 #include <ut_kvp_profile.h>
+#include <ut_log.h>   // UT_LOG (ut.h's C++/gtest path does not pull it in)
 
 #include <cstdint>
 #include <string>

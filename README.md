@@ -46,6 +46,24 @@ their own `NATIVE_BUILD` (platform deps stubbed) into a local prefix that
 [build.sh](build.sh) auto-discovers. Same one binary, same cases — only the
 backend underneath is software rather than a SoC.
 
+The reproducible, root-clean way to do that is the SC docker flow — one command
+that bootstraps anything missing (the `sc` tool, the build-env image) and runs
+the build + gate inside the container as you:
+
+```bash
+./sc-run.sh                          # CORE gate on the Linux software platform
+RIALTO_CONFORMANCE_TIER=all ./sc-run.sh
+```
+
+[Dockerfile](Dockerfile) is the build *environment* (toolchain + Rialto's native
+deps + the SC user-mapping entrypoint, own ubuntu base — no internal registry or
+certificate); [sc-run.sh](sc-run.sh) ensures `sc`
+([github.com/rdkcentral/sc](https://github.com/rdkcentral/sc)) + the image exist,
+then `sc docker run`s the build + gate against the mounted repo. The sink-surface
+(Surface A) cases run green this way; the native client-API (Surface B) cases
+additionally need a running **RialtoServer** (the client API is IPC-based) — that
+runtime is the next integration step.
+
 This is **real end-to-end testing against real content — not a mock test**. The
 verdict is conformance to the published requirements, not an internal contract.
 
