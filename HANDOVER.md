@@ -46,13 +46,14 @@ Linux software platform via the SC docker flow**:
   squashed clean before first push — do not restore pre-scrub history.
 - **CORE catalogue: 118 `RC-CORE-*` requirements**, header-verified to cover the
   whole external surface (one soft spot: `IClientLogControl`/`RC-CORE-LOG-001`
-  lightly enumerated). **~12 authored as cases; ~106 catalogued, not yet written.**
-- **The gate runs.** `./sc-run.sh` → `sc docker run` → builds the software Rialto
-  and the suite, brings up a `RialtoServer`, runs the CORE gate against it:
-  **12 tests → 7 PASS, 3 SKIP (capability-gated), 2 FAIL.** The 2 fails
-  (`RC-CORE-KEYSCAP-002/003`) are the `NATIVE_BUILD` **stub OCDM** correctly
-  flagged as a non-conformant DRM backend — a stub property, **not** a suite bug;
-  a real CDM is expected to pass them. Do not weaken those cases to force green.
+  lightly enumerated). **~17 authored as cases; ~101 catalogued, not yet written.**
+- **The gate runs.** The software Rialto and the suite are built, a `RialtoServer`
+  is brought up (Active), and the CORE gate runs against it:
+  **17 tests → 12 PASS, 3 SKIP (capability-gated), 2 FAIL.** Both fails are
+  `NATIVE_BUILD` **stub-OCDM** properties (`RC-CORE-KEYSCAP-002/003`): the stub
+  accepts any key system and reports no version, so it is correctly flagged as a
+  non-conformant DRM backend — **not** a suite bug; a real CDM is expected to
+  pass them. Do not weaken those cases to force green.
 
 ## Run
 
@@ -71,6 +72,20 @@ RIALTO_CONFORMANCE_TIER=core ./build/bin/rialto_conformance -a -p profiles/devic
 `sc docker run` swallows the inner exit code — **always read the run log**, never
 trust the wrapper exit. Same for backgrounded `docker build` (the notification
 exit is the wrapper's, not docker's).
+
+**`sc-run.sh` currently errors** with `SC not found` (an `sc`-tool infra problem,
+not the suite — and the wrapper still exits 0, so only the log shows it). Until
+`sc` is fixed, run the same build + gate via a direct `docker run` against the
+`rialto-conformance-env` image (mount the repo at its identical host path so the
+baked pkg-config prefixes stay valid):
+
+```bash
+ROOT_DIR="$(pwd)"
+docker run --rm \
+  -e LOCAL_USER_ID="$(id -u)" -e LOCAL_USER_NAME="$(id -un)" -e LOCAL_GROUP_ID="$(id -g)" \
+  -e LOCAL_START_DIR="${ROOT_DIR}" -v "${ROOT_DIR}:${ROOT_DIR}" \
+  rialto-conformance-env "RIALTO_CONFORMANCE_TIER=core ./docker/run-in-container.sh"
+```
 
 ## Invariants (DO NOT regress)
 

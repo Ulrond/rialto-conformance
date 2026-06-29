@@ -73,6 +73,28 @@ if ! wait_for "session-server socket ${SOCK}" test -S "${SOCK}"; then
 fi
 echo "[run] RialtoServer up on ${SOCK}"
 
+# The socket exists as soon as the session server starts listening, but the app
+# reaches the RUNNING application state (what IControl clients are notified of)
+# only once the server completes switchToActive. Confirm Active before running
+# the gate: a registering control client is then handed the current RUNNING
+# state on registration (ControlService::addControl replays it), which the
+# IControl state-notification case relies on. Poll GetState, re-issuing
+# SetState/Active (the changeSessionServerState path) so activation is driven
+# deterministically even if the initial initiateApplication landed before the
+# server's IPC was ready. Best-effort: a timeout warns and proceeds rather than
+# failing the cases that do not need RUNNING.
+echo "[run] waiting for app '${APP}' to reach Active (RUNNING)"
+for _ in $(seq 1 100); do
+    if curl -s "localhost:${SIM_PORT}/GetState/${APP}" 2>/dev/null | grep -q "returned: Active"; then
+        echo "[run] app '${APP}' is Active (RUNNING)"; break
+    fi
+    curl -s -X POST -d "" "localhost:${SIM_PORT}/SetState/${APP}/Active" >/dev/null 2>&1 || true
+    sleep 0.2
+done
+if ! curl -s "localhost:${SIM_PORT}/GetState/${APP}" 2>/dev/null | grep -q "returned: Active"; then
+    echo "[run] WARNING: app '${APP}' did not reach Active; state: $(curl -s localhost:${SIM_PORT}/GetState/${APP} 2>/dev/null)" >&2
+fi
+
 # 3. Run the gate against the live server.
 export RIALTO_SOCKET_PATH="${SOCK}"
 echo "[run] running CORE gate (tier=${TIER})"
