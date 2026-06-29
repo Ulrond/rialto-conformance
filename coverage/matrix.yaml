@@ -4,8 +4,8 @@
 # Requirements-derived coverage record & traceability (§5).
 #
 # The versioned matrix. Each cell ties a global media-playback conformance
-# requirement (suite-owned `RC-*` id) to the Rialto surface it drives, the
-# conformance case that proves it, and the ABI version it entered at. Axes are
+# requirement (suite-owned `RC-*` id) to the Rialto surface it drives and the
+# conformance case that proves it. Axes are
 # property×path, codec×path, op×path — never container (HLS/DASH demux is above
 # Rialto) and never platform (platform applicability is the capability gate,
 # profiles/, not a matrix axis).
@@ -35,7 +35,9 @@
 # Phase 0 seeds the schema and the smoke-case rows. L1→L4 ingestion fills it out.
 
 schemaVersion: 2
-abiVersion: 5            # kPlatformBackendAbiVersion this record describes
+# The Rialto release this record targets (framework.lock pin). NOT Rialto's binary
+# ABI (fixed per release) — it is the release the suite is validated against.
+targetRialtoRelease: "v0.22.2"
 
 # --- Operations (the IMediaPipeline / IMediaKeys / IWebAudioPlayer functions) -
 operations:
@@ -46,7 +48,6 @@ operations:
     req: [RC-CORE-CAPS-001]
     expected: "Reports the MSE mime types the target supports for a source type"
     case: "L1CapabilitiesTests.BaselineVideoMimeTypeSupportIsConsistent"
-    abi: 1
     status: covered
 
   - op: isMimeTypeSupported
@@ -56,7 +57,6 @@ operations:
     req: [RC-CORE-CAPS-001]
     expected: "Agrees with getSupportedMimeTypes for a queried codec"
     case: "L1CapabilitiesTests.BaselineVideoMimeTypeSupportIsConsistent"
-    abi: 1
     status: covered
 
   - op: isVideoMaster
@@ -66,7 +66,6 @@ operations:
     req: [RC-CORE-CAPS-002]
     expected: "Returns status and writes the video-master out-param"
     case: "L1CapabilitiesTests.IsVideoMasterReportsStatus"
-    abi: 3
     status: covered
 
   - op: getSupportedKeySystems
@@ -76,7 +75,6 @@ operations:
     req: [RC-CORE-KEYSCAP-001]
     expected: "Capabilities singleton obtainable; supported-key-systems query callable"
     case: "L1KeysCapabilitiesTests.CapabilitiesObtainable"
-    abi: 1
     status: covered
 
   - op: supportsKeySystem
@@ -86,7 +84,6 @@ operations:
     req: [RC-CORE-KEYSCAP-002]
     expected: "Agrees with getSupportedKeySystems; any string is a legal query, unsupported -> false"
     case: "L1KeysCapabilitiesTests.SupportsKeySystemConsistentWithList"
-    abi: 1
     status: covered
 
   - op: getSupportedKeySystemVersion
@@ -96,7 +93,6 @@ operations:
     req: [RC-CORE-KEYSCAP-003]
     expected: "Writes a version and returns true for a supported system; unsupported -> false"
     case: "L1KeysCapabilitiesTests.SupportedKeySystemVersionContract"
-    abi: 1
     status: covered
 
   - op: isServerCertificateSupported
@@ -106,7 +102,6 @@ operations:
     req: [RC-CORE-KEYSCAP-004]
     expected: "Legal query for any key system; unsupported -> false, not an error"
     case: "L1KeysCapabilitiesTests.ServerCertificateQueryIsLegal"
-    abi: 1
     status: covered
 
 # --- Properties (sink/decoder properties) × path ------------------------------
@@ -117,7 +112,6 @@ properties:
     req: [RC-CORE-MSE-001]
     expected: "rialtomse{audio,video,subtitle}sink registered under documented names"
     case: "L1SinkRegistrationTests.VideoSinkRegistered, L1SinkRegistrationTests.AudioSinkRegistered"
-    abi: 1
     status: covered
 
   - prop: is-master
@@ -127,7 +121,6 @@ properties:
     req: [RC-CORE-CAPS-002]   # same requirement as native isVideoMaster
     expected: "video sink 'is-master' read-only property reflects platform video-master state"
     case: "L1VideoSinkPropertyTests.IsMasterReflectsCapability"   # planned
-    abi: 3
     status: planned
 
 # --- Codecs × path ------------------------------------------------------------
@@ -138,7 +131,6 @@ codecs:
     req: [RC-CORE-CODEC-AVC]
     expected: "AVC advertised by the capabilities API and a real AVC stream plays end-to-end"
     case: "L1CapabilitiesTests.BaselineVideoMimeTypeSupportIsConsistent"   # L4 E2E case to follow
-    abi: 1
     status: covered
 
   - codec: h264
@@ -147,7 +139,6 @@ codecs:
     req: [RC-CORE-CODEC-AVC]
     expected: "rialtomsevideosink advertises video/x-h264 in its sink-pad caps"
     case: "L1SinkRegistrationTests.VideoSinkAdvertisesAvcCaps"   # planned
-    abi: 1
     status: planned
 
 # --- Cross-surface consistency (the two paths must agree, §2) ------------------
@@ -157,7 +148,6 @@ consistency:
     path: both
     expected: "Each codec in native getSupportedMimeTypes maps to a caps entry the matching sink advertises"
     case: "L2CapabilityConsistencyTests.SupportedMimesMatchSinkCaps"   # planned
-    abi: 1
     status: planned
 
   - req: [RC-CORE-CAPS-002]
@@ -165,7 +155,6 @@ consistency:
     path: both
     expected: "native isVideoMaster() agrees with rialtomsevideosink 'is-master'"
     case: "L2CapabilityConsistencyTests.VideoMasterNativeMatchesMse"   # planned
-    abi: 3
     status: planned
 
 # --- Known coverage gaps (surfacing unmet requirements is a primary point, §5)-

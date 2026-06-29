@@ -32,7 +32,7 @@
  *
  * ut-core's group ids (UT_TESTS_L1..L4) are the LEVEL axis and are owned by
  * ut-core; tier is a SECOND axis the suite selects at runtime by self-skip — the
- * same idiom as CapabilityGate / the ABI gate (UT_IGNORE_TEST() == GTEST_SKIP()).
+ * same idiom as CapabilityGate / the release gate (UT_IGNORE_TEST() == GTEST_SKIP()).
  * Because tier gating is an in-test skip, it composes with the ut-core level
  * filter (`-e UT_TESTS_L1`) without both contending for the GoogleTest filter.
  *
@@ -42,7 +42,7 @@
  *   "all" | unset | anything else   run both (default)
  *
  * A case declares its tier at the top of its body, exactly like it declares a
- * capability or ABI requirement:
+ * capability or release requirement:
  *   UT_ADD_TEST(L1CapabilitiesTests, ...) { CONFORMANCE_CORE_TEST(); ... }
  */
 

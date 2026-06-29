@@ -33,7 +33,6 @@
 
 #include <ut.h>
 
-#include "conformance/AbiVersion.h"
 #include "conformance/CapabilityGate.h"
 #include "conformance/Surfaces.h"
 #include "conformance/TierGate.h"
@@ -123,13 +122,14 @@ UT_ADD_TEST(L1CapabilitiesTests, Av1MimeTypeSupportedWhenDeclared)
 }
 
 /**
- * isVideoMaster() returns a status and writes its out-param. Entered at ABI v3
- * (video-master); a backend below v3 self-skips via the ABI gate (§4).
+ * isVideoMaster() returns a status and writes its out-param. Part of the
+ * capabilities surface in the targeted Rialto release, so it applies
+ * unconditionally; a CONFORMANCE_REQUIRE_SINCE gate would be added only if a
+ * future requirement needed a newer Rialto release.
  */
 UT_ADD_TEST(L1CapabilitiesTests, IsVideoMasterReportsStatus)
 {
     CONFORMANCE_CORE_TEST();
-    CONFORMANCE_REQUIRE_ABI(3);
 
     auto factory = IMediaPipelineCapabilitiesFactory::createFactory();
     UT_ASSERT_NOT_NULL_FATAL(factory.get());

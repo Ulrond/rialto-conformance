@@ -51,7 +51,7 @@
 #include <cstdint>
 #include <string>
 
-#include "conformance/AbiVersion.h"
+#include "conformance/RialtoRelease.h"
 
 namespace rialto::conformance
 {
@@ -133,25 +133,30 @@ private:
     } while (0)
 
 /**
- * @brief Gate the current case on the target backend's ABI version.
+ * @brief Gate the current case on the Rialto release a requirement applies from.
  *
- * Skips a case authored at a higher ABI than the backend reports, so an older
- * certified backend is never failed by a newer additive case (§4). The target
- * backend's ABI version is read from the deviceConfig key
- * "deviceConfig/cpe1/rialto/abiVersion".
+ * Skips a case whose requirement was introduced in a Rialto release newer than
+ * the one under test, so a backend is never failed by a requirement for an
+ * interface it predates. The target release is the one the suite is built
+ * against (kTargetRialtoRelease, the framework.lock pin). At a single pinned
+ * release this is dormant — every requirement applies.
+ *
+ *   UT_ADD_TEST(SomeTests, NewFeature) {
+ *       CONFORMANCE_REQUIRE_SINCE("v0.23.0");   // only where Rialto >= v0.23.0
+ *       ...
+ *   }
  */
-#define CONFORMANCE_REQUIRE_ABI(requiredAbi)                                                                          \
-    do                                                                                                                \
-    {                                                                                                                 \
-        uint32_t targetAbi_ = (ut_kvp_profile_getInstance() != nullptr)                                              \
-                                  ? UT_KVP_PROFILE_GET_UINT32("deviceConfig/cpe1/rialto/abiVersion")                 \
-                                  : 0u;                                                                               \
-        if (!::rialto::conformance::abiApplies((requiredAbi), targetAbi_))                                           \
-        {                                                                                                             \
-            UT_LOG("[abi-gate] case needs ABI v%u, target reports v%u; skipping", (requiredAbi), targetAbi_);        \
-            UT_IGNORE_TEST();                                                                                         \
-            return;                                                                                                   \
-        }                                                                                                             \
+#define CONFORMANCE_REQUIRE_SINCE(sinceRelease)                                                                        \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        const std::string target_{::rialto::conformance::kTargetRialtoRelease};                                       \
+        if (!::rialto::conformance::releaseAtLeast(target_, (sinceRelease)))                                           \
+        {                                                                                                              \
+            UT_LOG("[release-gate] requirement needs Rialto %s, target is %s; skipping", (sinceRelease),              \
+                   target_.c_str());                                                                                   \
+            UT_IGNORE_TEST();                                                                                          \
+            return;                                                                                                    \
+        }                                                                                                              \
     } while (0)
 
 #endif // RIALTO_CONFORMANCE_CAPABILITY_GATE_H_

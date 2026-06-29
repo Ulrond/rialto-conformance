@@ -87,9 +87,12 @@ python_venv/bin/python raft/suites/test_rialto_conformance.py \
 5. **No vendor-specific PlayReady variant.** There is just standard PlayReady
    (`com.microsoft.playready`) — no separate key system. FairPlay
    (`com.apple.fps`) is a real Rialto gap, recorded in `coverage/matrix.yaml`.
-6. **ABI-versioned, additive.** Cases declare the ABI they entered at
-   (`CONFORMANCE_REQUIRE_ABI(n)`); an older certified backend is never failed by a
-   newer additive case. Current `kPlatformBackendAbiVersion = 5`.
+6. **Release-targeted (not ABI-versioned).** The suite targets one Rialto release
+   — the framework.lock pin (`kTargetRialtoRelease`/`targetRialtoRelease`, v0.22.2).
+   A requirement may declare a `since:` release; `CONFORMANCE_REQUIRE_SINCE("vX")`
+   self-skips it on an older target, so a backend is never failed by a requirement
+   for an interface it predates. This is **not** Rialto's binary ABI (fixed per
+   release) — the earlier "ABI version" naming was misleading and was removed.
 7. **Two tiers, orthogonal to L1–L4.** **CORE** = interface conformance
    (`coverage/rc-core-catalog.yaml`, the `RC-CORE-*` ids) — the drop-in /
    transform-safety gate, run first. **EXTENDED** = app/player conformance
@@ -103,7 +106,7 @@ python_venv/bin/python raft/suites/test_rialto_conformance.py \
 
 - `install.sh` + `framework.lock`; `build.sh` + `Makefile` (downstream ut-core,
   links only `libRialtoClient` + GStreamer, headers from pinned `framework/rialto`).
-- `include/conformance/`: CapabilityGate, AbiVersion, ContentLoader, Surfaces.
+- `include/conformance/`: CapabilityGate, RialtoRelease, TierGate, ContentLoader, Surfaces.
 - `src/main.cpp` + `src/common/Surfaces.cpp`; **L1 smoke cases** proving the link
   surface — native `IMediaPipelineCapabilities` (`src/L1_function/native/`) and
   MSE `rialtomse*sink` registration (`src/L1_function/mse/`). L2–L4 trees
@@ -118,8 +121,8 @@ python_venv/bin/python raft/suites/test_rialto_conformance.py \
 
 1. **Author the CORE cases** against `coverage/rc-core-catalog.yaml`, climbing
    L1 → L4 (README table). Each case declares its tier (`CONFORMANCE_CORE_TEST()`,
-   `include/conformance/TierGate.h`) plus any cap/ABI gate, and traces to a
-   `coverage/matrix.yaml` row (`RC-CORE-*` + path + expected + ABI);
+   `include/conformance/TierGate.h`) plus any capability/`since` gate, and traces
+   to a `coverage/matrix.yaml` row (`RC-CORE-*` + path + expected);
    negative/quiet-fail reqs are first-class. Needs a target with an installed
    Rialto + GStreamer to run green. (Tier axis is wired: the gate runs alone via
    `RIALTO_CONFORMANCE_TIER=core`, orthogonal to the `-e UT_TESTS_Ln` level

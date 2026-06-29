@@ -34,7 +34,8 @@ deviceConfig:
     prompt: string            # console prompt (raft)
 
     rialto:                   # rialto-conformance capability gate (variable features only)
-      abiVersion: uint32      # platform-backend ABI version this target reports (§4); gates additive cases
+      # (The Rialto release the suite targets is the framework.lock pin, not a
+      # profile field — see include/conformance/RialtoRelease.h.)
 
       # Optional/advanced codecs (H.264 + AAC are baseline-required, not listed).
       codecs:
