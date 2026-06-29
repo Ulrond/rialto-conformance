@@ -41,6 +41,56 @@ targetRialtoRelease: "v0.22.2"
 
 # --- Operations (the IMediaPipeline / IMediaKeys / IWebAudioPlayer functions) -
 operations:
+  - op: createFactory
+    interface: "IControl / IMediaPipeline / IMediaPipelineCapabilities / IMediaKeys / IMediaKeysCapabilities / IWebAudioPlayer"
+    tier: core
+    path: native
+    req: [RC-CORE-FACTORY-001]
+    expected: "Every public createFactory() returns a non-null factory"
+    case: "L1FactoryTests.EveryPublicFactoryIsNonNull"
+    status: covered
+
+  - op: createMediaKeys
+    interface: IMediaKeysFactory
+    tier: core
+    path: native
+    req: [RC-CORE-FACTORY-002]
+    expected: "Returns null (not a partial object) for a key system no backend supports"
+    case: "L1FactoryTests.CreateMediaKeysReturnsNullForUnsupportedKeySystem"
+    status: covered
+
+  - op: registerClient
+    interface: IControl
+    tier: core
+    path: native
+    req: [RC-CORE-CONTROL-001]
+    expected: "Returns true and writes the current ApplicationState into its out-param"
+    case: "L1ControlTests.RegisterClientReturnsTrueAndWritesState"
+    status: covered
+
+  - op: notifyApplicationState
+    interface: IControlClient
+    tier: core
+    path: native
+    req: [RC-CORE-CONTROL-002]
+    expected: "A registered client is notified of a server state transition (reaches RUNNING)"
+    case: "L1ControlTests.RegisteredClientIsNotifiedOfStateTransition"   # planned
+    status: planned
+    # Needs a state transition delivered AFTER the client registers: the server
+    # delivers application state only on a transition (not replayed on register),
+    # and the software-platform harness activates the server before the client
+    # connects, so the initial transition is missed. Covering it requires the
+    # harness to drive an INACTIVE<->ACTIVE transition once the client is up.
+
+  - op: "~IControl"
+    interface: IControl
+    tier: core
+    path: native
+    req: [RC-CORE-CONTROL-003]
+    expected: "The held client shared_ptr is released on IControl destruction"
+    case: "L1ControlTests.ClientReleasedOnControlDestruction"
+    status: covered
+
   - op: getSupportedMimeTypes
     interface: IMediaPipelineCapabilities
     tier: core
