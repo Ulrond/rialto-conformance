@@ -1,0 +1,12 @@
+# Keep the build context small + reproducible: never copy installed/built trees
+# (the image rebuilds them from pinned sources via install.sh / build-rialto.sh).
+.git
+framework/
+build/
+python_venv/
+logs/
+*.deb
+*.o
+*.a
+*.so
+*.so.*

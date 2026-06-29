@@ -48,7 +48,9 @@ fi
 # Pass-through make args (e.g. TARGET=arm) and clean verbs.
 MAKE_ARGS=("$@")
 
-echo "[build.sh] building (VARIANT=CPP) ${MAKE_ARGS[*]:-}"
-make -C "${ROOT_DIR}" VARIANT=CPP "${MAKE_ARGS[@]:-}"
+echo "[build.sh] building (VARIANT=CPP) ${MAKE_ARGS[*]}"
+# Safe expansion: pass MAKE_ARGS only when non-empty (an empty "${a[@]:-}" expands
+# to a single empty argument, which make rejects as an invalid file name).
+make -C "${ROOT_DIR}" VARIANT=CPP ${MAKE_ARGS[@]+"${MAKE_ARGS[@]}"}
 
 echo "[build.sh] done -> ${ROOT_DIR}/build/bin/rialto_conformance"

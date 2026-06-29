@@ -63,12 +63,13 @@ constexpr const char *kPlayReady = "com.microsoft.playready";
 // false rather than error (RC-CORE-KEYSCAP-002).
 constexpr const char *kUnsupported = "com.example.nonexistent.keysystem";
 
-// Obtain the capabilities singleton, asserting the link/factory surface.
+// Obtain the capabilities singleton. No fatal asserts here: GTest's fatal
+// asserts (ASSERT_*) return void, so they cannot live in a value-returning
+// helper. Returns nullptr on factory failure; callers assert non-null.
 std::shared_ptr<IMediaKeysCapabilities> obtainCapabilities()
 {
     auto factory = IMediaKeysCapabilitiesFactory::createFactory();
-    UT_ASSERT_NOT_NULL_FATAL(factory.get());
-    return factory->getMediaKeysCapabilities();
+    return factory ? factory->getMediaKeysCapabilities() : nullptr;
 }
 } // namespace
 
