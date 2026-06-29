@@ -54,8 +54,8 @@ links them on the target, never builds them). Shell/Python/YAML pass parse check
 ./build.sh          # build VARIANT=CPP -> build/bin/rialto_conformance
 # on a target with Rialto installed (ut-raft does this for you):
 ./rialto_conformance -a -p deviceConfig.yml
-python raft/suites/test_rialto_conformance.py --config raft/rack_config.yml \
-       --rack rack1 --slotName reference-target
+python_venv/bin/python raft/suites/test_rialto_conformance.py \
+       --config raft/rack_config.yml --rack rack1 --slotName reference-target
 ```
 
 ## Decisions baked in (DO NOT regress)
