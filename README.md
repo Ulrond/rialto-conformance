@@ -59,10 +59,18 @@ RIALTO_CONFORMANCE_TIER=all ./sc-run.sh
 deps + the SC user-mapping entrypoint, own ubuntu base — no internal registry or
 certificate); [sc-run.sh](sc-run.sh) ensures `sc`
 ([github.com/rdkcentral/sc](https://github.com/rdkcentral/sc)) + the image exist,
-then `sc docker run`s the build + gate against the mounted repo. The sink-surface
-(Surface A) cases run green this way; the native client-API (Surface B) cases
-additionally need a running **RialtoServer** (the client API is IPC-based) — that
-runtime is the next integration step.
+then `sc docker run`s [docker/run-in-container.sh](docker/run-in-container.sh),
+which builds the software Rialto + the suite, brings up a **RialtoServer** via the
+ServerManagerSim (so the IPC-based native client API connects), and runs the gate.
+
+On the Linux software platform the CORE gate runs end-to-end: the MSE sinks
+(Surface A) and the native capabilities — codec/mime reporting, baseline H.264,
+video-master (Surface B) — pass against the live software Rialto. Two DRM-
+capability cases (`RC-CORE-KEYSCAP-002/003`) **fail by design**: the
+`NATIVE_BUILD` stubs OCDM, so it accepts any key system and reports no version —
+i.e. the gate correctly flags the stub as a non-conformant DRM backend. That is a
+property of the software platform's stub, not of the suite; a real backend with a
+real CDM is expected to pass them.
 
 This is **real end-to-end testing against real content — not a mock test**. The
 verdict is conformance to the published requirements, not an internal contract.
