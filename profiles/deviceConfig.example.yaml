@@ -22,7 +22,6 @@ deviceConfig:
     prompt: "root@target:~#"
 
     rialto:
-      abiVersion: 5
 
       codecs:
         video:

@@ -31,7 +31,6 @@ deviceConfig:
     # Capability gate (platform-supported variable features only) — read on the
     # target via UT_KVP_PROFILE_GET_BOOL("deviceConfig/cpe1/rialto/<key>").
     rialto:
-      abiVersion: 5
       codecs:
         video:
           hevc: true

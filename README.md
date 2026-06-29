@@ -145,7 +145,7 @@ Orthogonal to level, every case declares one tier:
 The L1–L4 group ids are ut-core's **level** axis. Tier is a second, independent
 axis the suite selects at runtime — a case declares `CONFORMANCE_CORE_TEST()` or
 `CONFORMANCE_EXTENDED_TEST()` at the top of its body (the same self-skip idiom as
-the capability/ABI gates), and the active selection is read from the
+the capability/release gates), and the active selection is read from the
 `RIALTO_CONFORMANCE_TIER` environment variable:
 
 ```bash
@@ -196,7 +196,7 @@ Adding a target adds one `deviceConfig` (named by config) and a `raft/` entry �
 install.sh            install pinned framework deps (framework.lock) into framework/
 build.sh · Makefile   build VARIANT=CPP; link only libRialtoClient + GStreamer
 framework.lock        pinned versions of ut-core / ut-raft / rialto API reference
-include/conformance/  CapabilityGate.h · AbiVersion.h · ContentLoader.h · Surfaces.h
+include/conformance/  CapabilityGate.h · RialtoRelease.h · TierGate.h · ContentLoader.h · Surfaces.h
 src/                  main.cpp + L1_function/ L2_module/ L3_group/ L4_e2e/ (native/ + mse/)
 coverage/             matrix.yaml + requirements/ (gitignored private-feed mount)
 profiles/             deviceConfig.schema.yaml + deviceConfig.example.yaml  (capability gate)
@@ -208,11 +208,14 @@ framework/            install.sh target — ut-core/ut-control/ut-raft/rialto (N
 
 ## Certification model
 
-A backend declares its ABI version via `rialtoPlatformBackendAbiVersion()`;
-passing the vN suite certifies that backend at vN (currently **v5**). Bumps are
-**additive** — a certified backend is not re-certified by a later additive bump.
-The versioned `coverage/matrix.yaml` is the traceability record: "Rialto @ ABI vN
-+ backend X meets conformance requirements {RC-…}."
+The suite targets a specific **Rialto release** — the [framework.lock](framework.lock)
+pin (`targetRialtoRelease`, currently **v0.22.2**) — and passing it certifies a
+backend at that release. A requirement may declare a `since:` release; on a target
+running an older Rialto it self-skips (`CONFORMANCE_REQUIRE_SINCE`), so a backend
+is never failed by a requirement for an interface it predates. (This is release
+targeting — *not* Rialto's binary ABI, which is fixed per release.) The versioned
+`coverage/matrix.yaml` is the traceability record: "Rialto @ &lt;release&gt; +
+backend X meets conformance requirements {RC-…}."
 
 ## Licence
 

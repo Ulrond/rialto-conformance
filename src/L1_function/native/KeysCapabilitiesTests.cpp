@@ -35,7 +35,6 @@
 
 #include <ut.h>
 
-#include "conformance/AbiVersion.h"
 #include "conformance/CapabilityGate.h"
 #include "conformance/Surfaces.h"
 #include "conformance/TierGate.h"

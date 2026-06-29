@@ -22,7 +22,6 @@ deviceConfig:
     prompt: "$ "
 
     rialto:
-      abiVersion: 5
 
       codecs:
         video:

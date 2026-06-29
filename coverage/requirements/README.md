@@ -27,7 +27,7 @@ Once mounted, this directory provides:
 
 - `crosswalk.yaml` — maps each public `RC-*` id to its upstream catalogue ref(s).
 - `catalogs/*.yaml` — the per-programme requirement refs
-  (`{ ref, title, surface, codec/keysys, abi }`).
+  (`{ ref, title, surface, codec/keysys, since }`).
 
 Only the **media** requirements that map to Rialto's external surface are
 catalogued — not app-level UI/network requirements Rialto does not own.
