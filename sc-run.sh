@@ -40,13 +40,9 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IMAGE="${RIALTO_CONFORMANCE_IMAGE:-rialto-conformance-env}"
 TIER="${RIALTO_CONFORMANCE_TIER:-core}"
 
-# Default in-container command: clone framework, build the software Rialto (deps
-# are already in the image, so --no-deps), build the suite, run the gate.
-DEFAULT_CMD="./install.sh && ./build-rialto.sh --no-deps && ./build.sh && \
-LD_LIBRARY_PATH=build/bin:framework/.native-install/lib:\${LD_LIBRARY_PATH:-} \
-GST_PLUGIN_PATH=framework/.native-install/lib/gstreamer-1.0:framework/rialto-gstreamer/build \
-RIALTO_SINKS_RANK=1 \
-RIALTO_CONFORMANCE_TIER=${TIER} ./build/bin/rialto_conformance -a -p profiles/deviceConfig.linux.yaml"
+# Default in-container command: build the software Rialto + suite, bring up a
+# RialtoServer, and run the gate — all in docker/run-in-container.sh.
+DEFAULT_CMD="RIALTO_CONFORMANCE_TIER=${TIER} ./docker/run-in-container.sh"
 
 RUN_CMD="${DEFAULT_CMD}"
 if [ "${1:-}" = "--" ]; then shift; RUN_CMD="$*"; fi
