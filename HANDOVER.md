@@ -73,20 +73,6 @@ RIALTO_CONFORMANCE_TIER=core ./build/bin/rialto_conformance -a -p profiles/devic
 trust the wrapper exit. Same for backgrounded `docker build` (the notification
 exit is the wrapper's, not docker's).
 
-**`sc-run.sh` currently errors** with `SC not found` (an `sc`-tool infra problem,
-not the suite — and the wrapper still exits 0, so only the log shows it). Until
-`sc` is fixed, run the same build + gate via a direct `docker run` against the
-`rialto-conformance-env` image (mount the repo at its identical host path so the
-baked pkg-config prefixes stay valid):
-
-```bash
-ROOT_DIR="$(pwd)"
-docker run --rm \
-  -e LOCAL_USER_ID="$(id -u)" -e LOCAL_USER_NAME="$(id -un)" -e LOCAL_GROUP_ID="$(id -g)" \
-  -e LOCAL_START_DIR="${ROOT_DIR}" -v "${ROOT_DIR}:${ROOT_DIR}" \
-  rialto-conformance-env "RIALTO_CONFORMANCE_TIER=core ./docker/run-in-container.sh"
-```
-
 ## Invariants (DO NOT regress)
 
 1. **Source-neutral public repo.** Cite requirements by `RC-*` ids only; partner /
@@ -142,27 +128,24 @@ docker run --rm \
 
 Open issues: **#5** (IControl + factory L1 cases — delivered by PRs #15/#16),
 **#14** (CONTROL-002 callback-on-transition), **#17** (clearkey CDM), **#18**
-(software render for L4), **#19** (fix `sc`).
+(software render for L4). (`sc` venv-shadow fix is PR #20, closing #19.)
 
-1. **Fix the `sc` tooling (#19).** `./sc-run.sh` errors with `SC not found`; the
-   direct `docker run` (see Run) is an **interim crutch only** — `sc` must be
-   fixed so the reproducible SC flow works again.
-2. **Author the next CORE cases** — keep climbing L1→L4 through the ~101
+1. **Author the next CORE cases** — keep climbing L1→L4 through the ~101
    catalogued-but-unwritten `RC-CORE-*` (the IControl + factory L1 set is done).
    Each case declares its tier + any capability/`since` gate and traces to a
    `coverage/matrix.yaml` row; negative/quiet-fail reqs are first-class.
-3. **Close the catalogue soft spot** — fully enumerate `IClientLogControl`
+2. **Close the catalogue soft spot** — fully enumerate `IClientLogControl`
    (`RC-CORE-LOG-001`).
-4. **CONTROL-002 callback (#14)** — assert `notifyApplicationState` on a
+3. **CONTROL-002 callback (#14)** — assert `notifyApplicationState` on a
    harness-staged `INACTIVE↔ACTIVE` transition (the initial state is already
    covered via the registerClient out-param).
-5. **Clearkey CDM (#17)** — replace the stub OCDM with a clearkey software CDM,
+4. **Clearkey CDM (#17)** — replace the stub OCDM with a clearkey software CDM,
    **swappable with a real CDM later**; unblocks `RC-CORE-KEYSCAP-*` + the
    IMediaKeys DRM cases.
-6. **Real assets + software render** — implement `ContentLoader` against
+5. **Real assets + software render** — implement `ContentLoader` against
    free-to-use clips (`assets/manifest.yaml` has placeholder `REPLACE_ME` URLs)
    and the software render path (#18); together these gate L4 E2E.
-7. **Phase 2 — EXTENDED / app-requirement conformance** *(deferred until the CORE
+6. **Phase 2 — EXTENDED / app-requirement conformance** *(deferred until the CORE
    items above are working).* Create the comcast-sky private feed repo via
    Comcast DevHub (bare `gh repo create` blocked — needs a `DevHub-Application-ID`),
    push the local feed, mount at `coverage/requirements/`, add `RC-EXT-*` ids +
