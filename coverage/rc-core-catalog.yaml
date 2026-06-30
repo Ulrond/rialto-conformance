@@ -462,11 +462,28 @@ requirements:
 
   # === Surface B (native) — client log control ==============================
   - id: RC-CORE-LOG-001
-    title: "IClientLogControl registers a log handler that receives client log records; registration is idempotent/replaceable per contract"
+    title: "IClientLogControlFactory::createFactory() is non-null and createClientLogControl() returns the singleton IClientLogControl (same instance across calls)"
     interface: IClientLogControl
     path: native
     kind: positive
-    notes: "IClientLogControl.h / IClientLogHandler.h — enumerate fully when authoring the case."
+    notes: "createClientLogControl() is documented as returning a singleton."
+  - id: RC-CORE-LOG-002
+    title: "registerLogHandler(handler, ignoreLogLevels=true) returns true and the handler's log() receives client log records with a defined Level and populated file/line/function/message"
+    interface: IClientLogControl
+    path: native
+    kind: event
+    notes: "ignoreLogLevels=true delivers all levels regardless of the configured log level; Level enum in IClientLogHandler.h."
+  - id: RC-CORE-LOG-003
+    title: "Registering a new handler replaces the previous one; only the current handler receives subsequent records"
+    interface: IClientLogControl
+    path: native
+    kind: state
+  - id: RC-CORE-LOG-004
+    title: "registerLogHandler(nullptr, ...) cancels delivery: no further log() callbacks are made"
+    interface: IClientLogControl
+    path: native
+    kind: negative
+    notes: "Documented cancel path — pass nullptr to stop callbacks."
 
   # === Surface A (mse) — element registration ===============================
   - id: RC-CORE-MSE-001
