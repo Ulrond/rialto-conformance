@@ -154,6 +154,42 @@ operations:
     case: "L1KeysCapabilitiesTests.ServerCertificateQueryIsLegal"
     status: covered
 
+  - op: createClientLogControl
+    interface: IClientLogControl
+    tier: core
+    path: native
+    req: [RC-CORE-LOG-001]
+    expected: "Factory non-null; createClientLogControl() returns the singleton (same instance)"
+    case: "L1ClientLogControlTests.FactoryReturnsSingleton"
+    status: covered
+
+  - op: registerLogHandler
+    interface: IClientLogControl
+    tier: core
+    path: native
+    req: [RC-CORE-LOG-002]
+    expected: "Returns true; handler.log() receives records with a defined Level + populated file/function/message"
+    case: "L1ClientLogControlTests.HandlerReceivesPopulatedRecords"
+    status: covered
+
+  - op: registerLogHandler
+    interface: IClientLogControl
+    tier: core
+    path: native
+    req: [RC-CORE-LOG-003]
+    expected: "Registering a new handler replaces the previous; the new handler receives records"
+    case: "L1ClientLogControlTests.RegisteringNewHandlerReplacesPrevious"
+    status: covered
+
+  - op: registerLogHandler
+    interface: IClientLogControl
+    tier: core
+    path: native
+    req: [RC-CORE-LOG-004]
+    expected: "registerLogHandler(nullptr) cancels delivery; no further log() callbacks"
+    case: "L1ClientLogControlTests.NullHandlerCancelsDelivery"
+    status: covered
+
 # --- Properties (sink/decoder properties) × path ------------------------------
 properties:
   - prop: element-registration
