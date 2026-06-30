@@ -140,18 +140,33 @@ docker run --rm \
 
 ## Start here next
 
-1. **Issue #5 — author the next CORE cases** (IControl + factories), then keep
-   climbing L1→L4 through the ~106 catalogued-but-unwritten `RC-CORE-*`. Each case
-   declares its tier + any capability/`since` gate and traces to a `coverage/matrix.yaml`
-   row; negative/quiet-fail reqs are first-class. Validate with `./sc-run.sh`.
-2. **Close the catalogue soft spot** — fully enumerate `IClientLogControl`
+Open issues: **#5** (IControl + factory L1 cases — delivered by PRs #15/#16),
+**#14** (CONTROL-002 callback-on-transition), **#17** (clearkey CDM), **#18**
+(software render for L4), **#19** (fix `sc`).
+
+1. **Fix the `sc` tooling (#19).** `./sc-run.sh` errors with `SC not found`; the
+   direct `docker run` (see Run) is an **interim crutch only** — `sc` must be
+   fixed so the reproducible SC flow works again.
+2. **Author the next CORE cases** — keep climbing L1→L4 through the ~101
+   catalogued-but-unwritten `RC-CORE-*` (the IControl + factory L1 set is done).
+   Each case declares its tier + any capability/`since` gate and traces to a
+   `coverage/matrix.yaml` row; negative/quiet-fail reqs are first-class.
+3. **Close the catalogue soft spot** — fully enumerate `IClientLogControl`
    (`RC-CORE-LOG-001`).
-3. **Phase 2 — EXTENDED / app-requirement conformance.** Create the comcast-sky
-   private feed repo via Comcast DevHub (bare `gh repo create` blocked — needs a
-   `DevHub-Application-ID`), push the local feed, mount at `coverage/requirements/`,
-   add `RC-EXT-*` ids + the `RC-*` crosswalk.
-4. **Real assets.** `assets/manifest.yaml` has placeholder `REPLACE_ME` URLs +
-   zeroed checksums — point at free-to-use clips, implement `ContentLoader` (gates L4 E2E).
+4. **CONTROL-002 callback (#14)** — assert `notifyApplicationState` on a
+   harness-staged `INACTIVE↔ACTIVE` transition (the initial state is already
+   covered via the registerClient out-param).
+5. **Clearkey CDM (#17)** — replace the stub OCDM with a clearkey software CDM,
+   **swappable with a real CDM later**; unblocks `RC-CORE-KEYSCAP-*` + the
+   IMediaKeys DRM cases.
+6. **Real assets + software render** — implement `ContentLoader` against
+   free-to-use clips (`assets/manifest.yaml` has placeholder `REPLACE_ME` URLs)
+   and the software render path (#18); together these gate L4 E2E.
+7. **Phase 2 — EXTENDED / app-requirement conformance** *(deferred until the CORE
+   items above are working).* Create the comcast-sky private feed repo via
+   Comcast DevHub (bare `gh repo create` blocked — needs a `DevHub-Application-ID`),
+   push the local feed, mount at `coverage/requirements/`, add `RC-EXT-*` ids +
+   the `RC-*` crosswalk.
 
 ## Open items / to verify on real hardware
 
