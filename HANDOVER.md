@@ -27,9 +27,12 @@ state, the invariants that must not regress, and exactly where to start next.
 
 **git-flow** (via the `sc` tool's model, plain git): `master` = published baseline,
 **`develop`** = integration **(GitHub default branch)**, issue-numbered
-`feature/*` branches → PR → merge into `develop`. Merged so far: PRs #2/#4/#7/#9/#11
-(venv, build-rialto deps, SC docker, RialtoServer runtime, release rename).
-**Open issue: #5** (author IControl + factory CORE cases).
+`feature/*` branches → PR → merge into `develop`. The bring-up (venv,
+build-rialto, SC docker, RialtoServer runtime), the IControl + factory + capability
++ IClientLogControl L1 cases, and the `sc` venv-shadow fix are all merged.
+**Open issues:** #14 (CONTROL-002 callback, blocked by #18), #17 (clearkey CDM),
+#18 (software render), and #22 (real assets). PRs go green-as-designed via
+`./sc-run.sh` and are merged once proven.
 
 **gh accounts / tokens.** Two accounts: **Ulrond** (public repo; orgs
 sky-uk/rdkcentral/qtasks) and **gerald-weatherup_comcast** (only one that reaches
@@ -44,12 +47,13 @@ Linux software platform via the SC docker flow**:
 - **Source-neutral & published.** No partner/app names anywhere in the public
   tree (enforced); requirements cited only by suite-owned `RC-*` ids. History was
   squashed clean before first push — do not restore pre-scrub history.
-- **CORE catalogue: 118 `RC-CORE-*` requirements**, header-verified to cover the
-  whole external surface (one soft spot: `IClientLogControl`/`RC-CORE-LOG-001`
-  lightly enumerated). **~17 authored as cases; ~101 catalogued, not yet written.**
+- **CORE catalogue: 121 `RC-CORE-*` requirements**, header-verified to cover the
+  whole external surface. **~24 authored as cases; ~97 catalogued, not yet
+  written** (the authored set: CONTROL, FACTORY, CAPS, KEYSCAP-API, LOG, plus the
+  MSE element-registration smoke).
 - **The gate runs.** The software Rialto and the suite are built, a `RialtoServer`
   is brought up (Active), and the CORE gate runs against it:
-  **17 tests → 12 PASS, 3 SKIP (capability-gated), 2 FAIL.** Both fails are
+  **23 tests → 18 PASS, 3 SKIP (capability-gated), 2 FAIL.** Both fails are
   `NATIVE_BUILD` **stub-OCDM** properties (`RC-CORE-KEYSCAP-002/003`): the stub
   accepts any key system and reports no version, so it is correctly flagged as a
   non-conformant DRM backend — **not** a suite bug; a real CDM is expected to
@@ -116,9 +120,10 @@ exit is the wrapper's, not docker's).
   `sc-run.sh` (the SC one-shot).
 - `include/conformance/`: CapabilityGate, RialtoRelease, TierGate, ContentLoader, Surfaces.
 - `src/main.cpp` + `src/common/Surfaces.cpp`; **authored L1 cases**:
-  `native/CapabilitiesTests`, `native/KeysCapabilitiesTests`, `mse/SinkRegistrationTests`.
-  L2–L4 trees scaffolded (empty).
-- `coverage/rc-core-catalog.yaml` (118 reqs) + `coverage/matrix.yaml` (coverage
+  `native/CapabilitiesTests` (incl. CAPS-003/004), `native/KeysCapabilitiesTests`,
+  `native/ControlTests`, `native/FactoryTests`, `native/ClientLogControlTests`,
+  `mse/SinkRegistrationTests`. L2–L4 trees scaffolded (empty).
+- `coverage/rc-core-catalog.yaml` (121 reqs) + `coverage/matrix.yaml` (coverage
   view: tier + path + case + status, `targetRialtoRelease`); `coverage/requirements/`
   mount README; `profiles/` (schema + example + `deviceConfig.linux.yaml`);
   `raft/` (rack + device config + adjudicator); `assets/manifest.yaml`;
@@ -127,24 +132,30 @@ exit is the wrapper's, not docker's).
 ## Start here next
 
 Open issues: **#14** (CONTROL-002 callback-on-transition — **blocked by #18**),
-**#17** (clearkey CDM), **#18** (software render for L4).
+**#17** (clearkey CDM), **#18** (software render for L4), **#22** (real assets).
 
-1. **Author the next CORE cases** — keep climbing L1→L4 through the ~101
-   catalogued-but-unwritten `RC-CORE-*` (the IControl + factory L1 set is done).
-   Each case declares its tier + any capability/`since` gate and traces to a
-   `coverage/matrix.yaml` row; negative/quiet-fail reqs are first-class.
-2. **Close the catalogue soft spot** — fully enumerate `IClientLogControl`
-   (`RC-CORE-LOG-001`).
-3. **CONTROL-002 callback (#14)** — *blocked by #18*: assert `notifyApplicationState`
-   on a harness-staged `INACTIVE↔ACTIVE` transition, which needs the software
-   render path (#18); the initial state is already covered via the registerClient
-   out-param.
+The climb is grouped by what passes on the software platform **now** vs. what is
+stub-gated. Continue the green batches (author → `./sc-run.sh` → merge once proven),
+then the gated areas as #17/#18/#22 land:
+
+1. **MSE Surface A introspection** *(green, the big next batch — several PRs)* —
+   the `rialtomse*sink` element contracts, which need only the sink elements
+   (`RIALTO_SINKS_RANK`), no live server: `RC-CORE-MSEPROP-*` (GObject properties),
+   `RC-CORE-MSECAPS-*` (pad templates / MIME→caps), `RC-CORE-MSESTATE-*` (state
+   transitions), `RC-CORE-MSEEVENT-*` (events/queries), and the remaining
+   `RC-CORE-MSE-*`. One PR per sub-area; extend `src/L1_function/mse/`.
+2. **IWebAudioPlayer L1** (`RC-CORE-WEBAUDIO-*`) — verify whether the software
+   stub supports web audio; gate/skip what it cannot.
+3. **The green `IMediaPipeline` subset** — create/getClient/synchronous getters
+   that do not need playback (the playback/data path is gated on #18).
 4. **Clearkey CDM (#17)** — replace the stub OCDM with a clearkey software CDM,
-   **swappable with a real CDM later**; unblocks `RC-CORE-KEYSCAP-*` + the
-   IMediaKeys DRM cases.
-5. **Real assets + software render** — implement `ContentLoader` against
-   free-to-use clips (`assets/manifest.yaml` has placeholder `REPLACE_ME` URLs)
-   and the software render path (#18); together these gate L4 E2E.
+   **swappable with a real CDM later**; unblocks `RC-CORE-KEYS-*` and the two
+   currently-failing `RC-CORE-KEYSCAP-002/003`.
+5. **Software render (#18) + real assets (#22)** — implement the software render
+   path and `ContentLoader` against free-to-use clips (downloadable, ideally
+   YouTube test streams; `assets/manifest.yaml` has placeholder `REPLACE_ME`
+   URLs). Together these unblock the `RC-CORE-PIPE-*`/`DATA-*` playback set, the
+   L4 E2E matrix, and the CONTROL-002 callback (#14).
 6. **Phase 2 — EXTENDED / app-requirement conformance** *(deferred until the CORE
    items above are working).* Create the comcast-sky private feed repo via
    Comcast DevHub (bare `gh repo create` blocked — needs a `DevHub-Application-ID`),
