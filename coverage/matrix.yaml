@@ -118,6 +118,24 @@ operations:
     case: "L1CapabilitiesTests.IsVideoMasterReportsStatus"
     status: covered
 
+  - op: getSupportedMimeTypes
+    interface: IMediaPipelineCapabilities
+    tier: core
+    path: native
+    req: [RC-CORE-CAPS-004]
+    expected: "Per-source-type list for AUDIO/VIDEO/SUBTITLE; VIDEO+AUDIO non-empty (baseline H.264/AAC)"
+    case: "L1CapabilitiesTests.SupportedMimeTypesPerSourceType"
+    status: covered
+
+  - op: getSupportedProperties
+    interface: IMediaPipelineCapabilities
+    tier: core
+    path: native
+    req: [RC-CORE-CAPS-003]
+    expected: "Returns subset of queried names; unknown name never returned; UNKNOWN = union of AUDIO+VIDEO"
+    case: "L1CapabilitiesTests.SupportedPropertiesContract"
+    status: covered
+
   - op: getSupportedKeySystems
     interface: IMediaKeysCapabilities
     tier: core
