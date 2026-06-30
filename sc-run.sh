@@ -85,5 +85,17 @@ else
 fi
 
 # 4. run via sc -------------------------------------------------------------
+# sc activates its own pyenv virtualenv ('sc', which carries the `sc` python
+# module) internally and runs `python3 -m sc`. If the suite's python_venv (the
+# raft host-deps venv from install.sh) is active in the caller's shell it shadows
+# that env: `python3 -m sc` then runs under python_venv, `import sc` fails, and sc
+# aborts with "SC not found". Hand off to sc with the suite venv stripped from the
+# environment so sc can select its own interpreter.
+SC_PATH="${PATH}"
+if [ -n "${VIRTUAL_ENV:-}" ]; then
+    echo "[sc-run] dropping active venv '${VIRTUAL_ENV}' so sc can use its own pyenv 'sc' env"
+    SC_PATH="$(printf '%s' "${PATH}" | tr ':' '\n' | grep -vF "${VIRTUAL_ENV}/bin" | paste -sd: -)"
+fi
+
 echo "[sc-run] sc docker run -l ${IMAGE} -- <build + gate>"
-exec sc docker run -l "${IMAGE}" -- "${RUN_CMD}"
+exec env -u VIRTUAL_ENV -u PYENV_VERSION PATH="${SC_PATH}" sc docker run -l "${IMAGE}" -- "${RUN_CMD}"
