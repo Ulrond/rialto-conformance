@@ -73,14 +73,14 @@ operations:
     tier: core
     path: native
     req: [RC-CORE-CONTROL-002]
-    expected: "A registered client is notified of a server state transition (reaches RUNNING)"
-    case: "L1ControlTests.RegisteredClientIsNotifiedOfStateTransition"   # planned
-    status: planned
-    # Needs a state transition delivered AFTER the client registers: the server
-    # delivers application state only on a transition (not replayed on register),
-    # and the software-platform harness activates the server before the client
-    # connects, so the initial transition is missed. Covering it requires the
-    # harness to drive an INACTIVE<->ACTIVE transition once the client is up.
+    expected: "A registered client is informed of the live server application state (RUNNING)"
+    case: "L1ControlTests.RegisteredClientLearnsRunningState"
+    status: covered
+    # The current state is delivered to a registering client via the
+    # registerClient out-param; the notifyApplicationState callback delivers
+    # subsequent transitions. This case verifies the former (client learns
+    # RUNNING). Asserting the callback on a post-registration transition needs
+    # the harness to drive an INACTIVE<->ACTIVE change while registered (#14).
 
   - op: "~IControl"
     interface: IControl

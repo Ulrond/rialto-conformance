@@ -29,16 +29,17 @@
  *
  * Coverage trace: coverage/matrix.yaml / rc-core-catalog.yaml rows
  * RC-CORE-CONTROL-001 (registerClient returns true + writes the ApplicationState
- * out-param) and RC-CORE-CONTROL-003 (the client shared_ptr is released on
- * IControl destruction).
+ * out-param), RC-CORE-CONTROL-002 (a registered client is informed of the live
+ * server application state), RC-CORE-CONTROL-003 (the client shared_ptr is
+ * released on IControl destruction).
  *
- * RC-CORE-CONTROL-002 (a registered client is notified of a server state
- * transition) is tracked as planned in the matrix: it requires a state
- * transition delivered AFTER the client registers, and the server delivers the
- * application state only on a transition (it is not replayed on registration).
- * The Linux software-platform harness activates the server before the client
- * connects, so the initial transition is missed; covering the requirement needs
- * the harness to drive an INACTIVE<->ACTIVE transition once the client is up.
+ * Note on the state-notification contract (RC-CORE-CONTROL-002): a client that
+ * registers against an already-running server is given the current state
+ * synchronously in registerClient's out-param; the notifyApplicationState
+ * callback delivers *subsequent* transitions. CONTROL-002 here verifies the
+ * former (the client learns RUNNING from the live server). Asserting the
+ * callback on a post-registration transition needs the harness to drive an
+ * INACTIVE<->ACTIVE change while the client is registered — tracked separately.
  */
 
 #include <ut.h>
@@ -71,9 +72,9 @@ bool isDefinedState(ApplicationState state)
 }
 
 /**
- * A minimal IControlClient stub. The IControl cases here exercise the
- * registration and lifetime contracts, which do not depend on a callback
- * arriving, so this only needs to be a valid IControlClient to register.
+ * A minimal IControlClient stub. These IControl cases assert the registration,
+ * state-reporting and lifetime contracts, none of which require inspecting a
+ * delivered callback, so the client only needs to be a valid IControlClient.
  */
 class StubControlClient : public IControlClient
 {
@@ -91,12 +92,7 @@ UT_ADD_TEST_TO_GROUP(L1ControlTests, UT_TESTS_L1);
 /**
  * RC-CORE-CONTROL-001 — IControlFactory yields a concrete IControl, and
  * registerClient returns true and writes the current ApplicationState into its
- * out-param.
- *
- * The out-param carries the controller's current state at the instant of
- * registration (the server's RUNNING transition is delivered asynchronously,
- * see RC-CORE-CONTROL-002); the synchronous contract here is "returns true and
- * writes a defined ApplicationState".
+ * out-param. The synchronous contract: returns true and writes a defined state.
  */
 UT_ADD_TEST(L1ControlTests, RegisterClientReturnsTrueAndWritesState)
 {
@@ -112,6 +108,31 @@ UT_ADD_TEST(L1ControlTests, RegisterClientReturnsTrueAndWritesState)
     ApplicationState appState = ApplicationState::UNKNOWN;
     UT_ASSERT_TRUE(control->registerClient(client, appState));
     UT_ASSERT_TRUE(isDefinedState(appState));
+}
+
+/**
+ * RC-CORE-CONTROL-002 — a registered IControlClient is informed of the server's
+ * application state. Against the live RialtoServer (brought up Active by the
+ * harness), registering hands the client the current state via the out-param,
+ * which must report RUNNING — proving the IPC connection and that the client is
+ * told the real server state, not a placeholder.
+ */
+UT_ADD_TEST(L1ControlTests, RegisteredClientLearnsRunningState)
+{
+    CONFORMANCE_CORE_TEST();
+
+    auto factory = IControlFactory::createFactory();
+    UT_ASSERT_NOT_NULL_FATAL(factory.get());
+
+    auto control = factory->createControl();
+    UT_ASSERT_NOT_NULL_FATAL(control.get());
+
+    auto client = std::make_shared<StubControlClient>();
+    ApplicationState appState = ApplicationState::UNKNOWN;
+    UT_ASSERT_TRUE(control->registerClient(client, appState));
+
+    // The live server is Active, so the registering client must be told RUNNING.
+    UT_ASSERT_EQUAL(appState, ApplicationState::RUNNING);
 }
 
 /**

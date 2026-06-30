@@ -46,13 +46,14 @@ Linux software platform via the SC docker flow**:
   squashed clean before first push — do not restore pre-scrub history.
 - **CORE catalogue: 118 `RC-CORE-*` requirements**, header-verified to cover the
   whole external surface (one soft spot: `IClientLogControl`/`RC-CORE-LOG-001`
-  lightly enumerated). **~12 authored as cases; ~106 catalogued, not yet written.**
-- **The gate runs.** `./sc-run.sh` → `sc docker run` → builds the software Rialto
-  and the suite, brings up a `RialtoServer`, runs the CORE gate against it:
-  **12 tests → 7 PASS, 3 SKIP (capability-gated), 2 FAIL.** The 2 fails
-  (`RC-CORE-KEYSCAP-002/003`) are the `NATIVE_BUILD` **stub OCDM** correctly
-  flagged as a non-conformant DRM backend — a stub property, **not** a suite bug;
-  a real CDM is expected to pass them. Do not weaken those cases to force green.
+  lightly enumerated). **~17 authored as cases; ~101 catalogued, not yet written.**
+- **The gate runs.** The software Rialto and the suite are built, a `RialtoServer`
+  is brought up (Active), and the CORE gate runs against it:
+  **17 tests → 12 PASS, 3 SKIP (capability-gated), 2 FAIL.** Both fails are
+  `NATIVE_BUILD` **stub-OCDM** properties (`RC-CORE-KEYSCAP-002/003`): the stub
+  accepts any key system and reports no version, so it is correctly flagged as a
+  non-conformant DRM backend — **not** a suite bug; a real CDM is expected to
+  pass them. Do not weaken those cases to force green.
 
 ## Run
 
@@ -125,18 +126,30 @@ exit is the wrapper's, not docker's).
 
 ## Start here next
 
-1. **Issue #5 — author the next CORE cases** (IControl + factories), then keep
-   climbing L1→L4 through the ~106 catalogued-but-unwritten `RC-CORE-*`. Each case
-   declares its tier + any capability/`since` gate and traces to a `coverage/matrix.yaml`
-   row; negative/quiet-fail reqs are first-class. Validate with `./sc-run.sh`.
+Open issues: **#5** (IControl + factory L1 cases — delivered by PRs #15/#16),
+**#14** (CONTROL-002 callback-on-transition), **#17** (clearkey CDM), **#18**
+(software render for L4). (`sc` venv-shadow fix is PR #20, closing #19.)
+
+1. **Author the next CORE cases** — keep climbing L1→L4 through the ~101
+   catalogued-but-unwritten `RC-CORE-*` (the IControl + factory L1 set is done).
+   Each case declares its tier + any capability/`since` gate and traces to a
+   `coverage/matrix.yaml` row; negative/quiet-fail reqs are first-class.
 2. **Close the catalogue soft spot** — fully enumerate `IClientLogControl`
    (`RC-CORE-LOG-001`).
-3. **Phase 2 — EXTENDED / app-requirement conformance.** Create the comcast-sky
-   private feed repo via Comcast DevHub (bare `gh repo create` blocked — needs a
-   `DevHub-Application-ID`), push the local feed, mount at `coverage/requirements/`,
-   add `RC-EXT-*` ids + the `RC-*` crosswalk.
-4. **Real assets.** `assets/manifest.yaml` has placeholder `REPLACE_ME` URLs +
-   zeroed checksums — point at free-to-use clips, implement `ContentLoader` (gates L4 E2E).
+3. **CONTROL-002 callback (#14)** — assert `notifyApplicationState` on a
+   harness-staged `INACTIVE↔ACTIVE` transition (the initial state is already
+   covered via the registerClient out-param).
+4. **Clearkey CDM (#17)** — replace the stub OCDM with a clearkey software CDM,
+   **swappable with a real CDM later**; unblocks `RC-CORE-KEYSCAP-*` + the
+   IMediaKeys DRM cases.
+5. **Real assets + software render** — implement `ContentLoader` against
+   free-to-use clips (`assets/manifest.yaml` has placeholder `REPLACE_ME` URLs)
+   and the software render path (#18); together these gate L4 E2E.
+6. **Phase 2 — EXTENDED / app-requirement conformance** *(deferred until the CORE
+   items above are working).* Create the comcast-sky private feed repo via
+   Comcast DevHub (bare `gh repo create` blocked — needs a `DevHub-Application-ID`),
+   push the local feed, mount at `coverage/requirements/`, add `RC-EXT-*` ids +
+   the `RC-*` crosswalk.
 
 ## Open items / to verify on real hardware
 
