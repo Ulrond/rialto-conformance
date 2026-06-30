@@ -126,9 +126,8 @@ exit is the wrapper's, not docker's).
 
 ## Start here next
 
-Open issues: **#5** (IControl + factory L1 cases — delivered by PRs #15/#16),
-**#14** (CONTROL-002 callback-on-transition), **#17** (clearkey CDM), **#18**
-(software render for L4). (`sc` venv-shadow fix is PR #20, closing #19.)
+Open issues: **#14** (CONTROL-002 callback-on-transition — **blocked by #18**),
+**#17** (clearkey CDM), **#18** (software render for L4).
 
 1. **Author the next CORE cases** — keep climbing L1→L4 through the ~101
    catalogued-but-unwritten `RC-CORE-*` (the IControl + factory L1 set is done).
@@ -136,9 +135,10 @@ Open issues: **#5** (IControl + factory L1 cases — delivered by PRs #15/#16),
    `coverage/matrix.yaml` row; negative/quiet-fail reqs are first-class.
 2. **Close the catalogue soft spot** — fully enumerate `IClientLogControl`
    (`RC-CORE-LOG-001`).
-3. **CONTROL-002 callback (#14)** — assert `notifyApplicationState` on a
-   harness-staged `INACTIVE↔ACTIVE` transition (the initial state is already
-   covered via the registerClient out-param).
+3. **CONTROL-002 callback (#14)** — *blocked by #18*: assert `notifyApplicationState`
+   on a harness-staged `INACTIVE↔ACTIVE` transition, which needs the software
+   render path (#18); the initial state is already covered via the registerClient
+   out-param.
 4. **Clearkey CDM (#17)** — replace the stub OCDM with a clearkey software CDM,
    **swappable with a real CDM later**; unblocks `RC-CORE-KEYSCAP-*` + the
    IMediaKeys DRM cases.
