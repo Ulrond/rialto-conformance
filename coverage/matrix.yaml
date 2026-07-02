@@ -308,6 +308,60 @@ properties:
     case: "L1PropertyTests.ReadablePropertiesFallbackDefaults"
     status: covered
 
+  - prop: sink-pad-template
+    interface: RialtoMSEBaseSink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSECAPS-001]
+    expected: "each sink exposes exactly one ALWAYS sink pad template named \"sink\""
+    case: "L1CapsTests.SinkPadTemplateIsSingleAlwaysSink"
+    status: covered
+
+  - prop: advertised-caps-subset
+    interface: rialtosinks
+    tier: core
+    path: mse
+    req: [RC-CORE-MSECAPS-002]
+    expected: "advertised caps are exactly the supported subset of the documented MIME->caps mapping; an unmapped server MIME is dropped"
+    case: "L1CapsTests.AdvertisedCapsAreDocumentedSubset"
+    status: covered
+
+  - prop: audio-mime-to-caps
+    interface: rialtomseaudiosink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSECAPS-003]
+    expected: "advertised audio caps are within the documented mapping; audio template is non-empty (baseline-required)"
+    case: "L1CapsTests.AudioMimeToCapsMappingCorrect"
+    status: covered
+
+  - prop: video-mime-to-caps
+    interface: rialtomsevideosink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSECAPS-004]
+    expected: "advertised video caps are within the documented mapping; sink advertises video/x-h264 (baseline)"
+    case: "L1CapsTests.VideoMimeToCapsMappingCorrect"
+    status: covered
+
+  - prop: subtitle-mime-to-caps
+    interface: rialtomsesubtitlesink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSECAPS-005]
+    expected: "advertised subtitle caps are within the documented mapping (subtitle support is platform-variable)"
+    case: "L1CapsTests.SubtitleMimeToCapsMappingCorrect"
+    status: covered
+
+  - prop: caps-event-field-parsing
+    interface: RialtoMSEBaseSink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSECAPS-006]
+    expected: "incoming CAPS-event fields are parsed (codec_data, alignment, stream-format, Dolby-Vision, raw-audio layout/format)"
+    case: "L2 data-flow case driving a caps event on an attached source"   # planned — needs MSESTATE/DATA
+    status: planned
+
   - prop: is-master
     interface: rialtomsevideosink
     tier: core
