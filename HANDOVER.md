@@ -29,15 +29,20 @@ state, the invariants that must not regress, and exactly where to start next.
 **`develop`** = integration **(GitHub default branch)**, issue-numbered
 `feature/*` branches → PR → merge into `develop`. The bring-up (venv,
 build-rialto, SC docker, RialtoServer runtime), the IControl + factory + capability
-+ IClientLogControl L1 cases, and the `sc` venv-shadow fix are all merged.
++ IClientLogControl L1 cases, the `sc` venv-shadow fix, and the MSE Surface A
+property + caps L1 batches are all merged.
 **Open issues:** #14 (CONTROL-002 callback, blocked by #18), #17 (clearkey CDM),
 #18 (software render), and #22 (real assets). PRs go green-as-designed via
 `./sc-run.sh` and are merged once proven.
 
 **gh accounts / tokens.** Two accounts: **Ulrond** (public repo; orgs
 sky-uk/rdkcentral/qtasks) and **gerald-weatherup_comcast** (only one that reaches
-comcast-sky). Use per-command tokens (`gh auth token --user <acct>` → `GH_TOKEN` /
-token-over-HTTPS push), **never `gh auth switch`**.
+comcast-sky). Use per-command tokens (`gh auth token --user <acct>` → `GH_TOKEN`),
+**never `gh auth switch`**. **Raw `git push`/`pull` is pre-wired**: this repo's
+`origin` is HTTPS with a local credential helper that returns the Ulrond token
+(`git config --local` — `gh auth token --user Ulrond`), so plain `git push` /
+`git pull origin develop` authenticate as Ulrond with no token on the command
+line. (The old SSH `git@github.com:` remote failed in this environment.)
 
 ## Status
 
@@ -48,12 +53,13 @@ Linux software platform via the SC docker flow**:
   tree (enforced); requirements cited only by suite-owned `RC-*` ids. History was
   squashed clean before first push — do not restore pre-scrub history.
 - **CORE catalogue: 121 `RC-CORE-*` requirements**, header-verified to cover the
-  whole external surface. **~24 authored as cases; ~97 catalogued, not yet
-  written** (the authored set: CONTROL, FACTORY, CAPS, KEYSCAP-API, LOG, plus the
-  MSE element-registration smoke).
+  whole external surface. **33 covered as cases; 88 catalogued, not yet written**
+  (the authored set: CONTROL, FACTORY, CAPS, KEYSCAP-API, LOG, MSE
+  element-registration, **MSEPROP-001..010** GObject properties, **MSECAPS-001..005**
+  pad-template + MIME→caps). Coverage by area lives in `coverage/matrix.yaml`.
 - **The gate runs.** The software Rialto and the suite are built, a `RialtoServer`
   is brought up (Active), and the CORE gate runs against it:
-  **23 tests → 18 PASS, 3 SKIP (capability-gated), 2 FAIL.** Both fails are
+  **38 tests → 33 PASS, 3 SKIP (capability-gated), 2 FAIL.** Both fails are
   `NATIVE_BUILD` **stub-OCDM** properties (`RC-CORE-KEYSCAP-002/003`): the stub
   accepts any key system and reports no version, so it is correctly flagged as a
   non-conformant DRM backend — **not** a suite bug; a real CDM is expected to
@@ -122,7 +128,8 @@ exit is the wrapper's, not docker's).
 - `src/main.cpp` + `src/common/Surfaces.cpp`; **authored L1 cases**:
   `native/CapabilitiesTests` (incl. CAPS-003/004), `native/KeysCapabilitiesTests`,
   `native/ControlTests`, `native/FactoryTests`, `native/ClientLogControlTests`,
-  `mse/SinkRegistrationTests`. L2–L4 trees scaffolded (empty).
+  `mse/SinkRegistrationTests`, `mse/PropertyTests` (MSEPROP-001..010),
+  `mse/CapsTests` (MSECAPS-001..005). L2–L4 trees scaffolded (empty).
 - `coverage/rc-core-catalog.yaml` (121 reqs) + `coverage/matrix.yaml` (coverage
   view: tier + path + case + status, `targetRialtoRelease`); `coverage/requirements/`
   mount README; `profiles/` (schema + example + `deviceConfig.linux.yaml`);
@@ -138,13 +145,22 @@ The climb is grouped by what passes on the software platform **now** vs. what is
 stub-gated. Continue the green batches (author → `./sc-run.sh` → merge once proven),
 then the gated areas as #17/#18/#22 land:
 
-1. **MSE Surface A introspection** *(green, the big next batch — several PRs)* —
-   the `rialtomse*sink` element contracts, which need only the sink elements
-   (`RIALTO_SINKS_RANK`), no live server: `RC-CORE-MSEPROP-*` (GObject properties),
-   `RC-CORE-MSECAPS-*` (pad templates / MIME→caps), `RC-CORE-MSESTATE-*` (state
-   transitions), `RC-CORE-MSEEVENT-*` (events/queries), and the remaining
-   `RC-CORE-MSE-*`. One PR per sub-area; extend `src/L1_function/mse/`.
-2. **IWebAudioPlayer L1** (`RC-CORE-WEBAUDIO-*`) — verify whether the software
+1. **Finish MSE Surface A introspection** *(green, several PRs; no live server
+   beyond what `sc-run` provides)* — extend `src/L1_function/mse/`, one PR per
+   sub-area. **MSEPROP-* and MSECAPS-001..005 are done.** Remaining, in order:
+   - **`RC-CORE-MSE-002/003`** — sink metadata/klass + audio-sink `GstStreamVolume`
+     interface (pure introspection).
+   - **`RC-CORE-MSESTATE-*` (6)** — element state transitions. NULL↔READY is
+     reachable standalone; PAUSED/PLAYING legs use the live `sc-run` server (some
+     return `GST_STATE_CHANGE_ASYNC`/`FAILURE` by contract — see the catalogue).
+   - **`RC-CORE-MSEEVENT-*` (12)** — events/queries. Introspection-only subset is
+     green; flow-driven ones pair with the data path (#18).
+   - **`RC-CORE-MSECAPS-006`** *(planned row already in the matrix)* — incoming
+     CAPS-event field parsing (codec_data/alignment/stream-format/Dolby-Vision/raw
+     layout). A **data-flow** transform observable only via an attached server-side
+     source; parsers are internal, so it must be driven, not introspected. Do with
+     MSESTATE/DATA, not as an L1 introspection case.
+2. **IWebAudioPlayer L1** (`RC-CORE-WEBAUDIO-*`, 7) — verify whether the software
    stub supports web audio; gate/skip what it cannot.
 3. **The green `IMediaPipeline` subset** — create/getClient/synchronous getters
    that do not need playback (the playback/data path is gated on #18).
