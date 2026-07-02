@@ -218,6 +218,96 @@ properties:
     case: "L1SinkRegistrationTests.VideoSinkRegistered, L1SinkRegistrationTests.AudioSinkRegistered"
     status: covered
 
+  - prop: base-sink-properties
+    interface: RialtoMSEBaseSink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSEPROP-001]
+    expected: "base-sink props exist with documented type/default/flags/range (single-path-stream, streams-number, has-drm, stats, enable-last-sample, last-sample)"
+    case: "L1PropertyTests.BaseSinkProperties"
+    status: covered
+
+  - prop: base-sink-signals
+    interface: RialtoMSEBaseSink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSEPROP-002]
+    expected: "base sink exposes buffer-underflow-callback and first-video-frame-callback GSignals"
+    case: "L1PropertyTests.BaseSinkSignals"
+    status: covered
+
+  - prop: audio-sink-properties
+    interface: rialtomseaudiosink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSEPROP-003]
+    expected: "audio-sink unconditional props exist with documented defaults (volume, mute, gap, use-buffering, async, web-audio)"
+    case: "L1PropertyTests.AudioSinkProperties"
+    status: covered
+
+  - prop: web-audio-null-only
+    interface: rialtomseaudiosink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSEPROP-004]
+    expected: "web-audio settable only while state == NULL; a set after NULL is rejected"
+    case: "L1PropertyTests.AudioSinkWebAudioSettableOnlyInNull"
+    status: covered
+
+  - prop: audio-sink-conditional
+    interface: rialtomseaudiosink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSEPROP-005]
+    expected: "audio server-conditional props (low-latency, sync, sync-off, stream-sync-mode, audio-fade, fade-volume, limit-buffering-ms) conform when installed"
+    case: "L1PropertyTests.AudioSinkConditionalProperties"
+    status: covered
+
+  - prop: video-sink-properties
+    interface: rialtomsevideosink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSEPROP-006]
+    expected: "video-sink props exist with documented defaults (rectangle, max-video-width, max-video-height, frame-step-on-preroll, is-master, video_pts)"
+    case: "L1PropertyTests.VideoSinkProperties"
+    status: covered
+
+  - prop: video-deprecated-aliases
+    interface: rialtomsevideosink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSEPROP-007]
+    expected: "maxVideoWidth/maxVideoHeight map to max-video-width/height and warn on get"
+    case: "L1PropertyTests.VideoSinkDeprecatedAliases"
+    status: covered
+
+  - prop: video-sink-conditional
+    interface: rialtomsevideosink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSEPROP-008]
+    expected: "video server-conditional props (immediate-output, syncmode-streaming, show-video-window) conform when installed"
+    case: "L1PropertyTests.VideoSinkConditionalProperties"
+    status: covered
+
+  - prop: subtitle-sink-properties
+    interface: rialtomsesubtitlesink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSEPROP-009]
+    expected: "subtitle-sink props exist with documented values (mute, text-track-identifier, window-id, async)"
+    case: "L1PropertyTests.SubtitleSinkProperties"
+    status: covered
+
+  - prop: readable-fallback-defaults
+    interface: RialtoMSEBaseSink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSEPROP-010]
+    expected: "each readable property returns its documented fallback default when the delegate cannot supply a value"
+    case: "L1PropertyTests.ReadablePropertiesFallbackDefaults"
+    status: covered
+
   - prop: is-master
     interface: rialtomsevideosink
     tier: core
