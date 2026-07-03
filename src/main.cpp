@@ -33,10 +33,19 @@
  * runtime from the capability gate (the KVP profile passed via -p).
  */
 
+#include "conformance/RegistrationProbe.h"
+
 #include <ut.h>
 
 int main(int argc, char **argv)
 {
+    // Rank-gated element registration (RC-CORE-MSE-002) can only be observed in a
+    // process that has not already registered the sinks. When the harness spawns
+    // this binary as a registration probe, answer that and exit before the suite
+    // runs; otherwise this is a no-op (returns -1) and the gate proceeds.
+    if (const int probeResult = rialto::conformance::runRegistrationProbeIfRequested(); probeResult >= 0)
+        return probeResult;
+
     UT_init(argc, argv);
     UT_run_tests();
     return 0;

@@ -74,10 +74,13 @@ RIALTO_LIBS := -lRialtoClient
 endif
 
 # --- Surface A: GStreamer core/base, to introspect rialtomse*sink elements ----
-GST_INC  := $(patsubst -I%,%,$(filter -I%,$(shell $(PKG_CONFIG) --cflags gstreamer-1.0 gstreamer-app-1.0 2>/dev/null)))
-GST_LIBS := $(shell $(PKG_CONFIG) --libs gstreamer-1.0 gstreamer-app-1.0 2>/dev/null)
+# gstreamer-audio provides the GstStreamVolume interface the audio sink implements
+# (RC-CORE-MSE-003), so it joins core/base/app in the introspection link surface.
+GST_PKGS := gstreamer-1.0 gstreamer-app-1.0 gstreamer-audio-1.0
+GST_INC  := $(patsubst -I%,%,$(filter -I%,$(shell $(PKG_CONFIG) --cflags $(GST_PKGS) 2>/dev/null)))
+GST_LIBS := $(shell $(PKG_CONFIG) --libs $(GST_PKGS) 2>/dev/null)
 ifeq ($(strip $(GST_LIBS)),)
-GST_LIBS := -lgstreamer-1.0 -lgstapp-1.0 -lgobject-2.0 -lglib-2.0
+GST_LIBS := -lgstreamer-1.0 -lgstapp-1.0 -lgstaudio-1.0 -lgobject-2.0 -lglib-2.0
 endif
 
 # Sanctioned ut-core hooks: include dirs via INC_DIRS, libraries via YLDFLAGS.
