@@ -378,6 +378,61 @@ properties:
     case: "L2 data-flow case driving a caps event on an attached source"   # planned — needs MSESTATE/DATA
     status: planned
 
+  # --- Element state transitions (RialtoMSEBaseSink change_state) --------------
+  - prop: state-null-delegate
+    interface: RialtoMSEBaseSink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSESTATE-001]
+    expected: "a state change with no playback delegate returns GST_STATE_CHANGE_FAILURE"
+    case: "L1StateTests.NullDelegateStateChangeFails"
+    status: covered
+
+  - prop: state-null-to-ready
+    interface: RialtoMSEBaseSink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSESTATE-002]
+    expected: "NULL->READY has its sink pad and succeeds once the Rialto control client reaches RUNNING"
+    case: "L1StateTests.NullToReadyReachesReadyWhenRunning"
+    status: covered
+
+  - prop: state-ready-to-paused
+    interface: RialtoMSEBaseSink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSESTATE-003]
+    expected: "READY->PAUSED tolerates a not-yet-attached source and returns GST_STATE_CHANGE_ASYNC"
+    case: "L1StateTests.ReadyToPausedIsAsyncWhenSourceNotAttached"
+    status: covered
+
+  - prop: state-paused-to-playing
+    interface: RialtoMSEBaseSink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSESTATE-004]
+    expected: "PAUSED->PLAYING with a media-player client whose source is NOT_ATTACHED returns FAILURE"
+    case: "L4 data-flow case controlling server source-attachment state"   # planned — the software backend's play() returns SUCCESS_ASYNC without an attached source, so the NOT_ATTACHED->FAILURE negative needs the attached-source data path (#18)
+    status: planned
+
+  - prop: state-paused-to-ready
+    interface: RialtoMSEBaseSink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSESTATE-005]
+    expected: "PAUSED->READY removes the source, clears queued buffers, posts async-done when a commit was pending, and succeeds"
+    case: "L1StateTests.PausedToReadyTearsDownAndSucceeds"
+    status: covered
+
+  - prop: state-ready-to-null
+    interface: RialtoMSEBaseSink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSESTATE-006]
+    expected: "READY->NULL releases the media-player client and removes the control backend, succeeding; the sink can be brought up again"
+    case: "L1StateTests.ReadyToNullReleasesAndSucceeds"
+    status: covered
+
   - prop: is-master
     interface: rialtomsevideosink
     tier: core
