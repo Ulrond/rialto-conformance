@@ -41,7 +41,7 @@ namespace rialto::conformance
  * The Rialto release the suite targets — kept in lockstep with the framework.lock
  * pin. This is the release the cases are written and validated against.
  */
-constexpr const char *kTargetRialtoRelease = "v0.22.2";
+constexpr const char *kTargetRialtoRelease = "v0.22.3";
 
 /**
  * @brief Is release @p have at least release @p need?
