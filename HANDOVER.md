@@ -30,7 +30,8 @@ state, the invariants that must not regress, and exactly where to start next.
 `feature/*` branches → PR → merge into `develop`. The bring-up (venv,
 build-rialto, SC docker, RialtoServer runtime), the IControl + factory + capability
 + IClientLogControl L1 cases, the `sc` venv-shadow fix, and the MSE Surface A
-property + caps L1 batches are all merged.
+property + caps + element-metadata/rank-gating + state-transition L1 batches are
+all merged.
 **Open issues:** #14 (CONTROL-002 callback, blocked by #18), #17 (clearkey CDM),
 #18 (software render), and #22 (real assets). PRs go green-as-designed via
 `./sc-run.sh` and are merged once proven.
@@ -53,13 +54,15 @@ Linux software platform via the SC docker flow**:
   tree (enforced); requirements cited only by suite-owned `RC-*` ids. History was
   squashed clean before first push — do not restore pre-scrub history.
 - **CORE catalogue: 121 `RC-CORE-*` requirements**, header-verified to cover the
-  whole external surface. **33 covered as cases; 88 catalogued, not yet written**
-  (the authored set: CONTROL, FACTORY, CAPS, KEYSCAP-API, LOG, MSE
-  element-registration, **MSEPROP-001..010** GObject properties, **MSECAPS-001..005**
-  pad-template + MIME→caps). Coverage by area lives in `coverage/matrix.yaml`.
+  whole external surface. **40 covered as cases; 81 catalogued, not yet written**
+  (the authored set: CONTROL, FACTORY, CAPS, KEYSCAP-API, LOG, **MSE-001..003**
+  element registration + rank-gating + factory metadata/GstStreamVolume,
+  **MSEPROP-001..010** GObject properties, **MSECAPS-001..005** pad-template +
+  MIME→caps, **MSESTATE-001/002/003/005/006** state transitions). Coverage by area
+  lives in `coverage/matrix.yaml`.
 - **The gate runs.** The software Rialto and the suite are built, a `RialtoServer`
   is brought up (Active), and the CORE gate runs against it:
-  **38 tests → 33 PASS, 3 SKIP (capability-gated), 2 FAIL.** Both fails are
+  **47 tests → 41 PASS, 4 SKIP (capability/tier-gated), 2 FAIL.** Both fails are
   `NATIVE_BUILD` **stub-OCDM** properties (`RC-CORE-KEYSCAP-002/003`): the stub
   accepts any key system and reports no version, so it is correctly flagged as a
   non-conformant DRM backend — **not** a suite bug; a real CDM is expected to
@@ -125,11 +128,13 @@ exit is the wrapper's, not docker's).
   `--no-deps` to skip), `Dockerfile` (build-env), `docker/{entrypoint,bashext,run-in-container}.sh`,
   `sc-run.sh` (the SC one-shot).
 - `include/conformance/`: CapabilityGate, RialtoRelease, TierGate, ContentLoader, Surfaces.
-- `src/main.cpp` + `src/common/Surfaces.cpp`; **authored L1 cases**:
-  `native/CapabilitiesTests` (incl. CAPS-003/004), `native/KeysCapabilitiesTests`,
-  `native/ControlTests`, `native/FactoryTests`, `native/ClientLogControlTests`,
-  `mse/SinkRegistrationTests`, `mse/PropertyTests` (MSEPROP-001..010),
-  `mse/CapsTests` (MSECAPS-001..005). L2–L4 trees scaffolded (empty).
+- `src/main.cpp` (+ a rank-gated registration-probe hook) + `src/common/Surfaces.cpp`
+  + `src/common/RegistrationProbe.cpp` (`include/conformance/RegistrationProbe.h`);
+  **authored L1 cases**: `native/CapabilitiesTests` (incl. CAPS-003/004),
+  `native/KeysCapabilitiesTests`, `native/ControlTests`, `native/FactoryTests`,
+  `native/ClientLogControlTests`, `mse/SinkRegistrationTests` (MSE-001/002/003),
+  `mse/PropertyTests` (MSEPROP-001..010), `mse/CapsTests` (MSECAPS-001..005),
+  `mse/StateTests` (MSESTATE-001/002/003/005/006). L2–L4 trees scaffolded (empty).
 - `coverage/rc-core-catalog.yaml` (121 reqs) + `coverage/matrix.yaml` (coverage
   view: tier + path + case + status, `targetRialtoRelease`); `coverage/requirements/`
   mount README; `profiles/` (schema + example + `deviceConfig.linux.yaml`);
@@ -147,19 +152,20 @@ then the gated areas as #17/#18/#22 land:
 
 1. **Finish MSE Surface A introspection** *(green, several PRs; no live server
    beyond what `sc-run` provides)* — extend `src/L1_function/mse/`, one PR per
-   sub-area. **MSEPROP-* and MSECAPS-001..005 are done.** Remaining, in order:
-   - **`RC-CORE-MSE-002/003`** — sink metadata/klass + audio-sink `GstStreamVolume`
-     interface (pure introspection).
-   - **`RC-CORE-MSESTATE-*` (6)** — element state transitions. NULL↔READY is
-     reachable standalone; PAUSED/PLAYING legs use the live `sc-run` server (some
-     return `GST_STATE_CHANGE_ASYNC`/`FAILURE` by contract — see the catalogue).
+   sub-area. **MSE-001/002/003, MSEPROP-*, MSECAPS-001..005, and
+   MSESTATE-001/002/003/005/006 are done.** Remaining, in order:
    - **`RC-CORE-MSEEVENT-*` (12)** — events/queries. Introspection-only subset is
      green; flow-driven ones pair with the data path (#18).
    - **`RC-CORE-MSECAPS-006`** *(planned row already in the matrix)* — incoming
      CAPS-event field parsing (codec_data/alignment/stream-format/Dolby-Vision/raw
      layout). A **data-flow** transform observable only via an attached server-side
      source; parsers are internal, so it must be driven, not introspected. Do with
-     MSESTATE/DATA, not as an L1 introspection case.
+     the data path (#18), not as an L1 introspection case.
+   - **`RC-CORE-MSESTATE-004`** *(planned row; folded into #18)* — PAUSED→PLAYING
+     NOT_ATTACHED→`FAILURE`. The software backend's `play()` returns
+     `SUCCESS_ASYNC` without an attached source (so the leg yields `ASYNC`, not
+     `FAILURE`); the documented negative needs controlled server source-attachment
+     state, so it is driven with the data path (#18).
 2. **IWebAudioPlayer L1** (`RC-CORE-WEBAUDIO-*`, 7) — verify whether the software
    stub supports web audio; gate/skip what it cannot.
 3. **The green `IMediaPipeline` subset** — create/getClient/synchronous getters
