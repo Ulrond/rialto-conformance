@@ -37,7 +37,7 @@ suite: rialto-conformance
 tier: core
 # The Rialto release the suite is written and validated against (framework.lock
 # pin). Requirements apply at this release unless they carry a newer `since:`.
-targetRialtoRelease: "v0.22.2"
+targetRialtoRelease: "v0.22.3"
 
 requirements:
 

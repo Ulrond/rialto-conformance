@@ -87,7 +87,7 @@ verdict is conformance to the published requirements, not an internal contract.
 All of the above are **installed at fixed versions by [install.sh](install.sh)**
 into the gitignored `framework/` area — never committed. The pins live in
 [framework.lock](framework.lock): ut-core **5.1.0**, python_raft **1.8.2**,
-ut-raft **2.1.2**, rialto **v0.22.2**, rialto-gstreamer **v0.20.1**; ut-control
+ut-raft **2.1.2**, rialto **v0.22.3**, rialto-gstreamer **v0.20.1**; ut-control
 **2.1.0** + GoogleTest **1.15.2** are pulled by ut-core's `build.sh`.
 
 ## Install + build
@@ -209,7 +209,7 @@ framework/            install.sh target — ut-core/ut-control/ut-raft/rialto (N
 ## Certification model
 
 The suite targets a specific **Rialto release** — the [framework.lock](framework.lock)
-pin (`targetRialtoRelease`, currently **v0.22.2**) — and passing it certifies a
+pin (`targetRialtoRelease`, currently **v0.22.3**) — and passing it certifies a
 backend at that release. A requirement may declare a `since:` release; on a target
 running an older Rialto it self-skips (`CONFORMANCE_REQUIRE_SINCE`), so a backend
 is never failed by a requirement for an interface it predates. (This is release

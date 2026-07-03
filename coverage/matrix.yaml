@@ -37,7 +37,7 @@
 schemaVersion: 2
 # The Rialto release this record targets (framework.lock pin). NOT Rialto's binary
 # ABI (fixed per release) — it is the release the suite is validated against.
-targetRialtoRelease: "v0.22.2"
+targetRialtoRelease: "v0.22.3"
 
 # --- Operations (the IMediaPipeline / IMediaKeys / IWebAudioPlayer functions) -
 operations:

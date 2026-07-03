@@ -23,7 +23,7 @@ state, the invariants that must not regress, and exactly where to start next.
 |---|---|
 | **This repo (the suite)** | `/home/gew04/git/fast/sky/rialto-conformance` — **published**, public: [Ulrond/rialto-conformance](https://github.com/Ulrond/rialto-conformance) |
 | **Private requirements feed** | `/home/gew04/git/fast/sky/rialto-conformance-requirements` — local git; comcast-sky push **blocked** (org needs a `DevHub-Application-ID` at repo creation). Mounts at `coverage/requirements/` (gitignored). Phase 2. |
-| **Rialto API reference** | cloned by `install.sh` into `framework/rialto` + `framework/rialto-gstreamer` at the `framework.lock` pins (rialto **v0.22.2**) |
+| **Rialto API reference** | cloned by `install.sh` into `framework/rialto` + `framework/rialto-gstreamer` at the `framework.lock` pins (rialto **v0.22.3**) |
 
 **git-flow** (via the `sc` tool's model, plain git): `master` = published baseline,
 **`develop`** = integration **(GitHub default branch)**, issue-numbered
@@ -106,7 +106,7 @@ exit is the wrapper's, not docker's).
    case. Tests are never path-agnostic — no wrapper runs one body on both paths.
 6. **Release-targeted, NOT ABI-versioned.** The suite targets one Rialto release
    (the `framework.lock` pin; `kTargetRialtoRelease` / `targetRialtoRelease` =
-   v0.22.2). A requirement may declare a `since:` release;
+   v0.22.3). A requirement may declare a `since:` release;
    `CONFORMANCE_REQUIRE_SINCE("vX")` self-skips on an older target. This is **not**
    Rialto's binary ABI (fixed per release). ([RialtoRelease.h](include/conformance/RialtoRelease.h)).
 7. **Never override ut-core's build flags.** Contribute includes via `INC_DIRS`
