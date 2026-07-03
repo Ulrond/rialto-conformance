@@ -89,6 +89,19 @@ ifneq ($(strip $(RIALTO_NATIVE_LIBDIR)),)
 YLDFLAGS += -Wl,-rpath,$(RIALTO_NATIVE_LIBDIR) -L$(RIALTO_NATIVE_LIBDIR)
 endif
 
+# Opt-in leak checking: MEMCHECK=1 links the suite against standalone
+# LeakSanitizer (-fsanitize=leak), which reports leaks at process exit for the
+# L3 memory-usage dimension. It goes through YLDFLAGS — ut-core's only sanctioned
+# link hook — so ut-core's own compile flags (CFLAGS/CXXFLAGS/XCFLAGS) are left
+# untouched (invariant: never override ut-core's build flags). LSan needs no
+# compile-time instrumentation (unlike full AddressSanitizer, which would require
+# a ut-core compile hook the caller does not have); it intercepts the allocator
+# at runtime and scans for unreachable blocks at exit. Deep server-side ASan is a
+# separate opt-in in build-rialto.sh (that script owns Rialto's own build flags).
+ifdef MEMCHECK
+YLDFLAGS += -fsanitize=leak
+endif
+
 # For an arm target, vendor libs (incl. the installed RialtoClient) live under
 # libs/ and need an rpath so the deployed binary finds them on the device.
 ifeq ($(TARGET),arm)
