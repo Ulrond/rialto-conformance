@@ -218,6 +218,22 @@ properties:
     case: "L1SinkRegistrationTests.VideoSinkRegistered, L1SinkRegistrationTests.AudioSinkRegistered"
     status: covered
 
+  - prop: element-registration-rank-gated
+    tier: core
+    path: mse
+    req: [RC-CORE-MSE-002]
+    expected: "rank 0 (RIALTO_SOCKET_PATH unset, RIALTO_SINKS_RANK not >0) registers no sinks; rank >0 registers all (checked in a fresh-registry child process)"
+    case: "L1SinkRegistrationTests.RegistrationIsRankGated"
+    status: covered
+
+  - prop: element-metadata
+    tier: core
+    path: mse
+    req: [RC-CORE-MSE-003]
+    expected: "each sink advertises its documented klass (Decoder/Video/Sink/Video, Decoder/Audio/Sink/Audio, Parser/Subtitle/Sink/Subtitle); audio sink implements GstStreamVolume"
+    case: "L1SinkRegistrationTests.SinkFactoryKlassMetadata, L1SinkRegistrationTests.AudioSinkImplementsStreamVolume"
+    status: covered
+
   - prop: base-sink-properties
     interface: RialtoMSEBaseSink
     tier: core
