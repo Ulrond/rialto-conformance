@@ -433,6 +433,70 @@ properties:
     case: "L1StateTests.ReadyToNullReleasesAndSucceeds"
     status: covered
 
+  # --- Queries / events (RialtoMSEBaseSink query + send_event) -----------------
+  - prop: query-seeking
+    interface: RialtoMSEBaseSink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSEEVENT-001]
+    expected: "GST_QUERY_SEEKING answers seekable=FALSE with range [0, -1]"
+    case: "L1EventTests.SeekingQueryReportsNotSeekable"
+    status: covered
+
+  - prop: query-position
+    interface: RialtoMSEBaseSink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSEEVENT-002]
+    expected: "GST_QUERY_POSITION returns FALSE when there is no media-player client"
+    case: "L1EventTests.PositionQueryFalseWithoutClient"
+    status: covered
+
+  - prop: query-duration
+    interface: RialtoMSEBaseSink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSEEVENT-003]
+    expected: "GST_QUERY_DURATION returns FALSE when there is no media-player client"
+    case: "L1EventTests.DurationQueryFalseWithoutClient"
+    status: covered
+
+  - prop: query-segment
+    interface: RialtoMSEBaseSink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSEEVENT-004]
+    expected: "GST_QUERY_SEGMENT returns the last segment's rate/format and stream-time start/stop (initialised TIME segment: rate 1.0, start 0, stop -1)"
+    case: "L1EventTests.SegmentQueryReturnsLastSegment"
+    status: covered
+
+  - prop: seek-flush-only
+    interface: RialtoMSEBaseSink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSEEVENT-005]
+    expected: "only FLUSH seeks are supported: a FLUSH SEEK_TYPE_END seek in TIME is rejected, and a non-FLUSH seek is rejected"
+    case: "L1EventTests.UnsupportedSeeksAreRejected"
+    status: covered
+
+  - prop: event-unhandled-consumed
+    interface: RialtoMSEBaseSink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSEEVENT-012]
+    expected: "an unhandled custom downstream event is consumed (send_event returns TRUE)"
+    case: "L1EventTests.UnhandledDownstreamEventIsConsumed"
+    status: covered
+
+  - prop: event-source-application
+    interface: RialtoMSEBaseSink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSEEVENT-006, RC-CORE-MSEEVENT-007, RC-CORE-MSEEVENT-008, RC-CORE-MSEEVENT-009, RC-CORE-MSEEVENT-010, RC-CORE-MSEEVENT-011]
+    expected: "events applied to the server source (instant-rate-change, SEGMENT, EOS, CAPS attach, FLUSH start/stop, STREAM_COLLECTION) take effect on the attached source; also the MSEEVENT-012 upstream-forward clause (needs an active sink pad in a linked pipeline)"
+    case: "L4 data-flow cases driving events on an attached source"   # planned — needs the data path (#18)
+    status: planned
+
   - prop: is-master
     interface: rialtomsevideosink
     tier: core
