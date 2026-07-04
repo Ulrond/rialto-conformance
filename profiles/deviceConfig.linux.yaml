@@ -33,6 +33,12 @@ deviceConfig:
           ac4: false
           opus: false
 
+      webaudio:
+        playout: false              # headless software build has no audio-render
+                                    # device; the create + query surface is tested
+                                    # unconditionally, only the play-out state
+                                    # machine (WEBAUDIO-002) gates on this
+
       drm:
         widevine: false             # no real CDM in the stubbed software build
         playready: false
