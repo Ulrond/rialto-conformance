@@ -33,6 +33,9 @@ deviceConfig:
           ac4: true
           opus: true
 
+      webaudio:
+        playout: true          # platform can render web-audio (PCM mixing)
+
       drm:
         widevine: true
         playready: true

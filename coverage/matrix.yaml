@@ -208,6 +208,74 @@ operations:
     case: "L1ClientLogControlTests.NullHandlerCancelsDelivery"
     status: covered
 
+  # --- IWebAudioPlayer (Surface B native) ------------------------------------
+  - op: createWebAudioPlayer
+    interface: IWebAudioPlayerFactory
+    tier: core
+    path: native
+    req: [RC-CORE-WEBAUDIO-001]
+    expected: "createWebAudioPlayer(\"audio/x-raw\", priority, pcm config) returns an instance in IDLE"
+    case: "L1WebAudioTests.CreateReturnsInstance"
+    status: covered
+
+  - op: "play / pause / setEos"
+    interface: IWebAudioPlayer
+    tier: core
+    path: native
+    req: [RC-CORE-WEBAUDIO-002]
+    expected: "IDLE->PLAYING/PAUSED->END_OF_STREAM and notifyState reports each transition"
+    case: "L1WebAudioTests.StateMachineNotifiesTransitions"
+    status: covered
+    # Gated on the `webaudio.playout` platform feature: driving PLAYING renders
+    # through the backend audio device, which the headless software platform does
+    # not provide, so this leg self-skips there and runs where a target declares
+    # web-audio play-out.
+
+  - op: getBufferAvailable
+    interface: IWebAudioPlayer
+    tier: core
+    path: native
+    req: [RC-CORE-WEBAUDIO-003]
+    expected: "Reports the writeable frames, bounded by the shm capacity; a write at that bound is accepted"
+    case: "L1WebAudioTests.GetBufferAvailableBoundsTheWrite"
+    status: covered
+
+  - op: getBufferDelay
+    interface: IWebAudioPlayer
+    tier: core
+    path: native
+    req: [RC-CORE-WEBAUDIO-004]
+    expected: "Writes the number of frames still to be played (zero when nothing is queued)"
+    case: "L1WebAudioTests.GetBufferDelayReportsQueuedFrames"
+    status: covered
+
+  - op: getDeviceInfo
+    interface: IWebAudioPlayer
+    tier: core
+    path: native
+    req: [RC-CORE-WEBAUDIO-005]
+    expected: "Writes preferred/maximum commit frames + supportDeferredPlay; preferred <= maximum"
+    case: "L1WebAudioTests.GetDeviceInfoReportsBufferSizing"
+    status: covered
+
+  - op: "setVolume / getVolume"
+    interface: IWebAudioPlayer
+    tier: core
+    path: native
+    req: [RC-CORE-WEBAUDIO-006]
+    expected: "Round-trips a level in [0.0, 1.0]"
+    case: "L1WebAudioTests.VolumeRoundTrips"
+    status: covered
+
+  - op: createWebAudioPlayer
+    interface: IWebAudioPlayerFactory
+    tier: core
+    path: native
+    req: [RC-CORE-WEBAUDIO-007]
+    expected: "A player created with priority above the supported count still creates and appears to function (audio silently discarded)"
+    case: "L1WebAudioTests.HighPriorityPlayerAppearsToFunction"
+    status: covered
+
 # --- Properties (sink/decoder properties) × path ------------------------------
 properties:
   - prop: element-registration
