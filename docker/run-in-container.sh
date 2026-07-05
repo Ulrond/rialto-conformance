@@ -35,6 +35,18 @@ export LD_LIBRARY_PATH="${ROOT_DIR}/build/bin:${PREFIX}/lib:${LD_LIBRARY_PATH:-}
 export GST_PLUGIN_PATH="${PREFIX}/lib/gstreamer-1.0:${ROOT_DIR}/framework/rialto-gstreamer/build"
 export RIALTO_SINKS_RANK=1
 
+# Software render path (issue #18): the RialtoServer decodes through a GStreamer
+# playbin that leaves audio-sink/video-sink unset, so it falls to autoaudiosink/
+# autovideosink. This container is headless (no display, no audio device), so
+# promote the fake sinks to the top rank — autodetect then selects them and real
+# decode (gstreamer1.0-libav: avdec_h264/avdec_aac) runs to EOS without hardware.
+# Exported here, before the sim launches, so the spawned RialtoServer inherits it.
+export GST_PLUGIN_FEATURE_RANK="fakevideosink:MAX,fakeaudiosink:MAX${GST_PLUGIN_FEATURE_RANK:+,${GST_PLUGIN_FEATURE_RANK}}"
+
+# Assert the image can actually decode+render headlessly before running the gate;
+# fail loudly if the software render path is broken (data-path cases depend on it).
+"${ROOT_DIR}/docker/verify-render.sh"
+
 # 2. Bring up the software RialtoServer via the ServerManagerSim.
 export RIALTO_SESSION_SERVER_PATH="${PREFIX}/bin/RialtoServer"
 echo "[run] starting RialtoServerManagerSim (HTTP :${SIM_PORT})"
