@@ -248,8 +248,10 @@ operations:
   # rest of the IMediaPipeline surface — transport (attachSource /
   # allSourcesAttached / play / seek / flush), per-source properties, AND the
   # position/duration/buffering getters below — only returns a value once a source
-  # is attached and the backend media pipeline is realized, so it is `planned`
-  # with the software render / data path (#18).
+  # is attached and the backend media pipeline is realized. getPosition is now
+  # covered by driving a real AAC source to PLAYING over the software render / data
+  # path (#18); the remaining getters stay `planned` for the follow-on data-path
+  # cases.
   - op: createMediaPipeline
     interface: IMediaPipelineFactory
     tier: core
@@ -274,8 +276,8 @@ operations:
     path: native
     req: [RC-CORE-PIPE-012]
     expected: "Synchronous: returns true and writes the position"
-    case: "(data path #18 — getPosition returns false until a source is attached)"
-    status: planned
+    case: "L4PlaybackDataPathTests.GetPositionSucceedsOncePlaying"
+    status: covered
 
   - op: getDuration
     interface: IMediaPipeline
