@@ -208,6 +208,67 @@ operations:
     case: "L1ClientLogControlTests.NullHandlerCancelsDelivery"
     status: covered
 
+  # --- IMediaPipeline (Surface B native) -------------------------------------
+  # Create + client-binding introspection (green on the software platform). The
+  # rest of the IMediaPipeline surface — transport (attachSource /
+  # allSourcesAttached / play / seek / flush), per-source properties, AND the
+  # position/duration/buffering getters below — only returns a value once a source
+  # is attached and the backend media pipeline is realized, so it is `planned`
+  # with the software render / data path (#18).
+  - op: createMediaPipeline
+    interface: IMediaPipelineFactory
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-001]
+    expected: "createMediaPipeline(client, VideoRequirements) returns a usable instance bound to the client"
+    case: "L1PipelineTests.CreateReturnsInstance"
+    status: covered
+
+  - op: getClient
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-002]
+    expected: "getClient returns the client supplied at creation"
+    case: "L1PipelineTests.GetClientReturnsSuppliedClient"
+    status: covered
+
+  - op: getPosition
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-012]
+    expected: "Synchronous: returns true and writes the position"
+    case: "(data path #18 — getPosition returns false until a source is attached)"
+    status: planned
+
+  - op: getDuration
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-013]
+    expected: "Synchronous: returns true and writes the duration"
+    case: "(data path #18 — getDuration returns false until a source is attached)"
+    status: planned
+
+  - op: "setBufferingLimit / getBufferingLimit"
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-029]
+    expected: "Round-trips a limit in ms; kInvalidLimitBuffering disables and reads back as the sentinel"
+    case: "(data path #18 — set/getBufferingLimit return false until the pipeline is realized)"
+    status: planned
+
+  - op: "setUseBuffering / getUseBuffering"
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-030]
+    expected: "Round-trips the buffering-messages flag"
+    case: "(data path #18 — set/getUseBuffering return false until the pipeline is realized)"
+    status: planned
+
   # --- IWebAudioPlayer (Surface B native) ------------------------------------
   - op: createWebAudioPlayer
     interface: IWebAudioPlayerFactory
