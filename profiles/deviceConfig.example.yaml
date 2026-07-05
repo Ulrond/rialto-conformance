@@ -37,6 +37,7 @@ deviceConfig:
         playout: true          # platform can render web-audio (PCM mixing)
 
       drm:
+        clearkey: true         # org.w3.clearkey
         widevine: true
         playready: true
         fairplay: false        # com.apple.fps — unmet by Rialto (coverage/matrix.yaml gap)

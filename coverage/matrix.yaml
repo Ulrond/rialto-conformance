@@ -172,6 +172,41 @@ operations:
     case: "L1KeysCapabilitiesTests.ServerCertificateQueryIsLegal"
     status: covered
 
+  - op: supportsKeySystem
+    interface: IMediaKeysCapabilities
+    tier: core
+    path: native
+    req: [RC-CORE-KEYSCAP-002]
+    expected: "A declared ClearKey system (org.w3.clearkey) reports as supported"
+    case: "L1KeysCapabilitiesTests.ClearKeySupportedWhenDeclared"
+    status: covered
+    # Gated on the `drm.clearkey` platform feature. Exercises the positive
+    # supportsKeySystem path against the software platform's ClearKey OpenCDM
+    # backend (backends/opencdm/clearkey); self-skips where ClearKey is undeclared.
+
+  - op: getSupportedKeySystemVersion
+    interface: IMediaKeysCapabilities
+    tier: core
+    path: native
+    req: [RC-CORE-KEYSCAP-003]
+    expected: "A declared ClearKey system reports a non-empty version"
+    case: "L1KeysCapabilitiesTests.ClearKeyReportsVersion"
+    status: covered
+    # Gated on `drm.clearkey`. Exercises the positive version path against the
+    # ClearKey backend (the generic case only reaches the unsupported->false leg
+    # where the platform advertises no key systems).
+
+  - op: isServerCertificateSupported
+    interface: IMediaKeysCapabilities
+    tier: core
+    path: native
+    req: [RC-CORE-KEYSCAP-004]
+    expected: "ClearKey is supported but certificate-less -> reports false"
+    case: "L1KeysCapabilitiesTests.ClearKeyHasNoServerCertificate"
+    status: covered
+    # Gated on `drm.clearkey`. Distinguishes the false a supported-but-
+    # certificate-less system returns from the false an unsupported system returns.
+
   - op: createClientLogControl
     interface: IClientLogControl
     tier: core

@@ -58,6 +58,9 @@ class L1KeysCapabilitiesTests : public NativeClientSurface
 // are the standard strings the capabilities API is queried with).
 constexpr const char *kWidevine = "com.widevine.alpha";
 constexpr const char *kPlayReady = "com.microsoft.playready";
+// W3C Clear Key (https://www.w3.org/TR/encrypted-media/#clear-key). The software
+// platform provisions a ClearKey CDM behind OpenCDM, gated on "drm.clearkey".
+constexpr const char *kClearKey = "org.w3.clearkey";
 // A deliberately unsupported string: any string is a LEGAL query and must return
 // false rather than error (RC-CORE-KEYSCAP-002).
 constexpr const char *kUnsupported = "com.example.nonexistent.keysystem";
@@ -178,4 +181,57 @@ UT_ADD_TEST(L1KeysCapabilitiesTests, PlayReadySupportedWhenDeclared)
     UT_ASSERT_NOT_NULL_FATAL(caps.get());
 
     UT_ASSERT_TRUE(caps->supportsKeySystem(kPlayReady));
+}
+
+/**
+ * RC-CORE-KEYSCAP-002 (Clear Key instance) — where the platform declares Clear
+ * Key, it must report as supported. GATED on "drm.clearkey"; exercises the
+ * positive supportsKeySystem path against a real backend (the software platform's
+ * ClearKey CDM), complementing the unsupported-string leg of the generic case.
+ */
+UT_ADD_TEST(L1KeysCapabilitiesTests, ClearKeySupportedWhenDeclared)
+{
+    CONFORMANCE_CORE_TEST();
+    CONFORMANCE_REQUIRE_CAP("drm.clearkey");
+
+    auto caps = obtainCapabilities();
+    UT_ASSERT_NOT_NULL_FATAL(caps.get());
+
+    UT_ASSERT_TRUE(caps->supportsKeySystem(kClearKey));
+}
+
+/**
+ * RC-CORE-KEYSCAP-003 (Clear Key instance) — a declared Clear Key system reports
+ * a non-empty version. GATED on "drm.clearkey"; exercises the positive
+ * getSupportedKeySystemVersion path (the generic case only reaches the
+ * unsupported-returns-false leg on a platform that advertises no key systems).
+ */
+UT_ADD_TEST(L1KeysCapabilitiesTests, ClearKeyReportsVersion)
+{
+    CONFORMANCE_CORE_TEST();
+    CONFORMANCE_REQUIRE_CAP("drm.clearkey");
+
+    auto caps = obtainCapabilities();
+    UT_ASSERT_NOT_NULL_FATAL(caps.get());
+
+    std::string version;
+    UT_ASSERT_TRUE(caps->getSupportedKeySystemVersion(kClearKey, version));
+    UT_ASSERT_FALSE(version.empty());
+}
+
+/**
+ * RC-CORE-KEYSCAP-004 (Clear Key instance) — Clear Key exchanges keys in the
+ * clear and has no service certificate, so isServerCertificateSupported reports
+ * false for a supported-but-certificate-less system (distinct from the false an
+ * unsupported system returns). GATED on "drm.clearkey".
+ */
+UT_ADD_TEST(L1KeysCapabilitiesTests, ClearKeyHasNoServerCertificate)
+{
+    CONFORMANCE_CORE_TEST();
+    CONFORMANCE_REQUIRE_CAP("drm.clearkey");
+
+    auto caps = obtainCapabilities();
+    UT_ASSERT_NOT_NULL_FATAL(caps.get());
+
+    UT_ASSERT_FALSE(caps->isServerCertificateSupported(kClearKey));
 }

@@ -55,6 +55,7 @@ deviceConfig:
 
       # DRM key systems the platform provisions (varies per target).
       drm:
+        clearkey: bool        # org.w3.clearkey
         widevine: bool        # com.widevine.alpha
         playready: bool       # com.microsoft.playready
         fairplay: bool        # com.apple.fps — unmet by Rialto today (coverage/matrix.yaml gap)
