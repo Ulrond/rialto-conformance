@@ -34,7 +34,20 @@ ENV DEBIAN_FRONTEND=noninteractive \
     TZ=Europe/London
 
 # Toolchain + Rialto's native build deps (Rialto's own list) + GStreamer runtime
-# to actually run the sinks. wget is needed by ut-control's configure.sh.
+# to actually decode and render. wget is needed by ut-control's configure.sh.
+#
+# The GStreamer runtime split matters for the software render path (issue #18):
+#   -plugins-base  : appsrc, decodebin/playbin, autodetect sinks, videotestsrc
+#   -plugins-good  : aacparse and friends
+#   -plugins-bad   : h264parse (videoparsersbad) + fakevideosink
+#   -plugins-ugly  : x264enc — synthesize real-codec test clips (pairs with #22)
+#   -libav         : avdec_h264 / avdec_aac / avenc_aac — the actual software
+#                    decoders, so the RialtoServer playbin really decodes rather
+#                    than stalling on a missing decoder
+#   -tools         : gst-launch-1.0 / gst-inspect-1.0 for asset synthesis + probes
+# The RialtoServer's playbin leaves audio-sink/video-sink unset, so autodetect
+# degrades to fakesink when the container has no display/audio device — decode
+# runs headlessly to EOS with the clock advancing.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git ca-certificates wget curl gnupg sudo locales \
         build-essential cmake pkg-config \
@@ -44,6 +57,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libunwind-dev libyaml-cpp-dev \
         libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgstreamer-plugins-bad1.0-dev \
         gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+        gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav \
+        gstreamer1.0-tools \
     && rm -rf /var/lib/apt/lists/*
 
 # gosu, for the SC entrypoint's privilege drop to the mapped user.
