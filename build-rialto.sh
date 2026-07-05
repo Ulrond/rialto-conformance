@@ -141,6 +141,34 @@ echo "[build-rialto] native build prerequisites present"
 
 JOBS="$(nproc 2>/dev/null || echo 4)"
 
+# 0. Select the OpenCDM backend for Rialto's NATIVE_BUILD `libocdm`. Rialto builds
+#    libocdm from stubs/opencdm/*.cpp; RIALTO_OCDM_BACKEND picks which open_cdm.cpp
+#    body it compiles (the ABI is unchanged, so a real CDM can be swapped in later):
+#      clearkey (default) - the suite's W3C ClearKey CDM (backends/opencdm/clearkey):
+#                           org.w3.clearkey supported + versioned, others rejected,
+#                           no server certificate. Makes IMediaKeysCapabilities
+#                           conformant in software CI.
+#      stub               - Rialto's pristine permissive stub (accepts any key
+#                           system, reports no version).
+#    The stub source is reset from the pinned checkout first, so the choice is
+#    deterministic regardless of a previous overlay.
+OCDM_BACKEND="${RIALTO_OCDM_BACKEND:-clearkey}"
+OCDM_STUB="${FRAMEWORK_DIR}/rialto/stubs/opencdm/open_cdm.cpp"
+echo "[build-rialto] selecting OpenCDM backend: ${OCDM_BACKEND}"
+git -C "${FRAMEWORK_DIR}/rialto" checkout --quiet -- stubs/opencdm/open_cdm.cpp 2>/dev/null || true
+case "${OCDM_BACKEND}" in
+    stub)
+        : # leave Rialto's pristine stub in place
+        ;;
+    clearkey)
+        cp "${ROOT_DIR}/backends/opencdm/clearkey/open_cdm.cpp" "${OCDM_STUB}"
+        ;;
+    *)
+        echo "[build-rialto] ERROR: unknown RIALTO_OCDM_BACKEND '${OCDM_BACKEND}' (want: clearkey|stub)" >&2
+        exit 2
+        ;;
+esac
+
 # 1. Build Rialto (client + server) natively and install into PREFIX so that
 #    RialtoClient.pc resolves to the built library.
 echo "[build-rialto] building Rialto (NATIVE_BUILD) -> ${PREFIX}"

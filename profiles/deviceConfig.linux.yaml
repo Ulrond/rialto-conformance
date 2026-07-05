@@ -40,7 +40,10 @@ deviceConfig:
                                     # machine (WEBAUDIO-002) gates on this
 
       drm:
-        widevine: false             # no real CDM in the stubbed software build
+        clearkey: true              # W3C org.w3.clearkey — the software build's
+                                    # OpenCDM backend (backends/opencdm/clearkey,
+                                    # RIALTO_OCDM_BACKEND=clearkey)
+        widevine: false             # no real vendor CDM in the software build
         playready: false
         fairplay: false             # com.apple.fps — unmet by Rialto (coverage/matrix.yaml gap)
         secureVideoPath: false
