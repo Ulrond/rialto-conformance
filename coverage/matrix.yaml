@@ -587,8 +587,8 @@ properties:
     path: mse
     req: [RC-CORE-MSESTATE-004]
     expected: "PAUSED->PLAYING with a media-player client whose source is NOT_ATTACHED returns FAILURE"
-    case: "L4 data-flow case controlling server source-attachment state"   # planned — the software backend's play() returns SUCCESS_ASYNC without an attached source, so the NOT_ATTACHED->FAILURE negative needs the attached-source data path (#18)
-    status: planned
+    case: "L1StateTests.PausedToPlayingFailsWhenSourceNotAttached"   # READY->PAUSED creates the client but attaches no source (caps never pushed); play() then reports NOT_ATTACHED and the transition returns FAILURE — no data path needed
+    status: covered
 
   - prop: state-paused-to-ready
     interface: RialtoMSEBaseSink
