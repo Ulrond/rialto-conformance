@@ -79,8 +79,23 @@ operations:
     # The current state is delivered to a registering client via the
     # registerClient out-param; the notifyApplicationState callback delivers
     # subsequent transitions. This case verifies the former (client learns
-    # RUNNING). Asserting the callback on a post-registration transition needs
-    # the harness to drive an INACTIVE<->ACTIVE change while registered (#14).
+    # RUNNING); the transition-callback clause is the row below (#14).
+
+  - op: notifyApplicationState
+    interface: IControlClient
+    tier: core
+    path: native
+    req: [RC-CORE-CONTROL-002]
+    expected: "A registered client receives notifyApplicationState on a server application-state transition (RUNNING->INACTIVE->RUNNING)"
+    case: "L1ControlTests.RegisteredClientIsNotifiedOfStateTransition"
+    status: covered
+    # The registration out-param covers the initial state; this covers the
+    # callback on a *subsequent* transition. The gate activates the server before
+    # the client connects, so the case provokes the edge itself: it drives the app
+    # INACTIVE then ACTIVE through the ServerManagerSim (SimControl) while
+    # registered and asserts the client observed each edge. Gated on the
+    # `control.stateToggle` platform feature — only a gate controlling its own sim
+    # can drive the transition, so it self-skips on real hardware (#14).
 
   - op: "~IControl"
     interface: IControl

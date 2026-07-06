@@ -23,6 +23,11 @@ deviceConfig:
 
     rialto:
 
+      control:
+        stateToggle: false     # real hardware: no ServerManagerSim to drive, so
+                               # the notify-on-transition case (CONTROL-002)
+                               # self-skips here
+
       codecs:
         video:
           hevc: true
