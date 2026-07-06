@@ -33,7 +33,8 @@
  * realized — the getters that return false on a freshly-created pipeline.
  *
  * Coverage trace: coverage/rc-core-catalog.yaml / matrix.yaml — RC-CORE-PIPE-012
- * (getPosition returns true synchronously and writes the position out-param).
+ * (getPosition returns true synchronously and writes the position out-param) and
+ * RC-CORE-PIPE-014 (getStats writes rendered/dropped frame counts for a source id).
  */
 
 #include <ut.h>
@@ -141,6 +142,85 @@ UT_ADD_TEST(L4PlaybackDataPathTests, GetPositionSucceedsOncePlaying)
            static_cast<long long>(position));
     UT_ASSERT_TRUE(getPositionOk);
     UT_ASSERT_TRUE(position >= 0);
+
+    // Tear the data path down before the client is released: stop playback, then
+    // destroy the pipeline (which ends need-data callbacks) while the client that
+    // services them is still alive.
+    pipeline->stop();
+    pipeline.reset();
+}
+
+/**
+ * RC-CORE-PIPE-014 — getStats writes rendered and dropped frame counts for a
+ * source id, once that source is attached and the backend media pipeline is
+ * realized and playing. On a freshly-created pipeline getStats returns false (no
+ * realized backend / no such source); here a real AAC source is attached, fed,
+ * and driven to PLAYING, after which getStats must succeed for that source id and
+ * write both counters.
+ */
+UT_ADD_TEST(L4PlaybackDataPathTests, GetStatsSucceedsOncePlaying)
+{
+    CONFORMANCE_CORE_TEST();
+
+    // Real AAC (ADTS) to feed. Baseline codec support is required, so failing to
+    // synthesise it is a harness/platform fault, not a soft skip.
+    AacElementaryStream stream = generateAacAdtsStream(kAacFrames);
+    UT_LOG("[data-path] synthesised AAC frames=%zu rate=%u channels=%u totalDurationNs=%lld",
+           stream.frames.size(), stream.sampleRate, stream.channels,
+           static_cast<long long>(stream.totalDurationNs()));
+    UT_ASSERT_TRUE_FATAL(!stream.frames.empty());
+
+    auto client = std::make_shared<FeedingMediaPipelineClient>();
+
+    auto factory = IMediaPipelineFactory::createFactory();
+    UT_ASSERT_NOT_NULL_FATAL(factory.get());
+
+    VideoRequirements requirements{kMaxWidth, kMaxHeight};
+    std::unique_ptr<IMediaPipeline> pipeline = factory->createMediaPipeline(client, requirements);
+    UT_ASSERT_NOT_NULL_FATAL(pipeline.get());
+    client->setPipeline(pipeline.get());
+
+    // Before the backend is realized (and before any source exists), getStats has
+    // no source to report on and returns false — the baseline the realized-pipeline
+    // contract is measured against.
+    uint64_t freshRendered = 0;
+    uint64_t freshDropped = 0;
+    UT_ASSERT_FALSE(pipeline->getStats(0, freshRendered, freshDropped));
+
+    // MSE load, then attach the clear AAC audio source.
+    const bool loadOk = pipeline->load(MediaType::MSE, "", "mse://1", false);
+    UT_ASSERT_TRUE(loadOk);
+
+    AudioConfig audioConfig;
+    audioConfig.numberOfChannels = stream.channels;
+    audioConfig.sampleRate = stream.sampleRate;
+    std::unique_ptr<IMediaPipeline::MediaSource> source =
+        std::make_unique<IMediaPipeline::MediaSourceAudio>("audio/mp4", false, audioConfig);
+    UT_ASSERT_TRUE(pipeline->attachSource(source));
+    const int32_t sourceId = source->getId();
+    client->addAudioSource(sourceId, stream);
+
+    UT_ASSERT_TRUE(pipeline->allSourcesAttached());
+
+    bool playAsync = false;
+    UT_ASSERT_TRUE(pipeline->play(playAsync));
+
+    // The feed answers the server's need-data requests with the AAC samples; the
+    // server decodes them headlessly and reaches PLAYING.
+    UT_ASSERT_TRUE_FATAL(client->waitForPlaybackState(PlaybackState::PLAYING, kPlayingTimeout));
+    UT_ASSERT_FALSE(client->sawPlaybackState(PlaybackState::FAILURE));
+
+    // The contract under test: on the realized, playing pipeline getStats returns
+    // true for the attached source id and writes both frame counters. Dropped
+    // frames must never exceed rendered.
+    uint64_t renderedFrames = 0;
+    uint64_t droppedFrames = 0;
+    const bool getStatsOk = pipeline->getStats(sourceId, renderedFrames, droppedFrames);
+    UT_LOG("[data-path] getStats once playing: ok=%d sourceId=%d rendered=%llu dropped=%llu",
+           getStatsOk, sourceId, static_cast<unsigned long long>(renderedFrames),
+           static_cast<unsigned long long>(droppedFrames));
+    UT_ASSERT_TRUE(getStatsOk);
+    UT_ASSERT_TRUE(droppedFrames <= renderedFrames);
 
     // Tear the data path down before the client is released: stop playback, then
     // destroy the pipeline (which ends need-data callbacks) while the client that
