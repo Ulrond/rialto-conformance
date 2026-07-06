@@ -30,10 +30,11 @@
  * This is the introspection-reachable subset — the answers a sink gives before a
  * source is attached (no client, or a value the sink owns). The transitions that
  * apply an event to the server source (CAPS/EOS/SEGMENT/FLUSH/STREAM_COLLECTION,
- * MSEEVENT-006..011) are data-flow driven and pair with the data path (#18).
+ * MSEEVENT-006..011) are data-flow driven and run on an active sink pad in
+ * src/L4_e2e/mse/SinkEventDataPathTests.cpp.
  *
  * Coverage trace: coverage/rc-core-catalog.yaml — RC-CORE-MSEEVENT-001,002,003,
- * 004,005,012.
+ * 004,005, and the 012 downstream-consume clause.
  */
 
 #include <ut.h>
@@ -188,9 +189,9 @@ UT_ADD_TEST(L1EventTests, UnsupportedSeeksAreRejected)
  * RC-CORE-MSEEVENT-012 — an unhandled event that the sink does not act on is
  * consumed: a custom downstream event the sink has no handler for is swallowed
  * and send_event returns TRUE (it is not propagated as an error). The companion
- * clause — an unknown *upstream* event forwarded to the upstream peer — is only
- * observable with an active sink pad in a linked pipeline, so it is exercised
- * with the data path (#18), not on a standalone sink here.
+ * clause — an unknown *upstream* event forwarded to the upstream peer — needs an
+ * active sink pad in a linked pipeline, so it runs in
+ * src/L4_e2e/mse/SinkEventDataPathTests.cpp (UnknownUpstreamEventForwardedUpstream).
  */
 UT_ADD_TEST(L1EventTests, UnhandledDownstreamEventIsConsumed)
 {
