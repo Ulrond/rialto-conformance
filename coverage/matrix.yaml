@@ -663,14 +663,72 @@ properties:
     case: "L1EventTests.UnhandledDownstreamEventIsConsumed"
     status: covered
 
-  - prop: event-source-application
+  # Events applied to the server source through an ACTIVE sink pad — the data-path
+  # counterpart to the introspection-reachable L1EventTests. Each drives a real
+  # appsrc -> rialtomseaudiosink pipeline (MseSinkFeed) to PLAYING against the live
+  # server, then sends the event and observes the documented effect (#18).
+  - prop: event-instant-rate
     interface: RialtoMSEBaseSink
     tier: core
     path: mse
-    req: [RC-CORE-MSEEVENT-006, RC-CORE-MSEEVENT-007, RC-CORE-MSEEVENT-008, RC-CORE-MSEEVENT-009, RC-CORE-MSEEVENT-010, RC-CORE-MSEEVENT-011]
-    expected: "events applied to the server source (instant-rate-change, SEGMENT, EOS, CAPS attach, FLUSH start/stop, STREAM_COLLECTION) take effect on the attached source; also the MSEEVENT-012 upstream-forward clause (needs an active sink pad in a linked pipeline)"
-    case: "L4 data-flow cases driving events on an attached source"   # planned — needs the data path (#18)
-    status: planned
+    req: [RC-CORE-MSEEVENT-006]
+    expected: "a FLUSH seek carrying the instant-rate-change flag is translated to an instant-rate-change event and posts an instant-rate-request on the bus (the pipeline then issues INSTANT_RATE_SYNC_TIME -> setPlaybackRate)"
+    case: "L4SinkEventDataPathTests.InstantRateChangeSeekPostsRateRequest"
+    status: covered
+
+  - prop: event-segment-applied
+    interface: RialtoMSEBaseSink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSEEVENT-007]
+    expected: "GST_EVENT_SEGMENT is copied and applied to the server source; the SEGMENT query then reports the applied stop (vs the fresh sink's -1)"
+    case: "L4SinkEventDataPathTests.SegmentEventAppliedToServerSource"
+    status: covered
+
+  - prop: event-eos
+    interface: RialtoMSEBaseSink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSEEVENT-008]
+    expected: "GST_EVENT_EOS marks end-of-stream and notifies the flush/data synchronizer; the pipeline posts EOS on the bus once the fed data drains"
+    case: "L4SinkEventDataPathTests.EosEventReachesEndOfStream"
+    status: covered
+
+  - prop: event-caps-attach
+    interface: RialtoMSEBaseSink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSEEVENT-009]
+    expected: "GST_EVENT_CAPS stores the source caps and triggers source attach; the source realizing (reaching PLAYING, position query answering TRUE) proves the attach"
+    case: "L4SinkEventDataPathTests.CapsAttachesSourceReachingPlaying"
+    status: covered
+
+  - prop: event-flush
+    interface: RialtoMSEBaseSink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSEEVENT-010]
+    expected: "GST_EVENT_FLUSH_START/FLUSH_STOP begin and stop flushing; FLUSH_STOP with reset-time TRUE posts a reset-time message on the bus"
+    case: "L4SinkEventDataPathTests.FlushHonoursResetTime"
+    status: covered
+
+  - prop: event-stream-collection
+    interface: RialtoMSEBaseSink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSEEVENT-011]
+    expected: "GST_EVENT_STREAM_COLLECTION counts the a/v/text streams, reports the collection to the server, and triggers all-sources-attached (reaching PLAYING); accepted only when the media-player client exists"
+    case: "L4SinkEventDataPathTests.StreamCollectionTriggersAllSourcesAttached"
+    status: covered
+
+  - prop: event-upstream-forward
+    interface: RialtoMSEBaseSink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSEEVENT-012]
+    expected: "an unknown upstream event is forwarded upstream through the active sink pad to its peer (the downstream-consume clause is L1EventTests.UnhandledDownstreamEventIsConsumed)"
+    case: "L4SinkEventDataPathTests.UnknownUpstreamEventForwardedUpstream"
+    status: covered
 
   - prop: is-master
     interface: rialtomsevideosink
