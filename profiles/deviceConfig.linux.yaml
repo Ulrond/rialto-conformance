@@ -23,6 +23,13 @@ deviceConfig:
 
     rialto:
 
+      control:
+        stateToggle: true           # the gate runs against a ServerManagerSim it
+                                    # controls, so a case can drive an
+                                    # INACTIVE<->ACTIVE transition after connecting
+                                    # (RC-CORE-CONTROL-002 notify-on-transition).
+                                    # Off / absent on real hardware — no sim to drive.
+
       codecs:
         video:
           hevc: false               # software backend: enable per what NATIVE_BUILD provides

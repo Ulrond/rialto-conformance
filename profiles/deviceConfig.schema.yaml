@@ -37,6 +37,14 @@ deviceConfig:
       # (The Rialto release the suite targets is the framework.lock pin, not a
       # profile field — see include/conformance/RialtoRelease.h.)
 
+      # Harness-driven server application-state transitions. True only where the
+      # gate runs against a ServerManagerSim it can drive (the software platform),
+      # letting a case provoke an INACTIVE<->ACTIVE edge after connecting to assert
+      # the IControl notify-on-transition callback (RC-CORE-CONTROL-002). Absent on
+      # real hardware — there is no sim, and the case self-skips.
+      control:
+        stateToggle: bool
+
       # Optional/advanced codecs (H.264 + AAC are baseline-required, not listed).
       codecs:
         video:

@@ -109,5 +109,12 @@ fi
 
 # 3. Run the gate against the live server.
 export RIALTO_SOCKET_PATH="${SOCK}"
+# Expose the sim control surface so a case can drive the server application-state
+# machine after connecting (RC-CORE-CONTROL-002's notify-on-transition clause:
+# SimControl POSTs SetState/<app>/{Inactive,Active}). Gated on the
+# `control.stateToggle` deviceConfig feature (declared for linux-native only).
+export RIALTO_CONFORMANCE_SIM_HOST="localhost"
+export RIALTO_CONFORMANCE_SIM_PORT="${SIM_PORT}"
+export RIALTO_CONFORMANCE_APP="${APP}"
 echo "[run] running CORE gate (tier=${TIER})"
 RIALTO_CONFORMANCE_TIER="${TIER}" ./build/bin/rialto_conformance -a -p profiles/deviceConfig.linux.yaml
