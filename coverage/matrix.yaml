@@ -294,8 +294,8 @@ operations:
     path: native
     req: [RC-CORE-PIPE-014]
     expected: "Synchronous: writes rendered and dropped frame counts for a source id"
-    case: "(data path #18 — getStats yields counts once a source is attached and PLAYING; empirically works via the MediaFeed harness in PR #55, case pending)"
-    status: planned
+    case: "L4PlaybackDataPathTests.GetStatsSucceedsOncePlaying"
+    status: covered
 
   - op: "setBufferingLimit / getBufferingLimit"
     interface: IMediaPipeline
