@@ -550,8 +550,16 @@ properties:
     path: mse
     req: [RC-CORE-MSECAPS-006]
     expected: "incoming CAPS-event fields are parsed (codec_data, alignment, stream-format, Dolby-Vision, raw-audio layout/format)"
-    case: "L2 data-flow case driving a caps event on an attached source"   # planned — needs MSESTATE/DATA
-    status: planned
+    # AVC-form H.264 (stream-format=avc, alignment=au, SPS/PPS out-of-band in
+    # codec_data) fed through rialtomsevideosink: an AVC stream is undecodable
+    # without codec_data, so reaching PLAYING is field-sensitive proof the sink
+    # parsed codec_data/stream-format/alignment out of the CAPS event and applied
+    # them to the source. H.264 is baseline-required, so this runs unconditionally.
+    # DV (dovi-stream/dv_profile) routes through the H.265 source branch and needs
+    # real DV content on a DV-capable platform (codecs.video.dolbyVision + #22);
+    # raw-audio layout/format is likewise content-variable — both ride with #22.
+    case: "L4SinkCapsDataPathTests.AvcCapsFieldsParsedReachingPlaying"
+    status: covered
 
   # --- Element state transitions (RialtoMSEBaseSink change_state) --------------
   - prop: state-null-delegate
