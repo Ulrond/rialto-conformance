@@ -285,7 +285,16 @@ operations:
     path: native
     req: [RC-CORE-PIPE-013]
     expected: "Synchronous: returns true and writes the duration"
-    case: "(data path #18 — getDuration returns false until a source is attached)"
+    case: "(data path #18 — getDuration returns false even with a source attached and PLAYING on the software/appsrc backend, so it needs a different tack than getPosition; see PR #55)"
+    status: planned
+
+  - op: getStats
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-014]
+    expected: "Synchronous: writes rendered and dropped frame counts for a source id"
+    case: "(data path #18 — getStats yields counts once a source is attached and PLAYING; empirically works via the MediaFeed harness in PR #55, case pending)"
     status: planned
 
   - op: "setBufferingLimit / getBufferingLimit"
