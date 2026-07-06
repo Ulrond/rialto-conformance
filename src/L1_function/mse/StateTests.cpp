@@ -32,10 +32,7 @@
  * the media-player transitions return their real codes.
  *
  * Coverage trace: coverage/rc-core-catalog.yaml — RC-CORE-MSESTATE-001,002,003,
- * 005,006. MSESTATE-004 (PAUSED->PLAYING NOT_ATTACHED->FAILURE) is a server-
- * source-state negative that the software backend does not reproduce (its play()
- * returns SUCCESS_ASYNC without an attached source), so it is driven with the
- * attached-source data path (#18), not as a standalone introspection case.
+ * 004,005,006.
  */
 
 #include <ut.h>
@@ -124,6 +121,39 @@ UT_ADD_TEST(L1StateTests, ReadyToPausedIsAsyncWhenSourceNotAttached)
 
     UT_ASSERT_EQUAL(gst_element_set_state(sink, GST_STATE_READY), GST_STATE_CHANGE_SUCCESS);
     UT_ASSERT_EQUAL(gst_element_set_state(sink, GST_STATE_PAUSED), GST_STATE_CHANGE_ASYNC);
+
+    gst_element_set_state(sink, GST_STATE_NULL);
+    gst_object_unref(sink);
+}
+
+/**
+ * RC-CORE-MSESTATE-004 — PAUSED->PLAYING requires an attached source; with a
+ * media-player client present but no source attached it returns
+ * GST_STATE_CHANGE_FAILURE. READY->PAUSED creates the sink's media-player client
+ * and returns ASYNC without attaching a source (the source attaches later, when
+ * GST_EVENT_CAPS arrives — see MSESTATE-003), so pushing no caps leaves the
+ * client's attached-source set empty. Invoking the PAUSED->PLAYING transition
+ * directly (the element-class vfunc, as MSESTATE-001 does) then drives
+ * client->play() with an unknown source id: it reports NOT_ATTACHED, which the
+ * sink maps to GST_STATE_CHANGE_FAILURE rather than a spurious async play. This is
+ * a provoked negative — a real media app attaches the source (via caps) before
+ * requesting PLAYING, so the not-attached play is never reached in the happy path.
+ */
+UT_ADD_TEST(L1StateTests, PausedToPlayingFailsWhenSourceNotAttached)
+{
+    CONFORMANCE_CORE_TEST();
+    GstElement *sink = makeAudioSink();
+    UT_ASSERT_NOT_NULL_FATAL(sink);
+
+    // READY then PAUSED: the control client reaches RUNNING and the media-player
+    // client is created; PAUSED is async because no source is attached yet.
+    UT_ASSERT_EQUAL(gst_element_set_state(sink, GST_STATE_READY), GST_STATE_CHANGE_SUCCESS);
+    UT_ASSERT_EQUAL(gst_element_set_state(sink, GST_STATE_PAUSED), GST_STATE_CHANGE_ASYNC);
+
+    // With a client but no attached source, PAUSED->PLAYING fails (NOT_ATTACHED).
+    GstStateChangeReturn result =
+        GST_ELEMENT_GET_CLASS(sink)->change_state(sink, GST_STATE_CHANGE_PAUSED_TO_PLAYING);
+    UT_ASSERT_EQUAL(result, GST_STATE_CHANGE_FAILURE);
 
     gst_element_set_state(sink, GST_STATE_NULL);
     gst_object_unref(sink);
