@@ -129,6 +129,125 @@ AacElementaryStream generateAacAdtsStream(int numFrames)
     return stream;
 }
 
+namespace
+{
+// The synthesised video geometry. A small 320x240 test pattern decodes cheaply on
+// the headless software path; the values are echoed onto the Rialto video source.
+constexpr uint32_t kVideoWidth = 320;
+constexpr uint32_t kVideoHeight = 240;
+constexpr int kVideoFrameRate = 25; // frames/second, for the derived PTS/duration
+
+// Extract the avcC codec_data buffer from a sample's negotiated caps, if present.
+// AVC-form h264parse output carries SPS/PPS here rather than in-band.
+std::vector<uint8_t> extractCodecData(GstSample *sample)
+{
+    std::vector<uint8_t> codecData;
+    GstCaps *caps = gst_sample_get_caps(sample);
+    if (caps == nullptr || gst_caps_get_size(caps) == 0)
+        return codecData;
+    const GstStructure *s = gst_caps_get_structure(caps, 0);
+    const GValue *value = gst_structure_get_value(s, "codec_data");
+    if (value == nullptr)
+        return codecData;
+    GstBuffer *buf = gst_value_get_buffer(value);
+    GstMapInfo map;
+    if (buf != nullptr && gst_buffer_map(buf, &map, GST_MAP_READ))
+    {
+        codecData.assign(map.data, map.data + map.size);
+        gst_buffer_unmap(buf, &map);
+    }
+    return codecData;
+}
+} // namespace
+
+int64_t H264AvcElementaryStream::totalDurationNs() const
+{
+    int64_t total = 0;
+    for (const auto &frame : frames)
+    {
+        if (frame.duration > 0)
+            total += frame.duration;
+    }
+    return total;
+}
+
+H264AvcElementaryStream generateH264AvcStream(int numFrames)
+{
+    H264AvcElementaryStream stream;
+    stream.width = kVideoWidth;
+    stream.height = kVideoHeight;
+
+    if (!gst_is_initialized())
+        gst_init(nullptr, nullptr);
+
+    // Real encode chain: a bounded test pattern -> H.264 -> AVC-form access units.
+    // Forcing stream-format=avc,alignment=au on the h264parse output moves SPS/PPS
+    // out-of-band into codec_data (the whole point of the parse proof). x264enc +
+    // h264parse come from the software image's ugly/bad plugins.
+    gchar *desc = g_strdup_printf("videotestsrc num-buffers=%d ! "
+                                  "video/x-raw,width=%u,height=%u,framerate=%d/1 ! "
+                                  "x264enc ! h264parse ! video/x-h264,stream-format=avc,alignment=au ! "
+                                  "appsink name=sink sync=false",
+                                  numFrames, kVideoWidth, kVideoHeight, kVideoFrameRate);
+    GError *error = nullptr;
+    GstElement *pipeline = gst_parse_launch(desc, &error);
+    g_free(desc);
+    if (error != nullptr)
+    {
+        g_error_free(error);
+    }
+    if (pipeline == nullptr)
+    {
+        return stream; // encode elements unavailable; caller sees an incomplete stream
+    }
+
+    GstElement *sinkElement = gst_bin_get_by_name(GST_BIN(pipeline), "sink");
+    GstAppSink *appsink = GST_APP_SINK(sinkElement);
+
+    // Per-frame duration derived from the constant frame rate, used both as the
+    // segment duration and to synthesise a monotonic PTS when one is absent.
+    const int64_t frameDurationNs = GST_SECOND / static_cast<int64_t>(kVideoFrameRate);
+
+    if (appsink != nullptr && gst_element_set_state(pipeline, GST_STATE_PLAYING) != GST_STATE_CHANGE_FAILURE)
+    {
+        int64_t frameIndex = 0;
+        while (true)
+        {
+            GstSample *sample = gst_app_sink_pull_sample(appsink);
+            if (sample == nullptr)
+                break; // EOS or error
+
+            // codec_data is negotiated on the caps; capture it from the first sample
+            // that carries it (it is stable for the stream's lifetime).
+            if (stream.codecData.empty())
+                stream.codecData = extractCodecData(sample);
+
+            GstBuffer *buffer = gst_sample_get_buffer(sample);
+            GstMapInfo map;
+            if (buffer != nullptr && gst_buffer_map(buffer, &map, GST_MAP_READ))
+            {
+                EncodedFrame frame;
+                frame.data.assign(map.data, map.data + map.size);
+                frame.timeStamp = GST_BUFFER_PTS_IS_VALID(buffer) ? static_cast<int64_t>(GST_BUFFER_PTS(buffer))
+                                                                  : frameIndex * frameDurationNs;
+                frame.duration = GST_BUFFER_DURATION_IS_VALID(buffer)
+                                     ? static_cast<int64_t>(GST_BUFFER_DURATION(buffer))
+                                     : frameDurationNs;
+                gst_buffer_unmap(buffer, &map);
+                stream.frames.push_back(std::move(frame));
+                ++frameIndex;
+            }
+            gst_sample_unref(sample);
+        }
+    }
+
+    gst_element_set_state(pipeline, GST_STATE_NULL);
+    if (sinkElement != nullptr)
+        gst_object_unref(sinkElement);
+    gst_object_unref(pipeline);
+    return stream;
+}
+
 void FeedingMediaPipelineClient::setPipeline(IMediaPipeline *pipeline)
 {
     std::lock_guard<std::mutex> lock(m_mutex);

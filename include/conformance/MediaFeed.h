@@ -95,6 +95,45 @@ struct AacElementaryStream
 AacElementaryStream generateAacAdtsStream(int numFrames = 50);
 
 /**
+ * A synthesised H.264 elementary stream in AVC form: length-prefixed access units
+ * plus the out-of-band @c codec_data (the @c avcC record carrying SPS/PPS) and the
+ * frame geometry a case declares on the Rialto video source. AVC form is
+ * deliberate — its access units carry no in-band SPS/PPS, so the stream is
+ * undecodable unless @c codec_data reaches the decoder. That makes reaching PLAYING
+ * a field-sensitive proof that the sink parsed @c codec_data (and the
+ * @c stream-format / @c alignment that select AVC form) out of the incoming CAPS
+ * event (RC-CORE-MSECAPS-006).
+ */
+struct H264AvcElementaryStream
+{
+    std::vector<EncodedFrame> frames;
+    std::vector<uint8_t> codecData; ///< the avcC record from the negotiated caps
+    uint32_t width = 0;
+    uint32_t height = 0;
+
+    /// Total presentation duration of the stream in nanoseconds.
+    int64_t totalDurationNs() const;
+
+    /// True once frames and the codec_data (SPS/PPS) were both captured — an AVC
+    /// stream missing either is unusable for the parse proof.
+    bool isComplete() const { return !frames.empty() && !codecData.empty(); }
+};
+
+/**
+ * @brief Synthesise a short clear H.264 elementary stream in AVC form in-process.
+ *
+ * Encodes a test pattern through GStreamer's own videotestsrc -> x264enc ->
+ * h264parse chain, forcing @c stream-format=avc,alignment=au on the parser output
+ * so SPS/PPS move out-of-band into @c codec_data. Captures the AVC access units and
+ * that @c codec_data. The bytes are real H.264 the RialtoServer decoder
+ * (avdec_h264) plays; nothing is mocked.
+ *
+ * @param[in] numFrames  approximate number of encoded frames to produce.
+ * @retval the stream; isComplete() is false if the encode elements are unavailable.
+ */
+H264AvcElementaryStream generateH264AvcStream(int numFrames = 30);
+
+/**
  * An IMediaPipelineClient that feeds a resolved elementary stream to a live
  * RialtoServer and records the playback-state notifications.
  *
