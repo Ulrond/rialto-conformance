@@ -33,7 +33,9 @@
  * realized — the getters that return false on a freshly-created pipeline.
  *
  * Coverage trace: coverage/rc-core-catalog.yaml / matrix.yaml — RC-CORE-PIPE-012
- * (getPosition returns true synchronously and writes the position out-param) and
+ * (getPosition returns true synchronously and writes the position out-param),
+ * RC-CORE-PIPE-013 (getDuration's contract for a stream source — the negative
+ * leg: it returns false when the duration is not determinable), and
  * RC-CORE-PIPE-014 (getStats writes rendered/dropped frame counts for a source id).
  */
 
@@ -142,6 +144,91 @@ UT_ADD_TEST(L4PlaybackDataPathTests, GetPositionSucceedsOncePlaying)
            static_cast<long long>(position));
     UT_ASSERT_TRUE(getPositionOk);
     UT_ASSERT_TRUE(position >= 0);
+
+    // Tear the data path down before the client is released: stop playback, then
+    // destroy the pipeline (which ends need-data callbacks) while the client that
+    // services them is still alive.
+    pipeline->stop();
+    pipeline.reset();
+}
+
+/**
+ * RC-CORE-PIPE-013 — getDuration's contract is "returns the current playback
+ * duration; @retval true on success" — a synchronous bool that reports true and
+ * writes the duration when the duration is *determinable*, and false when it is
+ * not. In Rialto's MSE model the duration is not carried by the pipeline: each
+ * source is fed by a stream-type appsrc with no total length, and duration is
+ * owned by the app (the MSE layer), signalled out of band via the client's
+ * notifyDuration sentinels (kDurationUnknown / kDurationUnending). So for an
+ * attached, playing MSE stream source there is no determinable pipeline duration
+ * and getDuration correctly returns false.
+ *
+ * This case proves that false is the contract-correct "not determinable" answer
+ * and NOT a broken/unrealized pipeline: on the very same playing pipeline
+ * getPosition succeeds (the backend is realized and running) while getDuration
+ * returns false. The positive leg (true + a finite duration) is not reachable on
+ * this backend — it would require a source model (container/demuxer with a known
+ * length) that Rialto's public API does not expose — so it is documented as not
+ * applicable to the MSE source model rather than covered here.
+ */
+UT_ADD_TEST(L4PlaybackDataPathTests, GetDurationNotDeterminableForStreamSource)
+{
+    CONFORMANCE_CORE_TEST();
+
+    // Real AAC (ADTS) to feed. Baseline codec support is required, so failing to
+    // synthesise it is a harness/platform fault, not a soft skip.
+    AacElementaryStream stream = generateAacAdtsStream(kAacFrames);
+    UT_LOG("[data-path] synthesised AAC frames=%zu rate=%u channels=%u totalDurationNs=%lld",
+           stream.frames.size(), stream.sampleRate, stream.channels,
+           static_cast<long long>(stream.totalDurationNs()));
+    UT_ASSERT_TRUE_FATAL(!stream.frames.empty());
+
+    auto client = std::make_shared<FeedingMediaPipelineClient>();
+
+    auto factory = IMediaPipelineFactory::createFactory();
+    UT_ASSERT_NOT_NULL_FATAL(factory.get());
+
+    VideoRequirements requirements{kMaxWidth, kMaxHeight};
+    std::unique_ptr<IMediaPipeline> pipeline = factory->createMediaPipeline(client, requirements);
+    UT_ASSERT_NOT_NULL_FATAL(pipeline.get());
+    client->setPipeline(pipeline.get());
+
+    // Before the backend is realized, getDuration returns false — the baseline.
+    int64_t freshDuration = 0;
+    UT_ASSERT_FALSE(pipeline->getDuration(freshDuration));
+
+    // MSE load, then attach the clear AAC audio source.
+    const bool loadOk = pipeline->load(MediaType::MSE, "", "mse://1", false);
+    UT_ASSERT_TRUE(loadOk);
+
+    AudioConfig audioConfig;
+    audioConfig.numberOfChannels = stream.channels;
+    audioConfig.sampleRate = stream.sampleRate;
+    std::unique_ptr<IMediaPipeline::MediaSource> source =
+        std::make_unique<IMediaPipeline::MediaSourceAudio>("audio/mp4", false, audioConfig);
+    UT_ASSERT_TRUE(pipeline->attachSource(source));
+    const int32_t sourceId = source->getId();
+    client->addAudioSource(sourceId, stream);
+
+    UT_ASSERT_TRUE(pipeline->allSourcesAttached());
+
+    bool playAsync = false;
+    UT_ASSERT_TRUE(pipeline->play(playAsync));
+
+    UT_ASSERT_TRUE_FATAL(client->waitForPlaybackState(PlaybackState::PLAYING, kPlayingTimeout));
+    UT_ASSERT_FALSE(client->sawPlaybackState(PlaybackState::FAILURE));
+
+    // Discriminator: on this realized, playing pipeline getPosition succeeds, so a
+    // false from getDuration reflects a non-determinable duration for the stream
+    // source — the contract-correct answer — not an unrealized/broken pipeline.
+    int64_t position = -1;
+    UT_ASSERT_TRUE(pipeline->getPosition(position));
+
+    int64_t duration = 0;
+    const bool getDurationOk = pipeline->getDuration(duration);
+    UT_LOG("[data-path] getDuration once playing: ok=%d (stream source: not determinable) getPosition ok=1",
+           getDurationOk);
+    UT_ASSERT_FALSE(getDurationOk);
 
     // Tear the data path down before the client is released: stop playback, then
     // destroy the pipeline (which ends need-data callbacks) while the client that

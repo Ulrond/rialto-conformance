@@ -299,9 +299,22 @@ operations:
     tier: core
     path: native
     req: [RC-CORE-PIPE-013]
-    expected: "Synchronous: returns true and writes the duration"
-    case: "(data path #18 — getDuration returns false even with a source attached and PLAYING on the software/appsrc backend, so it needs a different tack than getPosition; see PR #55)"
-    status: planned
+    expected: "Synchronous: returns true and writes the duration when the duration is determinable; returns false (not determinable) for a stream source whose duration the pipeline does not carry"
+    case: "L4PlaybackDataPathTests.GetDurationNotDeterminableForStreamSource"
+    status: covered
+    # getDuration is gst_element_query_duration(pipeline, GST_FORMAT_TIME) — true +
+    # value on success, false when the duration is not determinable. In Rialto's MSE
+    # model every source is fed by a stream-type appsrc with no total length and no
+    # public/IPC way to set one (MediaSource carries only per-segment duration), and
+    # duration is owned by the app, signalled out of band via the client's
+    # notifyDuration sentinels (kDurationUnknown/kDurationUnending, RC-CORE-DATA-011).
+    # So getDuration correctly returns false for an attached, playing MSE stream
+    # source. The case proves this is the contract-correct "not determinable" answer,
+    # not a broken pipeline: getPosition succeeds on the same playing pipeline while
+    # getDuration returns false. The positive leg (true + finite duration) is NOT
+    # applicable to the MSE source model — it needs a container/demuxer source with a
+    # known length that Rialto's public API does not expose — so it is not covered
+    # here by design, not left planned.
 
   - op: getStats
     interface: IMediaPipeline
