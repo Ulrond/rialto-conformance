@@ -284,10 +284,14 @@ requirements:
     path: native
     kind: protocol
   - id: RC-CORE-DATA-009
-    title: "For MSE playback, notifyNetworkState emits only IDLE, BUFFERED, or DECODE_ERROR"
+    title: "For clear MSE playback, notifyNetworkState emits BUFFERING at load and BUFFERED once data is buffered; a clean run never emits an error state"
     interface: IMediaPipelineClient
     path: native
     kind: negative
+    # Reworded 2026-07-08 to the implemented vocabulary: the server emits
+    # BUFFERING from load() and BUFFERED from the player once buffered; the
+    # previous title (IDLE/BUFFERED/DECODE_ERROR only) contradicted both
+    # emission sites in the reference implementation.
   - id: RC-CORE-DATA-010
     title: "notifyPlaybackError (non-fatal) leaves PlaybackState unchanged"
     interface: IMediaPipelineClient

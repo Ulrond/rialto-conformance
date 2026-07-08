@@ -283,15 +283,25 @@ bool FeedingMediaPipelineClient::sawPlaybackState(PlaybackState state)
 }
 
 void FeedingMediaPipelineClient::notifyNeedMediaData(int32_t sourceId, size_t frameCount, uint32_t needDataRequestId,
-                                                     const std::shared_ptr<MediaPlayerShmInfo> & /*shmInfo*/)
+                                                     const std::shared_ptr<MediaPlayerShmInfo> &shmInfo)
 {
     // Build the batch of segments to offer this round, without advancing the feed
     // cursor: the cursor only moves for segments the server actually accepts.
     std::vector<std::unique_ptr<IMediaPipeline::MediaSegment>> batch;
     uint32_t sampleRate = 0;
     uint32_t channels = 0;
+    bool starve = false;
     {
         std::lock_guard<std::mutex> lock(m_mutex);
+        // Protocol observation (RC-CORE-DATA-001/002): record the request shape
+        // and flag a request that overlaps an unanswered one for the same source.
+        m_needDataLog.push_back(NeedDataRecord{sourceId, frameCount, needDataRequestId, shmInfo != nullptr});
+        if (m_pendingNeedData.count(sourceId) != 0)
+        {
+            m_overlappingNeedData = true;
+        }
+        m_pendingNeedData.insert(sourceId);
+        starve = m_starve;
         if (m_pipeline == nullptr)
             return;
         auto it = m_feeds.find(sourceId);
@@ -311,13 +321,29 @@ void FeedingMediaPipelineClient::notifyNeedMediaData(int32_t sourceId, size_t fr
         }
     }
 
+    // Starve mode (data-protocol cases): answer the request with no segments so
+    // the server's queue drains and it raises buffer underflow.
+    if (starve)
+    {
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_pendingNeedData.erase(sourceId);
+        }
+        m_pipeline->haveData(MediaSourceStatus::OK, needDataRequestId);
+        return;
+    }
+
     // Offer the segments outside the lock (addSegment/haveData are server IPC
     // calls). Stop at the first non-OK status; only accepted segments advance.
     size_t accepted = 0;
     for (auto &segment : batch)
     {
         if (m_pipeline->addSegment(needDataRequestId, segment) != AddSegmentStatus::OK)
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_allSegmentsAccepted = false; // RC-CORE-DATA-003 observation
             break;
+        }
         ++accepted;
     }
 
@@ -330,6 +356,7 @@ void FeedingMediaPipelineClient::notifyNeedMediaData(int32_t sourceId, size_t fr
             it->second.nextFrame += accepted;
             atEndOfStream = it->second.nextFrame >= it->second.stream.frames.size();
         }
+        m_pendingNeedData.erase(sourceId); // answered below (RC-CORE-DATA-002)
     }
 
     m_pipeline->haveData(atEndOfStream ? MediaSourceStatus::EOS : MediaSourceStatus::OK, needDataRequestId);
@@ -347,13 +374,28 @@ void FeedingMediaPipelineClient::notifyPlaybackState(PlaybackState state)
 void FeedingMediaPipelineClient::notifyDuration(int64_t) {}
 void FeedingMediaPipelineClient::notifyPosition(int64_t) {}
 void FeedingMediaPipelineClient::notifyNativeSize(uint32_t, uint32_t, double) {}
-void FeedingMediaPipelineClient::notifyNetworkState(NetworkState) {}
+void FeedingMediaPipelineClient::notifyNetworkState(NetworkState state)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_networkStatesSeen.insert(state);
+}
 void FeedingMediaPipelineClient::notifyVideoData(bool) {}
 void FeedingMediaPipelineClient::notifyAudioData(bool) {}
 void FeedingMediaPipelineClient::notifyCancelNeedMediaData(int32_t) {}
 void FeedingMediaPipelineClient::notifyQos(int32_t, const QosInfo &) {}
-void FeedingMediaPipelineClient::notifyBufferUnderflow(int32_t) {}
-void FeedingMediaPipelineClient::notifyFirstFrameReceived(int32_t) {}
+void FeedingMediaPipelineClient::notifyBufferUnderflow(int32_t sourceId)
+{
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_underflowSources.insert(sourceId);
+    }
+    m_cv.notify_all();
+}
+void FeedingMediaPipelineClient::notifyFirstFrameReceived(int32_t sourceId)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_firstFrameSources.insert(sourceId);
+}
 void FeedingMediaPipelineClient::notifyPlaybackError(int32_t, PlaybackError) {}
 void FeedingMediaPipelineClient::notifySourceFlushed(int32_t sourceId)
 {
@@ -370,5 +412,47 @@ bool FeedingMediaPipelineClient::waitForSourceFlushed(int32_t sourceId, std::chr
     return m_cv.wait_for(lock, timeout, [&] { return m_flushedSources.count(sourceId) != 0; });
 }
 void FeedingMediaPipelineClient::notifyPlaybackInfo(const PlaybackInfo &) {}
+
+std::vector<FeedingMediaPipelineClient::NeedDataRecord> FeedingMediaPipelineClient::needDataLog()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_needDataLog;
+}
+
+bool FeedingMediaPipelineClient::sawOverlappingNeedData()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_overlappingNeedData;
+}
+
+bool FeedingMediaPipelineClient::allSegmentsAccepted()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_allSegmentsAccepted;
+}
+
+std::set<NetworkState> FeedingMediaPipelineClient::networkStatesSeen()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_networkStatesSeen;
+}
+
+void FeedingMediaPipelineClient::setStarve(bool starve)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_starve = starve;
+}
+
+bool FeedingMediaPipelineClient::waitForBufferUnderflow(int32_t sourceId, std::chrono::milliseconds timeout)
+{
+    std::unique_lock<std::mutex> lock(m_mutex);
+    return m_cv.wait_for(lock, timeout, [&] { return m_underflowSources.count(sourceId) != 0; });
+}
+
+bool FeedingMediaPipelineClient::sawFirstFrame(int32_t sourceId)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_firstFrameSources.count(sourceId) != 0;
+}
 
 } // namespace rialto::conformance
