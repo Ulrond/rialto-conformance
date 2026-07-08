@@ -1241,8 +1241,11 @@ properties:
     path: mse
     req: [RC-CORE-CAPS-002]   # same requirement as native isVideoMaster
     expected: "video sink 'is-master' read-only property reflects platform video-master state"
-    case: "L1VideoSinkPropertyTests.IsMasterReflectsCapability"   # planned
-    status: planned
+    case: "L2CapabilityConsistencyTests.VideoMasterNativeMatchesMse"
+    status: covered
+    # The consistency case reads the mse-side property and asserts it equals the
+    # native capabilities answer, which proves both this mse row and the
+    # cross-surface agreement in one observation.
 
 # --- Codecs × path ------------------------------------------------------------
 codecs:
@@ -1259,8 +1262,11 @@ codecs:
     path: mse
     req: [RC-CORE-CODEC-AVC]
     expected: "rialtomsevideosink advertises video/x-h264 in its sink-pad caps"
-    case: "L1SinkRegistrationTests.VideoSinkAdvertisesAvcCaps"   # planned
-    status: planned
+    case: "L1CapsTests.VideoMimeToCapsMappingCorrect"
+    status: covered
+    # The video MIME->caps case asserts the sink advertises video/x-h264
+    # (baseline) directly; the L4 AVC data-path case (MSECAPS-006) additionally
+    # proves a real AVC stream decodes through the sink.
 
 # --- Cross-surface consistency (the two paths must agree, §2) ------------------
 consistency:
