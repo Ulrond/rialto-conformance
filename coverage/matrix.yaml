@@ -508,6 +508,80 @@ operations:
     case: "L4PipelineAuxDataPathTests.RenderFrameSucceedsOnceLoaded"
     status: covered
 
+  - op: setLowLatency
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-021]
+    expected: "setLowLatency returns true (accepted); application is a vendor audio-sink property with no getter, conform-when-supported"
+    case: "L4PipelineAuxDataPathTests.SetLowLatencyIsAccepted"
+    status: covered
+
+  - op: "setSync / getSync"
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-022]
+    expected: "Round-trip the clock-sync flag (standard GstBaseSink property; write applies asynchronously, read polled)"
+    case: "L4PipelineAuxDataPathTests.SyncRoundTrips"
+    status: covered
+
+  - op: setSyncOff
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-023]
+    expected: "setSyncOff before the pipeline reaches PLAYING returns true (accepted); vendor audio-sink property, no getter"
+    case: "L4PipelineAuxDataPathTests.SetSyncOffAcceptedBeforePlaying"
+    status: covered
+
+  - op: "setStreamSyncMode / getStreamSyncMode"
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-024]
+    expected: "Round-trip the stream-sync mode where the audio sink exposes the property, else the getter answers false"
+    case: "L4PipelineAuxDataPathTests.StreamSyncModeConformsWhenSupported"
+    status: covered
+    # stream-sync-mode is a vendor audio-sink property (absent from the software
+    # fake sink) — conform-when-supported, like the buffering limit (PIPE-029).
+
+  - op: switchSource
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-031]
+    expected: "A new audio source description supplied mid-playback is accepted (returns true)"
+    case: "L4PipelineAuxDataPathTests.SwitchSourceAcceptsNewAudioSource"
+    status: covered
+
+  - op: "setImmediateOutput / getImmediateOutput"
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-016]
+    expected: "Round-trip the immediate-output flag per source"
+    case: "(needs a native VIDEO source — the property lives on the video sink; ride with the native video feed (MediaSegmentVideo over generateH264AvcStream) planned for the DATA batch)"
+    status: planned
+
+  - op: "setTextTrackIdentifier / getTextTrackIdentifier"
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-020]
+    expected: "Round-trip the subtitle text-track identifier"
+    case: "(needs a SUBTITLE source + a platform text-track service; the software platform stubs TextTrackPluginWrapper — platform-variable, ride with a subtitle-capable target)"
+    status: planned
+
+  - op: setSubtitleOffset
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-027]
+    expected: "Applies a ns offset to a subtitle source"
+    case: "(needs a SUBTITLE source — same dependency as PIPE-020)"
+    status: planned
+
   # --- IWebAudioPlayer (Surface B native) ------------------------------------
   - op: createWebAudioPlayer
     interface: IWebAudioPlayerFactory

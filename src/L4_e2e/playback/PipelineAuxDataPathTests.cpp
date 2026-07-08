@@ -379,3 +379,154 @@ UT_ADD_TEST(L4PipelineAuxDataPathTests, RenderFrameSucceedsOnceLoaded)
     pipeline->stop();
     pipeline.reset();
 }
+
+/**
+ * RC-CORE-PIPE-021 — setLowLatency (default false) returns true: the request is
+ * accepted on the realized pipeline. low-latency is a vendor audio-sink property
+ * (absent from the software fake sink), and the API exposes no getter, so the
+ * accept contract is the assertable clause; application is
+ * conform-when-supported on the platform's sink.
+ */
+UT_ADD_TEST(L4PipelineAuxDataPathTests, SetLowLatencyIsAccepted)
+{
+    CONFORMANCE_CORE_TEST();
+
+    AacElementaryStream stream = generateAacAdtsStream(kAuxFrames);
+    UT_ASSERT_TRUE_FATAL(!stream.frames.empty());
+    auto client = std::make_shared<FeedingMediaPipelineClient>();
+    int32_t sourceId = -1;
+    std::unique_ptr<IMediaPipeline> pipeline = driveToPlaying(client, stream, sourceId);
+    UT_ASSERT_NOT_NULL_FATAL(pipeline.get());
+
+    UT_ASSERT_TRUE(pipeline->setLowLatency(true));
+
+    pipeline->stop();
+    pipeline.reset();
+}
+
+/**
+ * RC-CORE-PIPE-022 — setSync / getSync round-trip the clock-sync flag. sync is a
+ * standard GstBaseSink property, present on every audio sink, so the round-trip
+ * holds on all platforms (the write applies asynchronously; the read polls).
+ */
+UT_ADD_TEST(L4PipelineAuxDataPathTests, SyncRoundTrips)
+{
+    CONFORMANCE_CORE_TEST();
+
+    AacElementaryStream stream = generateAacAdtsStream(kAuxFrames);
+    UT_ASSERT_TRUE_FATAL(!stream.frames.empty());
+    auto client = std::make_shared<FeedingMediaPipelineClient>();
+    int32_t sourceId = -1;
+    std::unique_ptr<IMediaPipeline> pipeline = driveToPlaying(client, stream, sourceId);
+    UT_ASSERT_NOT_NULL_FATAL(pipeline.get());
+
+    UT_ASSERT_TRUE(pipeline->setSync(true));
+    bool sync = false;
+    UT_ASSERT_TRUE(pollUntilApplied([&] { return pipeline->getSync(sync) && sync; }));
+
+    pipeline->stop();
+    pipeline.reset();
+}
+
+/**
+ * RC-CORE-PIPE-023 — setSyncOff must be set before the pipeline reaches PLAYING:
+ * the request made between attach and play is accepted (returns true). sync-off
+ * is a vendor audio-sink property with no getter, so the accept contract is the
+ * assertable clause.
+ */
+UT_ADD_TEST(L4PipelineAuxDataPathTests, SetSyncOffAcceptedBeforePlaying)
+{
+    CONFORMANCE_CORE_TEST();
+
+    AacElementaryStream stream = generateAacAdtsStream(kAuxFrames);
+    UT_ASSERT_TRUE_FATAL(!stream.frames.empty());
+    auto client = std::make_shared<FeedingMediaPipelineClient>();
+
+    auto factory = IMediaPipelineFactory::createFactory();
+    UT_ASSERT_NOT_NULL_FATAL(factory.get());
+    VideoRequirements requirements{kMaxWidth, kMaxHeight};
+    std::unique_ptr<IMediaPipeline> pipeline = factory->createMediaPipeline(client, requirements);
+    UT_ASSERT_NOT_NULL_FATAL(pipeline.get());
+    client->setPipeline(pipeline.get());
+
+    UT_ASSERT_TRUE(pipeline->load(MediaType::MSE, "", "mse://1", false));
+
+    AudioConfig audioConfig;
+    audioConfig.numberOfChannels = stream.channels;
+    audioConfig.sampleRate = stream.sampleRate;
+    std::unique_ptr<IMediaPipeline::MediaSource> source =
+        std::make_unique<IMediaPipeline::MediaSourceAudio>("audio/mp4", false, audioConfig);
+    UT_ASSERT_TRUE(pipeline->attachSource(source));
+    client->addAudioSource(source->getId(), stream);
+
+    // The documented window: before the pipeline reaches PLAYING.
+    UT_ASSERT_TRUE(pipeline->setSyncOff(true));
+
+    pipeline.reset();
+}
+
+/**
+ * RC-CORE-PIPE-024 — setStreamSyncMode / getStreamSyncMode round-trip the
+ * stream-sync mode where the platform's audio sink exposes the property; where
+ * it does not (the software fake sink), the getter answers false consistently —
+ * conform-when-supported, as with the buffering limit.
+ */
+UT_ADD_TEST(L4PipelineAuxDataPathTests, StreamSyncModeConformsWhenSupported)
+{
+    CONFORMANCE_CORE_TEST();
+
+    AacElementaryStream stream = generateAacAdtsStream(kAuxFrames);
+    UT_ASSERT_TRUE_FATAL(!stream.frames.empty());
+    auto client = std::make_shared<FeedingMediaPipelineClient>();
+    int32_t sourceId = -1;
+    std::unique_ptr<IMediaPipeline> pipeline = driveToPlaying(client, stream, sourceId);
+    UT_ASSERT_NOT_NULL_FATAL(pipeline.get());
+
+    constexpr int32_t kMode = 1; // immediate next-frame sync
+    UT_ASSERT_TRUE(pipeline->setStreamSyncMode(sourceId, kMode));
+
+    int32_t readBack = -1;
+    const bool supported =
+        pollUntilApplied([&] { return pipeline->getStreamSyncMode(readBack) && readBack == kMode; });
+    if (supported)
+    {
+        UT_LOG("[aux] stream-sync-mode round-tripped: %d", readBack);
+        UT_ASSERT_EQUAL(readBack, kMode);
+    }
+    else
+    {
+        int32_t unsupportedRead = -1;
+        UT_ASSERT_FALSE(pipeline->getStreamSyncMode(unsupportedRead));
+        UT_LOG("[aux] stream-sync-mode unsupported by this platform's audio sink (conform-when-supported)");
+    }
+
+    pipeline->stop();
+    pipeline.reset();
+}
+
+/**
+ * RC-CORE-PIPE-031 — switchSource switches a media source stream: a new audio
+ * source description supplied mid-playback is accepted (returns true) on the
+ * realized pipeline.
+ */
+UT_ADD_TEST(L4PipelineAuxDataPathTests, SwitchSourceAcceptsNewAudioSource)
+{
+    CONFORMANCE_CORE_TEST();
+
+    AacElementaryStream stream = generateAacAdtsStream(kAuxFrames);
+    UT_ASSERT_TRUE_FATAL(!stream.frames.empty());
+    auto client = std::make_shared<FeedingMediaPipelineClient>();
+    int32_t sourceId = -1;
+    std::unique_ptr<IMediaPipeline> pipeline = driveToPlaying(client, stream, sourceId);
+    UT_ASSERT_NOT_NULL_FATAL(pipeline.get());
+
+    AudioConfig audioConfig;
+    audioConfig.numberOfChannels = stream.channels;
+    audioConfig.sampleRate = stream.sampleRate;
+    std::unique_ptr<IMediaPipeline::MediaSource> newSource =
+        std::make_unique<IMediaPipeline::MediaSourceAudio>("audio/mp4", false, audioConfig);
+    UT_ASSERT_TRUE(pipeline->switchSource(newSource));
+
+    pipeline->stop();
+    pipeline.reset();
+}
