@@ -174,6 +174,43 @@ public:
     /// @p timeout. @retval true if the flush notification was observed.
     bool waitForSourceFlushed(int32_t sourceId, std::chrono::milliseconds timeout);
 
+    // --- Data-protocol observation (RC-CORE-DATA-*) --------------------------
+    // The feed records the shape of every need-data interaction so a case can
+    // assert the documented protocol after a run, without altering the feeding.
+
+    /// One observed notifyNeedMediaData request.
+    struct NeedDataRecord
+    {
+        int32_t sourceId;
+        size_t frameCount;
+        uint32_t requestId;
+        bool hadShmInfo;
+    };
+
+    /// The need-data requests observed so far (copy).
+    std::vector<NeedDataRecord> needDataLog();
+
+    /// True if a need-data ever arrived for a source whose previous request had
+    /// not yet been answered with haveData (the DATA-002 violation).
+    bool sawOverlappingNeedData();
+
+    /// True if every addSegment made by the feed returned OK.
+    bool allSegmentsAccepted();
+
+    /// The set of network states notified so far (copy).
+    std::set<firebolt::rialto::NetworkState> networkStatesSeen();
+
+    /// Starve mode: when enabled, need-data requests are answered with
+    /// haveData(OK) and no segments, so the server's queue drains (provokes
+    /// buffer underflow).
+    void setStarve(bool starve);
+
+    /// Block until notifyBufferUnderflow(@p sourceId), up to @p timeout.
+    bool waitForBufferUnderflow(int32_t sourceId, std::chrono::milliseconds timeout);
+
+    /// True if notifyFirstFrameReceived(@p sourceId) has been observed.
+    bool sawFirstFrame(int32_t sourceId);
+
     // --- IMediaPipelineClient ------------------------------------------------
     void notifyDuration(int64_t duration) override;
     void notifyPosition(int64_t position) override;
@@ -206,6 +243,16 @@ private:
     std::map<int32_t, SourceFeed> m_feeds;
     std::set<firebolt::rialto::PlaybackState> m_statesSeen;
     std::set<int32_t> m_flushedSources;
+
+    // Data-protocol observation.
+    std::vector<NeedDataRecord> m_needDataLog;
+    std::set<int32_t> m_pendingNeedData; ///< sources with an unanswered request
+    bool m_overlappingNeedData = false;
+    bool m_allSegmentsAccepted = true;
+    std::set<firebolt::rialto::NetworkState> m_networkStatesSeen;
+    bool m_starve = false;
+    std::set<int32_t> m_underflowSources;
+    std::set<int32_t> m_firstFrameSources;
 };
 
 } // namespace rialto::conformance

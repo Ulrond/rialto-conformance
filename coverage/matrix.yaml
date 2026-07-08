@@ -420,6 +420,116 @@ operations:
     case: "L4PlaybackDataPathTests.GetStatsSucceedsOncePlaying"
     status: covered
 
+  # --- The need-data / have-data data-transfer protocol (RC-CORE-DATA-*) ------
+  # Asserted from the records the feed client keeps while a real playback runs
+  # (the protocol only exists while samples flow). Expected sequences are the
+  # ones Rialto's own component tests encode (IDG-004).
+  - op: notifyNeedMediaData
+    interface: IMediaPipelineClient
+    tier: core
+    path: native
+    req: [RC-CORE-DATA-001]
+    expected: "Every need-data carries a positive frame count + shm info; the client batch honours numFrames <= frameCount"
+    case: "L4DataProtocolTests.NeedDataProtocolIsWellFormed"
+    status: covered
+
+  - op: notifyNeedMediaData
+    interface: IMediaPipelineClient
+    tier: core
+    path: native
+    req: [RC-CORE-DATA-002]
+    expected: "The server never issues a second need-data for a source whose previous request is unanswered"
+    case: "L4DataProtocolTests.NeedDataProtocolIsWellFormed"
+    status: covered
+
+  - op: addSegment
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-DATA-003]
+    expected: "addSegment returns OK for every accepted segment offered within the requested frame count"
+    case: "L4DataProtocolTests.NeedDataProtocolIsWellFormed"
+    status: covered
+
+  - op: haveData
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-DATA-006]
+    expected: "haveData correlates to its need-data request by id; haveData(EOS) at stream exhaustion drives the pipeline to END_OF_STREAM"
+    case: "L4DataProtocolTests.HaveDataEosDrivesEndOfStream"
+    status: covered
+
+  - op: notifyNetworkState
+    interface: IMediaPipelineClient
+    tier: core
+    path: native
+    req: [RC-CORE-DATA-009]
+    expected: "Clean clear-MSE run: BUFFERING notified at load, no error state ever notified"
+    case: "L4DataProtocolTests.CleanRunNetworkStateVocabulary"
+    status: covered
+
+  - op: "notifyBufferUnderflow / notifyFirstFrameReceived / notifyQos"
+    interface: IMediaPipelineClient
+    tier: core
+    path: native
+    req: [RC-CORE-DATA-012]
+    expected: "A starved source never fails the pipeline; underflow/first-frame/QoS delivery observed (vendor-element-dependent)"
+    case: "L4DataProtocolTests.StarvationIsToleratedAndEventsObserved"
+    status: covered
+    # notifyBufferUnderflow rides the vendor buffer-underflow-callback GSignal —
+    # the server connects to it where a decoder/sink exposes it (Rialto's own
+    # UnderflowTest mocks the signal into existence), so delivery is structurally
+    # unavailable on the software elements. First-frame is sink-dependent and QoS
+    # needs real frame drops. The platform-independent starvation-robustness
+    # clause is asserted; the notifications are recorded and logged, firming up
+    # into asserts on a vendor target.
+
+  - op: addSegment
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-DATA-004, RC-CORE-DATA-005]
+    expected: "NO_SPACE is not an error (retain + resend on next need-data); ERROR on an unexpected error"
+    case: "(needs fault injection the public API cannot drive deterministically — NO_SPACE requires shm exhaustion, ERROR an internal fault; not provokable from a conformance client)"
+    status: planned
+
+  - op: notifyCancelNeedMediaData
+    interface: IMediaPipelineClient
+    tier: core
+    path: native
+    req: [RC-CORE-DATA-007]
+    expected: "Cancels an outstanding request; cancelling with none pending is not an error"
+    case: "(server-initiated; not deterministically provokable from the public client API)"
+    status: planned
+
+  - op: "MediaSegment buffer validity"
+    interface: IMediaPipelineClient
+    tier: core
+    path: native
+    req: [RC-CORE-DATA-008]
+    expected: "A segment's data buffer remains valid until the matching haveData() completes"
+    case: "(a CLIENT obligation, not server-assertable conformance — the feed honours it by construction)"
+    status: planned
+
+  - op: notifyPlaybackError
+    interface: IMediaPipelineClient
+    tier: core
+    path: native
+    req: [RC-CORE-DATA-010]
+    expected: "A non-fatal playback error leaves PlaybackState unchanged"
+    case: "(needs a non-fatal player-error injection; not provokable from the public client API on a clean software run)"
+    status: planned
+
+  - op: notifyDuration
+    interface: IMediaPipelineClient
+    tier: core
+    path: native
+    req: [RC-CORE-DATA-011]
+    expected: "notifyDuration uses the kDurationUnknown / kDurationUnending sentinels for unknown/live media"
+    case: "(the server never calls notifyDuration in v0.22.3 — see interface-definition-gaps.md IDG-002; awaiting the upstream verdict: by-design (row becomes n/a) or gap)"
+    status: planned
+
   - op: "setBufferingLimit / getBufferingLimit"
     interface: IMediaPipeline
     tier: core
