@@ -158,6 +158,11 @@ public:
     /// Register the stream to feed for a source id returned by attachSource().
     void addAudioSource(int32_t sourceId, const AacElementaryStream &stream);
 
+    /// Rewind the feed cursor for @p sourceId to the first frame. A seek makes
+    /// the server flush and re-request data from the seek target; an MSE app
+    /// re-appends from there, which for a seek-to-start this replay reproduces.
+    void rewindSource(int32_t sourceId);
+
     /// Block until @p state has been notified, up to @p timeout.
     /// @retval true if the state was observed within the timeout.
     bool waitForPlaybackState(firebolt::rialto::PlaybackState state, std::chrono::milliseconds timeout);
