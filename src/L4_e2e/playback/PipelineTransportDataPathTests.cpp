@@ -36,7 +36,7 @@
  * Coverage trace: coverage/rc-core-catalog.yaml / matrix.yaml —
  * RC-CORE-PIPE-003 (load), -004 (attachSource id), -005 (removeSource),
  * -006 (allSourcesAttached once), -007 (play/PLAYING), -008 (pause/PAUSED),
- * -009 (stop/STOPPED).
+ * -009 (stop/STOPPED), -010 (setPlaybackRate), -011 (setPosition/seek).
  */
 
 #include <ut.h>
@@ -266,5 +266,82 @@ UT_ADD_TEST(L4PipelineTransportDataPathTests, PlayPauseStopStateMachine)
            static_cast<long long>(std::chrono::duration_cast<std::chrono::milliseconds>(stopElapsed).count()),
            sawStopped);
 
+    pipeline.reset();
+}
+
+/**
+ * RC-CORE-PIPE-010 — setPlaybackRate(rate) returns true for a backend-supported
+ * rate. The server applies a rate only once the pipeline is PLAYING (below that
+ * it postpones), so the case drives to PLAYING first and then sets 2.0 — the
+ * documented custom-instant-rate-change path Rialto's component test encodes.
+ */
+UT_ADD_TEST(L4PipelineTransportDataPathTests, SetPlaybackRateSucceedsWhilePlaying)
+{
+    CONFORMANCE_CORE_TEST();
+
+    AacElementaryStream stream = generateAacAdtsStream(kLifecycleFrames);
+    UT_ASSERT_TRUE_FATAL(!stream.frames.empty());
+
+    auto client = std::make_shared<FeedingMediaPipelineClient>();
+    int32_t sourceId = -1;
+    std::unique_ptr<IMediaPipeline> pipeline = loadAndAttachAudio(client, stream, sourceId);
+    UT_ASSERT_NOT_NULL_FATAL(pipeline.get());
+
+    UT_ASSERT_TRUE(pipeline->allSourcesAttached());
+    bool async = false;
+    UT_ASSERT_TRUE(pipeline->play(async));
+    UT_ASSERT_TRUE_FATAL(client->waitForPlaybackState(PlaybackState::PLAYING, kPlayingTimeout));
+
+    UT_ASSERT_TRUE(pipeline->setPlaybackRate(2.0));
+
+    pipeline->stop();
+    pipeline.reset();
+}
+
+/**
+ * RC-CORE-PIPE-011 — setPosition's two documented branches. Before playback
+ * starts it sets the start position and returns true (no seek). After playback
+ * has started it performs a seek: MUST NOT block, the backend notifies
+ * PlaybackState::SEEKING and then SEEK_DONE once the seek completes. The feed is
+ * rewound to the seek target (start) as an MSE app re-appends data from there.
+ */
+UT_ADD_TEST(L4PipelineTransportDataPathTests, SetPositionSetsStartThenSeeksWhilePlaying)
+{
+    CONFORMANCE_CORE_TEST();
+
+    AacElementaryStream stream = generateAacAdtsStream(kLifecycleFrames);
+    UT_ASSERT_TRUE_FATAL(!stream.frames.empty());
+
+    auto client = std::make_shared<FeedingMediaPipelineClient>();
+    int32_t sourceId = -1;
+    std::unique_ptr<IMediaPipeline> pipeline = loadAndAttachAudio(client, stream, sourceId);
+    UT_ASSERT_NOT_NULL_FATAL(pipeline.get());
+
+    // Branch 1: before playback starts, setPosition sets the start position.
+    UT_ASSERT_TRUE(pipeline->setPosition(0));
+
+    UT_ASSERT_TRUE(pipeline->allSourcesAttached());
+    bool async = false;
+    UT_ASSERT_TRUE(pipeline->play(async));
+    UT_ASSERT_TRUE_FATAL(client->waitForPlaybackState(PlaybackState::PLAYING, kPlayingTimeout));
+
+    // Branch 2: after start, setPosition seeks. Must not block; the backend
+    // notifies SEEKING then SEEK_DONE. Rewind the feed so the re-requested data
+    // starts from the seek target, as an MSE app re-appending from there would.
+    auto seekStart = std::chrono::steady_clock::now();
+    const bool seekOk = pipeline->setPosition(0);
+    auto seekElapsed = std::chrono::steady_clock::now() - seekStart;
+    client->rewindSource(sourceId);
+    UT_ASSERT_TRUE(seekOk);
+    UT_ASSERT_TRUE(seekElapsed < kNonBlockBound);
+
+    UT_ASSERT_TRUE(client->waitForPlaybackState(PlaybackState::SEEKING, kStateTimeout));
+    UT_ASSERT_TRUE(client->waitForPlaybackState(PlaybackState::SEEK_DONE, kStateTimeout));
+    UT_ASSERT_FALSE(client->sawPlaybackState(PlaybackState::FAILURE));
+
+    UT_LOG("[transport] setPosition: start-position branch OK; seek SEEKING->SEEK_DONE OK (call %lld ms)",
+           static_cast<long long>(std::chrono::duration_cast<std::chrono::milliseconds>(seekElapsed).count()));
+
+    pipeline->stop();
     pipeline.reset();
 }

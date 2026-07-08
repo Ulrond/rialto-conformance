@@ -362,6 +362,24 @@ operations:
     # synchronous MUST contract is asserted; the notification clause is logged,
     # not asserted — see coverage/interface-definition-gaps.md IDG-005.
 
+  - op: setPlaybackRate
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-010]
+    expected: "setPlaybackRate(rate) returns true for a backend-supported rate (applied once PLAYING; postponed below)"
+    case: "L4PipelineTransportDataPathTests.SetPlaybackRateSucceedsWhilePlaying"
+    status: covered
+
+  - op: setPosition
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-011]
+    expected: "Before start: sets the start position and returns true. After start: seeks without blocking; backend notifies SEEKING then SEEK_DONE"
+    case: "L4PipelineTransportDataPathTests.SetPositionSetsStartThenSeeksWhilePlaying"
+    status: covered
+
   - op: getPosition
     interface: IMediaPipeline
     tier: core

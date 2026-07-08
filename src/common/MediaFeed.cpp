@@ -260,6 +260,16 @@ void FeedingMediaPipelineClient::addAudioSource(int32_t sourceId, const AacEleme
     m_feeds[sourceId] = SourceFeed{stream, 0};
 }
 
+void FeedingMediaPipelineClient::rewindSource(int32_t sourceId)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    auto it = m_feeds.find(sourceId);
+    if (it != m_feeds.end())
+    {
+        it->second.nextFrame = 0;
+    }
+}
+
 bool FeedingMediaPipelineClient::waitForPlaybackState(PlaybackState state, std::chrono::milliseconds timeout)
 {
     std::unique_lock<std::mutex> lock(m_mutex);
