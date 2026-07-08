@@ -65,3 +65,19 @@ in conformance), or implementation-incidental?
 **Impact:** the suite treats it as the CORE transform-safety contract with this
 provenance noted; an authoritative confirmation removes the "derived, not stated"
 caveat.
+
+### IDG-005 — `stop()` STOPPED notification is not deliverable-by-construction
+The STOPPED playback-state notification is emitted only from a GStreamer bus
+state-changed(NULL) message (`HandleBusMessage`). On a live pipeline,
+`gst_element_set_state(NULL)` is synchronous and — with GstPipeline's default
+`auto-flush-bus` — flushes the bus while the server's dispatcher thread polls it
+(`gst_bus_timed_pop_filtered`, 100 ms cadence), so the message is usually dropped
+and the client never receives STOPPED. Rialto's own component tests observe
+STOPPED only by injecting the message through a mocked gst wrapper. Confirmed
+empirically on the software platform: after `stop()` from PAUSED, no STOPPED
+notification arrives within 15 s. Affects **RC-CORE-PIPE-009**.
+**Question:** is the STOPPED notification part of the guaranteed contract (in
+which case emission must not depend on the flushed bus message), or is `stop()`'s
+contract the synchronous return only, with STOPPED best-effort?
+**Impact:** the suite asserts the synchronous MUST contract (returns true, must
+not block) and logs, without asserting, STOPPED delivery.

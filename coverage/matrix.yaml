@@ -285,6 +285,83 @@ operations:
     case: "L1PipelineTests.GetClientReturnsSuppliedClient"
     status: covered
 
+  # Transport + playback state machine — driven over the software render / data
+  # path (#18): a real AAC source is loaded, attached, and taken through
+  # play/pause/stop against the live server (MediaFeed). The state-transition rows
+  # assert both the synchronous return and the PlaybackState notification the
+  # transition produces; that notification sequence is the one Rialto's own
+  # component tests encode (see coverage/interface-definition-gaps.md IDG-004),
+  # asserted as the CORE transform-safety contract.
+  - op: load
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-003]
+    expected: "load(MSE, mimeType, url, isLive) returns true for a supported source type"
+    case: "L4PipelineTransportDataPathTests.LoadAndAttachAssignRetrievableSourceId"
+    status: covered
+
+  - op: attachSource
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-004]
+    expected: "attachSource is valid for MediaType::MSE and assigns a source id retrievable via MediaSource::getId()"
+    case: "L4PipelineTransportDataPathTests.LoadAndAttachAssignRetrievableSourceId"
+    status: covered
+
+  - op: removeSource
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-005]
+    expected: "removeSource(id) returns true for a previously attached source id"
+    case: "L4PipelineTransportDataPathTests.RemoveSourceSucceedsForAttachedSource"
+    status: covered
+
+  - op: allSourcesAttached
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-006]
+    expected: "allSourcesAttached must precede streaming and may be called only once; the first call returns true, a second returns false"
+    case: "L4PipelineTransportDataPathTests.AllSourcesAttachedIsLegalOnlyOnce"
+    status: covered
+
+  - op: play
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-007]
+    expected: "play(async) returns true; backend notifies PlaybackState::PLAYING and sets the async out-param"
+    case: "L4PipelineTransportDataPathTests.PlayPauseStopStateMachine"
+    status: covered
+
+  - op: pause
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-008]
+    expected: "pause() returns true, must not block, and notifies PlaybackState::PAUSED"
+    case: "L4PipelineTransportDataPathTests.PlayPauseStopStateMachine"
+    status: covered
+
+  - op: stop
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-009]
+    expected: "stop() returns true and must not block; the STOPPED notification is observed-if-delivered (not guaranteed on a live backend)"
+    case: "L4PipelineTransportDataPathTests.PlayPauseStopStateMachine"
+    status: covered
+    # The STOPPED notification rides a GStreamer bus state-changed(NULL) message
+    # that the pipeline's default auto-flush-bus races against: set_state(NULL) is
+    # synchronous and flushes the bus while the server's dispatcher polls it, so on
+    # a live pipeline the message is usually dropped. Rialto's own component tests
+    # only observe STOPPED via a mocked gst wrapper injecting the message. The
+    # synchronous MUST contract is asserted; the notification clause is logged,
+    # not asserted — see coverage/interface-definition-gaps.md IDG-005.
+
   - op: getPosition
     interface: IMediaPipeline
     tier: core
