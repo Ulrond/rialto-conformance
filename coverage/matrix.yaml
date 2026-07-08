@@ -1264,19 +1264,29 @@ codecs:
 
 # --- Cross-surface consistency (the two paths must agree, §2) ------------------
 consistency:
-  - req: [RC-CORE-CAPS-001]
+  - req: [RC-CORE-CONSIST-001, RC-CORE-CAPS-001]
     tier: core
     path: both
-    expected: "Each codec in native getSupportedMimeTypes maps to a caps entry the matching sink advertises"
-    case: "L2CapabilityConsistencyTests.SupportedMimesMatchSinkCaps"   # planned
-    status: planned
+    expected: "Each codec in native getSupportedMimeTypes with a documented Surface A translation is advertised by the matching sink's pad template"
+    case: "L2CapabilityConsistencyTests.SupportedMimesMatchSinkCaps"
+    status: covered
 
-  - req: [RC-CORE-CAPS-002]
+  - req: [RC-CORE-CONSIST-002, RC-CORE-CAPS-002]
     tier: core
     path: both
     expected: "native isVideoMaster() agrees with rialtomsevideosink 'is-master'"
-    case: "L2CapabilityConsistencyTests.VideoMasterNativeMatchesMse"   # planned
-    status: planned
+    case: "L2CapabilityConsistencyTests.VideoMasterNativeMatchesMse"
+    status: covered
+
+  - req: [RC-CORE-CONSIST-003]
+    tier: core
+    path: both
+    expected: "The volume contract agrees across surfaces: identical [0.0, 1.0] range and 1.0 default (per-surface round-trips covered by PIPE-017/018 and MSEPROP-003)"
+    case: "L2CapabilityConsistencyTests.VolumeContractAgreesAcrossSurfaces"
+    status: covered
+    # The two surfaces cannot share one backend session (each client owns its
+    # own), so consistency is asserted for the session-independent contract —
+    # range + default — not per-session state.
 
 # --- Known coverage gaps (surfacing unmet requirements is a primary point, §5)-
 gaps:
