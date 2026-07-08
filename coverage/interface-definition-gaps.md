@@ -81,3 +81,15 @@ which case emission must not depend on the flushed bus message), or is `stop()`'
 contract the synchronous return only, with STOPPED best-effort?
 **Impact:** the suite asserts the synchronous MUST contract (returns true, must
 not block) and logs, without asserting, STOPPED delivery.
+
+### IDG-006 — `closeKeySession(unknown id)` returns FAIL, not BAD_SESSION_ID
+`IMediaKeys::closeKeySession`'s header documents BAD_SESSION_ID when "the
+session id does not exist", but the reference implementation's service layer
+(`CdmService::closeKeySession`) rejects an unknown id from its own session
+registry with FAIL before the BAD_SESSION_ID-returning session lookup is
+reached. The sibling operations (generateRequest / updateSession /
+removeKeySession) do return BAD_SESSION_ID. Affects **RC-CORE-KEYS-006**.
+**Question:** should closeKeySession return BAD_SESSION_ID for an unknown id
+(header), or is FAIL from the service registry the intended contract?
+**Impact:** the suite asserts the observed reference contract (FAIL for close,
+BAD_SESSION_ID for the siblings) as transform-safety, noting the discrepancy.

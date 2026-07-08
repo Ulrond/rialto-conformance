@@ -222,6 +222,126 @@ operations:
     # Gated on `drm.clearkey`. Distinguishes the false a supported-but-
     # certificate-less system returns from the false an unsupported system returns.
 
+  # --- IMediaKeys key-session lifecycle (RC-CORE-KEYS-*) -----------------------
+  # Driven against the live server with the suite's ClearKey OpenCDM backend
+  # (backends/opencdm/clearkey), which implements the real W3C ClearKey exchange:
+  # keyids init data -> license-request JSON -> JWK response -> key statuses.
+  # Positive-flow cases gate on `drm.clearkey`.
+  - op: createKeySession
+    interface: IMediaKeys
+    tier: core
+    path: native
+    req: [RC-CORE-KEYS-001]
+    expected: "createMediaKeys(supported system) yields an instance; createKeySession writes a valid session id"
+    case: "L1KeysSessionTests.CreateKeySessionWritesValidId"
+    status: covered
+
+  - op: generateRequest
+    interface: IMediaKeys
+    tier: core
+    path: native
+    req: [RC-CORE-KEYS-002]
+    expected: "generateRequest triggers onLicenseRequest asynchronously with the request message naming the requested kid"
+    case: "L1KeysSessionTests.GenerateRequestDeliversLicenseRequest"
+    status: covered
+
+  - op: updateSession
+    interface: IMediaKeys
+    tier: core
+    path: native
+    req: [RC-CORE-KEYS-003]
+    expected: "updateSession applies the JWK licence response; onKeyStatusesChanged reports the supplied kid USABLE"
+    case: "L1KeysSessionTests.UpdateSessionSurfacesUsableKeyStatus"
+    status: covered
+
+  - op: containsKey
+    interface: IMediaKeys
+    tier: core
+    path: native
+    req: [RC-CORE-KEYS-009]
+    expected: "containsKey returns whether the session holds a given key id (true for the licensed kid, false otherwise)"
+    case: "L1KeysSessionTests.UpdateSessionSurfacesUsableKeyStatus"
+    status: covered
+
+  - op: "closeKeySession / removeKeySession / releaseKeySession"
+    interface: IMediaKeys
+    tier: core
+    path: native
+    req: [RC-CORE-KEYS-005]
+    expected: "Each returns OK for a valid open session"
+    case: "L1KeysSessionTests.SessionTeardownReturnsOk"
+    status: covered
+
+  - op: "generateRequest / updateSession / closeKeySession / removeKeySession"
+    interface: IMediaKeys
+    tier: core
+    path: native
+    req: [RC-CORE-KEYS-006]
+    expected: "Unknown session id: generateRequest/updateSession/removeKeySession return BAD_SESSION_ID; closeKeySession returns FAIL (service-registry miss, IDG-006); containsKey answers false"
+    case: "L1KeysSessionTests.UnknownSessionIdReturnsBadSessionId"
+    status: covered
+    # closeKeySession's header documents BAD_SESSION_ID but the reference
+    # implementation's service layer rejects an unknown id with FAIL before the
+    # session lookup — recorded as interface-definition-gaps.md IDG-006; the
+    # observed reference contract is asserted (transform-safety).
+
+  - op: "getDrmTime / getCdmKeySessionId / store queries"
+    interface: IMediaKeys
+    tier: core
+    path: native
+    req: [RC-CORE-KEYS-011]
+    expected: "getDrmTime + getCdmKeySessionId succeed; the store-less queries answer a defined status without hanging"
+    case: "L1KeysSessionTests.StoreAndMaintenanceQueriesAnswer"
+    status: covered
+    # ClearKey keeps no persistent store, so the store hashes / LDL limit /
+    # metrics statuses are logged (defined, not-OK is legal for a store-less
+    # CDM), while the queries that apply to every CDM are asserted OK.
+
+  - op: createKeySession
+    interface: IMediaKeys
+    tier: core
+    path: native
+    req: [RC-CORE-KEYS-012]
+    expected: "The client is held weak_ptr: it is releasable while the session stays operable, and no callback is delivered after release"
+    case: "L1KeysSessionTests.ClientHeldWeaklyAndReleasable"
+    status: covered
+
+  - op: setDrmHeader
+    interface: IMediaKeys
+    tier: core
+    path: native
+    req: [RC-CORE-KEYS-004]
+    expected: "setDrmHeader updates a session's DRM header (DRMHEADER init-data path)"
+    case: "(the DRM-header path is PlayReady-specific; not exercisable on the ClearKey backend — rides with a real vendor CDM on hardware)"
+    status: planned
+
+  - op: "loadSession / updateSession / setDrmHeader (wrong state)"
+    interface: IMediaKeys
+    tier: core
+    path: native
+    req: [RC-CORE-KEYS-007]
+    expected: "Operations on a session in the wrong state return INVALID_STATE"
+    case: "(the wrong-state semantics are CDM-specific — the ClearKey backend accepts update in any constructed state; assert against a vendor CDM whose state machine enforces them)"
+    status: planned
+
+  - op: "generateRequest / loadSession (unsupported type)"
+    interface: IMediaKeys
+    tier: core
+    path: native
+    req: [RC-CORE-KEYS-008]
+    expected: "An unsupported session type or init-data type returns NOT_SUPPORTED"
+    case: "(the server forwards to the CDM, whose type support is CDM-specific; assert against a vendor CDM — the ClearKey backend fails construction rather than distinguishing NOT_SUPPORTED)"
+    status: planned
+
+  - op: onLicenseRenewal
+    interface: IMediaKeysClient
+    tier: core
+    path: native
+    req: [RC-CORE-KEYS-010]
+    expected: "onLicenseRenewal is followed by updateSession to complete renewal"
+    case: "(license renewal does not exist in ClearKey — temporary sessions only; rides with a vendor CDM)"
+    status: planned
+
   - op: createClientLogControl
     interface: IClientLogControl
     tier: core
