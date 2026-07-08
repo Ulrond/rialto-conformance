@@ -425,18 +425,88 @@ operations:
     tier: core
     path: native
     req: [RC-CORE-PIPE-029]
-    expected: "Round-trips a limit in ms; kInvalidLimitBuffering disables and reads back as the sentinel"
-    case: "(data path #18 — set/getBufferingLimit return false until the pipeline is realized)"
-    status: planned
+    expected: "setBufferingLimit is accepted; the value round-trips where the audio decoder exposes limit-buffering-ms, else getBufferingLimit answers false"
+    case: "L4PipelineAuxDataPathTests.BufferingLimitConformsWhenSupported"
+    status: covered
+    # limit-buffering-ms is a vendor audio-DECODER property (absent from the
+    # software avdec_aac), so the round-trip leg conforms-when-supported — the
+    # same pattern as the server-conditional sink properties (MSEPROP-005/008).
+    # Empirical (software platform): set returns true, get returns false.
 
   - op: "setUseBuffering / getUseBuffering"
     interface: IMediaPipeline
     tier: core
     path: native
     req: [RC-CORE-PIPE-030]
-    expected: "Round-trips the buffering-messages flag"
-    case: "(data path #18 — set/getUseBuffering return false until the pipeline is realized)"
-    status: planned
+    expected: "Round-trips the buffering-messages flag on the realized pipeline (write applies asynchronously; read polled)"
+    case: "L4PipelineAuxDataPathTests.UseBufferingRoundTrips"
+    status: covered
+    # use-buffering lives on the audio decodebin (standard GStreamer), so it
+    # round-trips on every platform; the server applies the write on its worker
+    # thread, so a read-back must poll rather than read immediately.
+
+  - op: setVideoWindow
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-015]
+    expected: "setVideoWindow accepts pixel x/y/width/height and returns true"
+    case: "L4PipelineAuxDataPathTests.SetVideoWindowAcceptsGeometry"
+    status: covered
+
+  - op: "setVolume / getVolume"
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-017, RC-CORE-PIPE-018]
+    expected: "setVolume accepts a target in [0.0, 1.0] and returns true; getVolume returns true and reads the level back (write applies asynchronously; read polled)"
+    case: "L4PipelineAuxDataPathTests.VolumeRoundTripsOnRealizedPipeline"
+    status: covered
+
+  - op: "setMute / getMute"
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-019]
+    expected: "Round-trip the mute flag per source"
+    case: "L4PipelineAuxDataPathTests.MuteRoundTripsPerSource"
+    status: covered
+
+  - op: flush
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-025]
+    expected: "flush(sourceId, resetTime, async) returns true and the client receives notifySourceFlushed(sourceId)"
+    case: "L4PipelineAuxDataPathTests.FlushEmitsSourceFlushed"
+    status: covered
+
+  - op: setSourcePosition
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-026]
+    expected: "Sets a per-source start position (appliedRate, stopPosition honoured) on the realized pipeline"
+    case: "L4PipelineAuxDataPathTests.SetSourcePositionSucceeds"
+    status: covered
+
+  - op: processAudioGap
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-028]
+    expected: "Handles an audio gap (audioAac flag) and returns true on the realized pipeline"
+    case: "L4PipelineAuxDataPathTests.ProcessAudioGapSucceeds"
+    status: covered
+
+  - op: renderFrame
+    interface: IMediaPipeline
+    tier: core
+    path: native
+    req: [RC-CORE-PIPE-032]
+    expected: "Requests rendering of a prerolled frame and returns true once the player is loaded"
+    case: "L4PipelineAuxDataPathTests.RenderFrameSucceedsOnceLoaded"
+    status: covered
 
   # --- IWebAudioPlayer (Surface B native) ------------------------------------
   - op: createWebAudioPlayer

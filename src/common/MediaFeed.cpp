@@ -355,7 +355,20 @@ void FeedingMediaPipelineClient::notifyQos(int32_t, const QosInfo &) {}
 void FeedingMediaPipelineClient::notifyBufferUnderflow(int32_t) {}
 void FeedingMediaPipelineClient::notifyFirstFrameReceived(int32_t) {}
 void FeedingMediaPipelineClient::notifyPlaybackError(int32_t, PlaybackError) {}
-void FeedingMediaPipelineClient::notifySourceFlushed(int32_t) {}
+void FeedingMediaPipelineClient::notifySourceFlushed(int32_t sourceId)
+{
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_flushedSources.insert(sourceId);
+    }
+    m_cv.notify_all();
+}
+
+bool FeedingMediaPipelineClient::waitForSourceFlushed(int32_t sourceId, std::chrono::milliseconds timeout)
+{
+    std::unique_lock<std::mutex> lock(m_mutex);
+    return m_cv.wait_for(lock, timeout, [&] { return m_flushedSources.count(sourceId) != 0; });
+}
 void FeedingMediaPipelineClient::notifyPlaybackInfo(const PlaybackInfo &) {}
 
 } // namespace rialto::conformance

@@ -170,6 +170,10 @@ public:
     /// True if @p state has been notified at any point.
     bool sawPlaybackState(firebolt::rialto::PlaybackState state);
 
+    /// Block until notifySourceFlushed(@p sourceId) has been received, up to
+    /// @p timeout. @retval true if the flush notification was observed.
+    bool waitForSourceFlushed(int32_t sourceId, std::chrono::milliseconds timeout);
+
     // --- IMediaPipelineClient ------------------------------------------------
     void notifyDuration(int64_t duration) override;
     void notifyPosition(int64_t position) override;
@@ -201,6 +205,7 @@ private:
     firebolt::rialto::IMediaPipeline *m_pipeline = nullptr;
     std::map<int32_t, SourceFeed> m_feeds;
     std::set<firebolt::rialto::PlaybackState> m_statesSeen;
+    std::set<int32_t> m_flushedSources;
 };
 
 } // namespace rialto::conformance
