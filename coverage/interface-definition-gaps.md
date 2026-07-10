@@ -93,3 +93,19 @@ removeKeySession) do return BAD_SESSION_ID. Affects **RC-CORE-KEYS-006**.
 (header), or is FAIL from the service registry the intended contract?
 **Impact:** the suite asserts the observed reference contract (FAIL for close,
 BAD_SESSION_ID for the siblings) as transform-safety, noting the discrepancy.
+
+### IDG-007 — app-driven video-placement / secure / timecode properties have no `rialtomse*sink` equivalent
+A code-level survey of deployed player applications (private feed) shows players
+set several properties on their platform video sink that the Rialto MSE sink does
+not expose: video-plane **z-order**, **zoom/scaling mode**, **secure-video**
+signalling, and SEI **timecode** extraction. The `rialtomsevideosink` exposes
+window geometry (`rectangle`) but no equivalent for those: secure decode is
+negotiated server-side / through encrypted caps rather than a sink property, and
+z-order / zoom / timecode have no sink property at all. This is derived from
+real usage, not a suite case (see coverage/app-usage-grounding.md).
+**Question:** are video-plane placement beyond `rectangle` (z-order, zoom) and
+timecode extraction intended to be outside the Rialto MSE sink contract (an
+app / compositor / server responsibility), or are they gaps that surface as
+players migrate onto the Rialto sinks?
+**Impact:** determines whether these become covered rows (if in-contract) or are
+documented as deliberate non-goals; today they are neither tested nor promised.
