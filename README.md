@@ -46,6 +46,32 @@ their own `NATIVE_BUILD` (platform deps stubbed) into a local prefix that
 [build.sh](build.sh) auto-discovers. Same one binary, same cases — only the
 backend underneath is software rather than a SoC.
 
+The reproducible, root-clean way to do that is the SC docker flow — one command
+that bootstraps anything missing (the `sc` tool, the build-env image) and runs
+the build + gate inside the container as you:
+
+```bash
+./sc-run.sh                          # CORE gate on the Linux software platform
+RIALTO_CONFORMANCE_TIER=all ./sc-run.sh
+```
+
+[Dockerfile](Dockerfile) is the build *environment* (toolchain + Rialto's native
+deps + the SC user-mapping entrypoint, own ubuntu base — no internal registry or
+certificate); [sc-run.sh](sc-run.sh) ensures `sc`
+([github.com/rdkcentral/sc](https://github.com/rdkcentral/sc)) + the image exist,
+then `sc docker run`s [docker/run-in-container.sh](docker/run-in-container.sh),
+which builds the software Rialto + the suite, brings up a **RialtoServer** via the
+ServerManagerSim (so the IPC-based native client API connects), and runs the gate.
+
+On the Linux software platform the CORE gate runs end-to-end: the MSE sinks
+(Surface A) and the native capabilities — codec/mime reporting, baseline H.264,
+video-master (Surface B) — pass against the live software Rialto. Two DRM-
+capability cases (`RC-CORE-KEYSCAP-002/003`) **fail by design**: the
+`NATIVE_BUILD` stubs OCDM, so it accepts any key system and reports no version —
+i.e. the gate correctly flags the stub as a non-conformant DRM backend. That is a
+property of the software platform's stub, not of the suite; a real backend with a
+real CDM is expected to pass them.
+
 This is **real end-to-end testing against real content — not a mock test**. The
 verdict is conformance to the published requirements, not an internal contract.
 
@@ -61,7 +87,7 @@ verdict is conformance to the published requirements, not an internal contract.
 All of the above are **installed at fixed versions by [install.sh](install.sh)**
 into the gitignored `framework/` area — never committed. The pins live in
 [framework.lock](framework.lock): ut-core **5.1.0**, python_raft **1.8.2**,
-ut-raft **2.1.2**, rialto **v0.22.2**, rialto-gstreamer **v0.20.1**; ut-control
+ut-raft **2.1.2**, rialto **v0.22.3**, rialto-gstreamer **v0.20.1**; ut-control
 **2.1.0** + GoogleTest **1.15.2** are pulled by ut-core's `build.sh`.
 
 ## Install + build
@@ -73,8 +99,8 @@ ut-raft **2.1.2**, rialto **v0.22.2**, rialto-gstreamer **v0.20.1**; ut-control
 
 # Linux software platform (no hardware Rialto) — build the backend once, then
 # build.sh auto-discovers it and the suite runs the full set locally:
-./build-rialto.sh --deps   # build Rialto + rialto-gstreamer (NATIVE_BUILD); --deps apt-installs deps (root)
-./build.sh
+./build-rialto.sh          # installs Rialto's native build deps (root) then builds the software stack
+./build.sh                 # --no-deps skips the dep install for hosts that already provision them
 ```
 
 The downstream [Makefile](Makefile) sets `SRC_DIRS`/`INC_DIRS`, takes the public
@@ -119,7 +145,7 @@ Orthogonal to level, every case declares one tier:
 The L1–L4 group ids are ut-core's **level** axis. Tier is a second, independent
 axis the suite selects at runtime — a case declares `CONFORMANCE_CORE_TEST()` or
 `CONFORMANCE_EXTENDED_TEST()` at the top of its body (the same self-skip idiom as
-the capability/ABI gates), and the active selection is read from the
+the capability/release gates), and the active selection is read from the
 `RIALTO_CONFORMANCE_TIER` environment variable:
 
 ```bash
@@ -170,7 +196,7 @@ Adding a target adds one `deviceConfig` (named by config) and a `raft/` entry �
 install.sh            install pinned framework deps (framework.lock) into framework/
 build.sh · Makefile   build VARIANT=CPP; link only libRialtoClient + GStreamer
 framework.lock        pinned versions of ut-core / ut-raft / rialto API reference
-include/conformance/  CapabilityGate.h · AbiVersion.h · ContentLoader.h · Surfaces.h
+include/conformance/  CapabilityGate.h · RialtoRelease.h · TierGate.h · ContentLoader.h · Surfaces.h
 src/                  main.cpp + L1_function/ L2_module/ L3_group/ L4_e2e/ (native/ + mse/)
 coverage/             matrix.yaml + requirements/ (gitignored private-feed mount)
 profiles/             deviceConfig.schema.yaml + deviceConfig.example.yaml  (capability gate)
@@ -182,11 +208,14 @@ framework/            install.sh target — ut-core/ut-control/ut-raft/rialto (N
 
 ## Certification model
 
-A backend declares its ABI version via `rialtoPlatformBackendAbiVersion()`;
-passing the vN suite certifies that backend at vN (currently **v5**). Bumps are
-**additive** — a certified backend is not re-certified by a later additive bump.
-The versioned `coverage/matrix.yaml` is the traceability record: "Rialto @ ABI vN
-+ backend X meets conformance requirements {RC-…}."
+The suite targets a specific **Rialto release** — the [framework.lock](framework.lock)
+pin (`targetRialtoRelease`, currently **v0.22.3**) — and passing it certifies a
+backend at that release. A requirement may declare a `since:` release; on a target
+running an older Rialto it self-skips (`CONFORMANCE_REQUIRE_SINCE`), so a backend
+is never failed by a requirement for an interface it predates. (This is release
+targeting — *not* Rialto's binary ABI, which is fixed per release.) The versioned
+`coverage/matrix.yaml` is the traceability record: "Rialto @ &lt;release&gt; +
+backend X meets conformance requirements {RC-…}."
 
 ## Licence
 

@@ -70,14 +70,38 @@ while read -r name repo_url ref _role; do
     clone_repo "${name}" "${repo_url}" "${ref}"
 done < "${LOCK_FILE}"
 
-# Install the python_raft / ut-raft host requirements if pip is available.
-if command -v pip >/dev/null 2>&1; then
-    for req in "${FRAMEWORK_DIR}/python_raft/requirements.txt" "${FRAMEWORK_DIR}/ut-raft/requirements.txt"; do
+# Install the python_raft / ut-raft host requirements into an ISOLATED venv, so
+# host setup never touches (or conflicts with) the system Python environment.
+# The venv lives at python_venv/ (gitignored). If venv is unavailable we fall
+# back to `pip install --user` with a warning rather than polluting site-packages.
+VENV_DIR="${ROOT_DIR}/python_venv"
+REQS=("${FRAMEWORK_DIR}/python_raft/requirements.txt" "${FRAMEWORK_DIR}/ut-raft/requirements.txt")
+
+install_reqs()
+{
+    local pip_cmd=("$@")
+    for req in "${REQS[@]}"; do
         if [ -f "${req}" ]; then
-            echo "[install.sh] pip install -r ${req#${ROOT_DIR}/}"
-            pip install -q -r "${req}" || echo "[install.sh] WARN: pip install failed for ${req}"
+            echo "[install.sh] ${pip_cmd[0]##*/} install -r ${req#${ROOT_DIR}/}"
+            "${pip_cmd[@]}" install -q -r "${req}" || echo "[install.sh] WARN: install failed for ${req}"
         fi
     done
+}
+
+if python3 -m venv --help >/dev/null 2>&1; then
+    if [ ! -x "${VENV_DIR}/bin/python" ]; then
+        echo "[install.sh] creating host venv -> python_venv/ (isolated raft deps)"
+        python3 -m venv "${VENV_DIR}"
+    fi
+    "${VENV_DIR}/bin/python" -m pip install -q --upgrade pip >/dev/null 2>&1 || true
+    install_reqs "${VENV_DIR}/bin/python" -m pip
+    echo "[install.sh] raft host deps installed in python_venv/ — run the raft suite with:"
+    echo "[install.sh]   python_venv/bin/python raft/suites/test_rialto_conformance.py ..."
+elif command -v pip3 >/dev/null 2>&1; then
+    echo "[install.sh] WARN: python venv unavailable; installing raft deps with 'pip3 --user'"
+    install_reqs pip3 --user
+else
+    echo "[install.sh] WARN: no venv and no pip3 — skipping raft host deps (install python3-venv)"
 fi
 
 echo "[install.sh] framework installed under framework/ (gitignored). Next: ./build.sh"

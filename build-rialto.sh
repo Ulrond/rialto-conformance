@@ -32,18 +32,29 @@
 # targets, where the platform Rialto already exists. Run this only when you want a
 # local software platform to run against.
 #
+# The native build deps are a REQUIREMENT, not an option — so this installs them
+# by default (Rialto's own apt list; needs root / passwordless sudo) whenever they
+# are missing, then builds. Use --no-deps only on a host that already provisions
+# them (CI image, etc.), where it errors out instead if any are absent.
+#
 # Usage:
-#   ./build-rialto.sh                 # build the Linux software stack into the prefix
-#   ./build-rialto.sh --deps          # first apt-install Rialto's native build deps (needs root)
+#   ./build-rialto.sh                 # ensure deps (install if missing) then build
+#   ./build-rialto.sh --no-deps       # assume deps present; do not apt-install (error if missing)
 #   RIALTO_PREFIX=/path ./build-rialto.sh
 #
 # After it completes, build.sh/Makefile auto-discover the prefix (no env needed):
 #   ./build.sh && RIALTO_CONFORMANCE_TIER=core ./build/bin/rialto_conformance -a -p <deviceConfig>
 #
-# Native build deps (Rialto's own list — install once on the host, needs root):
+# Native build deps (Rialto's own list, installed by default):
 #   build-essential cmake libunwind-dev libgstreamer1.0-dev
 #   libgstreamer-plugins-base1.0-dev libgstreamer-plugins-bad1.0-dev
 #   libyaml-cpp-dev protobuf-compiler
+#
+# TESTED STATUS: dependency detection + both control paths (default auto-install,
+# and --no-deps error) are verified, as is the cmake invocation up to the Protobuf
+# gate (cleared with protoc/libprotobuf staged). The FULL build is NOT yet verified
+# end-to-end on this dev box — it has no root, and the deps install (and thus the
+# native build) requires root. Run on a privileged Linux host to validate fully.
 
 set -euo pipefail
 
@@ -53,13 +64,55 @@ FRAMEWORK_DIR="${ROOT_DIR}/framework"
 # Makefile looks here automatically (kept under the gitignored framework/ area).
 PREFIX="${RIALTO_PREFIX:-${FRAMEWORK_DIR}/.native-install}"
 
-WITH_DEPS=0
+NO_DEPS=0
 for arg in "$@"; do
     case "${arg}" in
-        --deps) WITH_DEPS=1 ;;
+        --no-deps) NO_DEPS=1 ;;
         *) echo "[build-rialto] unknown arg: ${arg}" >&2; exit 2 ;;
     esac
 done
+
+# Echo the apt package names of any absent native build prerequisites, one per
+# line (empty output => all present). Names match Rialto's own
+# install_dependencies_for_native_build.sh.
+missing_prereqs()
+{
+    command -v cmake      >/dev/null 2>&1 || echo "cmake"
+    command -v make       >/dev/null 2>&1 || echo "build-essential"
+    command -v g++        >/dev/null 2>&1 || echo "g++"
+    command -v protoc     >/dev/null 2>&1 || echo "protobuf-compiler"
+    command -v pkg-config >/dev/null 2>&1 || echo "pkg-config"
+    if command -v pkg-config >/dev/null 2>&1; then
+        pkg-config --exists protobuf         2>/dev/null || echo "libprotobuf-dev"
+        pkg-config --exists gstreamer-1.0     2>/dev/null || echo "libgstreamer1.0-dev"
+        pkg-config --exists gstreamer-app-1.0 2>/dev/null || echo "libgstreamer-plugins-base1.0-dev"
+        pkg-config --exists yaml-cpp          2>/dev/null || echo "libyaml-cpp-dev"
+    fi
+    pkg-config --exists libunwind 2>/dev/null || [ -e /usr/include/libunwind.h ] || echo "libunwind-dev"
+}
+
+# Install Rialto's native build deps (a REQUIREMENT, so done by default). Uses
+# Rialto's own dependency scripts so the list stays in lockstep with the pinned
+# ref. Needs root or passwordless sudo; errors clearly if neither is available.
+install_deps()
+{
+    local sudo=""
+    if [ "$(id -u)" -ne 0 ]; then
+        if sudo -n true 2>/dev/null; then
+            sudo="sudo"
+        else
+            echo "[build-rialto] ERROR: native build dependencies are required but installing them needs root." >&2
+            echo "[build-rialto] Re-run as root or with passwordless sudo, or install the deps yourself and use --no-deps:" >&2
+            missing_prereqs | sed 's/^/  - /' >&2
+            exit 1
+        fi
+    fi
+    echo "[build-rialto] installing native build dependencies (Rialto's apt list)"
+    ${sudo} bash "${FRAMEWORK_DIR}/rialto/install_dependencies_for_native_build.sh"
+    if [ -f "${FRAMEWORK_DIR}/rialto-gstreamer/install_dependencies_for_native_build.sh" ]; then
+        ${sudo} bash "${FRAMEWORK_DIR}/rialto-gstreamer/install_dependencies_for_native_build.sh"
+    fi
+}
 
 # Ensure the Rialto sources are cloned at their pinned refs.
 if [ ! -d "${FRAMEWORK_DIR}/rialto/.git" ] || [ ! -d "${FRAMEWORK_DIR}/rialto-gstreamer/.git" ]; then
@@ -67,18 +120,54 @@ if [ ! -d "${FRAMEWORK_DIR}/rialto/.git" ] || [ ! -d "${FRAMEWORK_DIR}/rialto-gs
     "${ROOT_DIR}/install.sh"
 fi
 
-# Optionally install Rialto's native build dependencies (apt; needs root). We call
-# Rialto's own dependency scripts so the list stays in lockstep with the pinned ref.
-if [ "${WITH_DEPS}" -eq 1 ]; then
-    echo "[build-rialto] installing native build dependencies (root required)"
-    SUDO=""; [ "$(id -u)" -ne 0 ] && SUDO="sudo"
-    ${SUDO} bash "${FRAMEWORK_DIR}/rialto/install_dependencies_for_native_build.sh"
-    if [ -f "${FRAMEWORK_DIR}/rialto-gstreamer/install_dependencies_for_native_build.sh" ]; then
-        ${SUDO} bash "${FRAMEWORK_DIR}/rialto-gstreamer/install_dependencies_for_native_build.sh"
+# Ensure the native build dependencies are present. They are a REQUIREMENT, so by
+# default we install them when missing; --no-deps turns the absence into an error
+# instead (for hosts that provision deps externally).
+if [ -n "$(missing_prereqs)" ]; then
+    if [ "${NO_DEPS}" -eq 1 ]; then
+        echo "[build-rialto] ERROR: required native build dependencies are missing (--no-deps set):" >&2
+        missing_prereqs | sed 's/^/  - /' >&2
+        echo "[build-rialto] install them, or drop --no-deps to install automatically." >&2
+        exit 1
+    fi
+    install_deps
+    if [ -n "$(missing_prereqs)" ]; then
+        echo "[build-rialto] ERROR: dependencies still missing after install:" >&2
+        missing_prereqs | sed 's/^/  - /' >&2
+        exit 1
     fi
 fi
+echo "[build-rialto] native build prerequisites present"
 
 JOBS="$(nproc 2>/dev/null || echo 4)"
+
+# 0. Select the OpenCDM backend for Rialto's NATIVE_BUILD `libocdm`. Rialto builds
+#    libocdm from stubs/opencdm/*.cpp; RIALTO_OCDM_BACKEND picks which open_cdm.cpp
+#    body it compiles (the ABI is unchanged, so a real CDM can be swapped in later):
+#      clearkey (default) - the suite's W3C ClearKey CDM (backends/opencdm/clearkey):
+#                           org.w3.clearkey supported + versioned, others rejected,
+#                           no server certificate. Makes IMediaKeysCapabilities
+#                           conformant in software CI.
+#      stub               - Rialto's pristine permissive stub (accepts any key
+#                           system, reports no version).
+#    The stub source is reset from the pinned checkout first, so the choice is
+#    deterministic regardless of a previous overlay.
+OCDM_BACKEND="${RIALTO_OCDM_BACKEND:-clearkey}"
+OCDM_STUB="${FRAMEWORK_DIR}/rialto/stubs/opencdm/open_cdm.cpp"
+echo "[build-rialto] selecting OpenCDM backend: ${OCDM_BACKEND}"
+git -C "${FRAMEWORK_DIR}/rialto" checkout --quiet -- stubs/opencdm/open_cdm.cpp 2>/dev/null || true
+case "${OCDM_BACKEND}" in
+    stub)
+        : # leave Rialto's pristine stub in place
+        ;;
+    clearkey)
+        cp "${ROOT_DIR}/backends/opencdm/clearkey/open_cdm.cpp" "${OCDM_STUB}"
+        ;;
+    *)
+        echo "[build-rialto] ERROR: unknown RIALTO_OCDM_BACKEND '${OCDM_BACKEND}' (want: clearkey|stub)" >&2
+        exit 2
+        ;;
+esac
 
 # 1. Build Rialto (client + server) natively and install into PREFIX so that
 #    RialtoClient.pc resolves to the built library.

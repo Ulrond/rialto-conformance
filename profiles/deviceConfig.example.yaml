@@ -22,7 +22,11 @@ deviceConfig:
     prompt: "root@target:~#"
 
     rialto:
-      abiVersion: 5
+
+      control:
+        stateToggle: false     # real hardware: no ServerManagerSim to drive, so
+                               # the notify-on-transition case (CONTROL-002)
+                               # self-skips here
 
       codecs:
         video:
@@ -34,7 +38,11 @@ deviceConfig:
           ac4: true
           opus: true
 
+      webaudio:
+        playout: true          # platform can render web-audio (PCM mixing)
+
       drm:
+        clearkey: true         # org.w3.clearkey
         widevine: true
         playready: true
         fairplay: false        # com.apple.fps — unmet by Rialto (coverage/matrix.yaml gap)

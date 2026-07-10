@@ -34,7 +34,16 @@ deviceConfig:
     prompt: string            # console prompt (raft)
 
     rialto:                   # rialto-conformance capability gate (variable features only)
-      abiVersion: uint32      # platform-backend ABI version this target reports (§4); gates additive cases
+      # (The Rialto release the suite targets is the framework.lock pin, not a
+      # profile field — see include/conformance/RialtoRelease.h.)
+
+      # Harness-driven server application-state transitions. True only where the
+      # gate runs against a ServerManagerSim it can drive (the software platform),
+      # letting a case provoke an INACTIVE<->ACTIVE edge after connecting to assert
+      # the IControl notify-on-transition callback (RC-CORE-CONTROL-002). Absent on
+      # real hardware — there is no sim, and the case self-skips.
+      control:
+        stateToggle: bool
 
       # Optional/advanced codecs (H.264 + AAC are baseline-required, not listed).
       codecs:
@@ -47,8 +56,14 @@ deviceConfig:
           ac4: bool
           opus: bool
 
+      # Web-audio (IWebAudioPlayer PCM mixing) play-out. The create + query
+      # surface is required; only the play-out state machine gates on this.
+      webaudio:
+        playout: bool         # platform renders web-audio to an audio device
+
       # DRM key systems the platform provisions (varies per target).
       drm:
+        clearkey: bool        # org.w3.clearkey
         widevine: bool        # com.widevine.alpha
         playready: bool       # com.microsoft.playready
         fairplay: bool        # com.apple.fps — unmet by Rialto today (coverage/matrix.yaml gap)

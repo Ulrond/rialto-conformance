@@ -53,6 +53,7 @@ protected:
     /// rialtomse*sink element factory names under test (Surface A).
     static constexpr const char *kAudioSink = "rialtomseaudiosink";
     static constexpr const char *kVideoSink = "rialtomsevideosink";
+    static constexpr const char *kSubtitleSink = "rialtomsesubtitlesink";
 };
 
 /**

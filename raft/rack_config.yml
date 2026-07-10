@@ -6,8 +6,8 @@
 # GIVEN the target by this config (rack + slot) and has NO concept of the
 # platform — the backend is swapped by config/build, never by editing tests.
 #
-# Run:
-#   python raft/suites/test_rialto_conformance.py \
+# Run (via the isolated host venv that install.sh creates):
+#   python_venv/bin/python raft/suites/test_rialto_conformance.py \
 #       --config raft/rack_config.yml --rack rack1 --slotName reference-target
 #
 # The `platform` field in each slot's device entry links to device_config.yml,

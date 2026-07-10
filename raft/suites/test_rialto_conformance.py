@@ -30,8 +30,8 @@ concept of the platform — the only platform-specific input is which KVP profil
 device_config names, and that is shipped, not coded. The same binary and the
 same cases run on every target.
 
-Run:
-    python raft/suites/test_rialto_conformance.py \
+Run (via the isolated host venv that install.sh creates):
+    python_venv/bin/python raft/suites/test_rialto_conformance.py \
         --config raft/rack_config.yml --rack rack1 --slotName reference-target
 """
 

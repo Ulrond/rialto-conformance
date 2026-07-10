@@ -12,7 +12,7 @@
 # here; those are EXTENDED (Phase 2) and live in the private requirements feed.
 #
 # coverage/matrix.yaml is the coverage view: it references these ids and tracks
-# which case proves each (planned -> covered) at which ABI. A surface-neutral
+# which case proves each (planned -> covered). A surface-neutral
 # requirement that both surfaces expose carries path: [native, mse] here and
 # appears as one case per path in the matrix, plus a CONSIST-* agreement case.
 #
@@ -23,9 +23,10 @@
 #   path      native | mse | [native, mse]  (surface(s) the contract is on)
 #   kind      positive | negative | state | property | caps | event | protocol
 #             | consistency | lifetime
-#   abi       suite-ABI the requirement enters at. Baseline surface = 1; values
-#             >1 mark features known to be later additions. Per-feature ABI entry
-#             is confirmed as each case is authored.
+#   since     (optional) the Rialto release a requirement applies from, e.g.
+#             "v0.23.0". Omitted = applies at the suite's targetRialtoRelease.
+#             CONFORMANCE_REQUIRE_SINCE uses it to skip a requirement on an older
+#             target. (This is NOT Rialto's binary ABI, which is fixed per release.)
 #   notes     (optional) documented error/ordering/quiet-fail semantics to assert
 #
 # kind: negative entries assert documented failure/rejection behaviour — these are
@@ -34,6 +35,9 @@
 schemaVersion: 1
 suite: rialto-conformance
 tier: core
+# The Rialto release the suite is written and validated against (framework.lock
+# pin). Requirements apply at this release unless they carry a newer `since:`.
+targetRialtoRelease: "v0.22.3"
 
 requirements:
 
@@ -43,19 +47,16 @@ requirements:
     interface: IControl
     path: native
     kind: positive
-    abi: 1
   - id: RC-CORE-CONTROL-002
     title: "A registered IControlClient receives notifyApplicationState on server state transitions"
     interface: IControlClient
     path: native
     kind: event
-    abi: 1
   - id: RC-CORE-CONTROL-003
     title: "The client shared_ptr is released (client unregistered) on IControl destruction"
     interface: IControl
     path: native
     kind: lifetime
-    abi: 1
 
   # === Surface B (native) — factories =======================================
   - id: RC-CORE-FACTORY-001
@@ -63,13 +64,11 @@ requirements:
     interface: "IControlFactory / IMediaPipelineFactory / IMediaPipelineCapabilitiesFactory / IMediaKeysFactory / IMediaKeysCapabilitiesFactory / IWebAudioPlayerFactory"
     path: native
     kind: positive
-    abi: 1
   - id: RC-CORE-FACTORY-002
     title: "create*(...) returns null (not a partially-constructed object) when construction cannot succeed"
     interface: "all public factories"
     path: native
     kind: negative
-    abi: 1
     notes: "Documented null-on-error contract on every create* method."
 
   # === Surface B (native) — IMediaPipeline lifecycle/transport ==============
@@ -78,200 +77,168 @@ requirements:
     interface: IMediaPipeline
     path: native
     kind: positive
-    abi: 1
   - id: RC-CORE-PIPE-002
     title: "getClient returns the client supplied at creation"
     interface: IMediaPipeline
     path: native
     kind: positive
-    abi: 1
   - id: RC-CORE-PIPE-003
     title: "load(MSE, mimeType, url, isLive) returns true for a supported source type"
     interface: IMediaPipeline
     path: native
     kind: positive
-    abi: 1
   - id: RC-CORE-PIPE-004
     title: "attachSource is valid only for MediaType::MSE and assigns a source id retrievable via MediaSource::getId()"
     interface: IMediaPipeline
     path: native
     kind: state
-    abi: 1
   - id: RC-CORE-PIPE-005
     title: "removeSource(id) returns true for a previously attached source id"
     interface: IMediaPipeline
     path: native
     kind: state
-    abi: 1
   - id: RC-CORE-PIPE-006
     title: "allSourcesAttached must be called before streaming can commence and may be called only once"
     interface: IMediaPipeline
     path: native
     kind: negative
-    abi: 1
     notes: "Streaming blocked if never called; a second call is illegal."
   - id: RC-CORE-PIPE-007
     title: "play(async) returns true; backend notifies PlaybackState::PLAYING and sets the async out-param"
     interface: IMediaPipeline
     path: native
     kind: state
-    abi: 1
   - id: RC-CORE-PIPE-008
     title: "pause() returns true, must not block, and notifies PlaybackState::PAUSED"
     interface: IMediaPipeline
     path: native
     kind: state
-    abi: 1
     notes: "Documented MUST NOT block."
   - id: RC-CORE-PIPE-009
     title: "stop() returns true, must not block, and notifies PlaybackState::STOPPED"
     interface: IMediaPipeline
     path: native
     kind: state
-    abi: 1
     notes: "Documented MUST NOT block."
   - id: RC-CORE-PIPE-010
     title: "setPlaybackRate(rate) returns true for a backend-supported rate"
     interface: IMediaPipeline
     path: native
     kind: positive
-    abi: 1
   - id: RC-CORE-PIPE-011
     title: "setPosition before playback start sets the start position; after start it seeks (SEEKING -> SEEK_DONE -> PLAYING); must not block"
     interface: IMediaPipeline
     path: native
     kind: state
-    abi: 1
     notes: "Branch on started/not-started; MUST NOT block."
   - id: RC-CORE-PIPE-012
     title: "getPosition returns true synchronously and writes the position out-param"
     interface: IMediaPipeline
     path: native
     kind: positive
-    abi: 1
   - id: RC-CORE-PIPE-013
     title: "getDuration returns true synchronously and writes the duration out-param"
     interface: IMediaPipeline
     path: native
     kind: positive
-    abi: 1
   - id: RC-CORE-PIPE-014
     title: "getStats writes rendered and dropped frame counts for a source id"
     interface: IMediaPipeline
     path: native
     kind: positive
-    abi: 1
   - id: RC-CORE-PIPE-015
     title: "setVideoWindow accepts pixel x/y/width/height"
     interface: IMediaPipeline
     path: native
     kind: positive
-    abi: 1
   - id: RC-CORE-PIPE-016
     title: "setImmediateOutput / getImmediateOutput round-trip the immediate-output flag per source"
     interface: IMediaPipeline
     path: native
     kind: property
-    abi: 1
   - id: RC-CORE-PIPE-017
     title: "setVolume accepts targetVolume in [0.0, 1.0] (with optional duration + EaseType) and returns true; out-of-range is handled per contract"
     interface: IMediaPipeline
     path: native
     kind: property
-    abi: 1
     notes: "Documented range 0.0-1.0 — boundary/clamp is a negative-path case."
   - id: RC-CORE-PIPE-018
     title: "getVolume returns true and writes a value in [0.0, 1.0]"
     interface: IMediaPipeline
     path: native
     kind: property
-    abi: 1
   - id: RC-CORE-PIPE-019
     title: "setMute / getMute round-trip the mute flag per source"
     interface: IMediaPipeline
     path: native
     kind: property
-    abi: 1
   - id: RC-CORE-PIPE-020
     title: "setTextTrackIdentifier / getTextTrackIdentifier round-trip the subtitle text-track identifier"
     interface: IMediaPipeline
     path: native
     kind: property
-    abi: 1
   - id: RC-CORE-PIPE-021
     title: "setLowLatency (default false) returns true"
     interface: IMediaPipeline
     path: native
     kind: property
-    abi: 1
   - id: RC-CORE-PIPE-022
     title: "setSync / getSync round-trip the clock-sync flag (default false)"
     interface: IMediaPipeline
     path: native
     kind: property
-    abi: 1
   - id: RC-CORE-PIPE-023
     title: "setSyncOff must be set before the pipeline reaches PLAYING"
     interface: IMediaPipeline
     path: native
     kind: negative
-    abi: 1
     notes: "Setting after PLAYING is out-of-contract."
   - id: RC-CORE-PIPE-024
     title: "setStreamSyncMode / getStreamSyncMode round-trip the stream-sync mode (0 default; 1 = immediate next-frame sync)"
     interface: IMediaPipeline
     path: native
     kind: property
-    abi: 1
   - id: RC-CORE-PIPE-025
     title: "flush(sourceId, resetTime, async) returns true and emits notifySourceFlushed"
     interface: IMediaPipeline
     path: native
     kind: state
-    abi: 1
   - id: RC-CORE-PIPE-026
     title: "setSourcePosition sets a per-source start position (appliedRate, stopPosition honoured)"
     interface: IMediaPipeline
     path: native
     kind: positive
-    abi: 1
   - id: RC-CORE-PIPE-027
     title: "setSubtitleOffset applies a ns offset to a subtitle source"
     interface: IMediaPipeline
     path: native
     kind: positive
-    abi: 1
   - id: RC-CORE-PIPE-028
     title: "processAudioGap handles an audio gap (audioAac flag) without artefacts"
     interface: IMediaPipeline
     path: native
     kind: positive
-    abi: 1
   - id: RC-CORE-PIPE-029
     title: "setBufferingLimit / getBufferingLimit round-trip; kInvalidLimitBuffering disables limit buffering"
     interface: IMediaPipeline
     path: native
     kind: property
-    abi: 1
     notes: "Sentinel kInvalidLimitBuffering (UINT32_MAX) disables."
   - id: RC-CORE-PIPE-030
     title: "setUseBuffering / getUseBuffering round-trip the buffering-messages flag"
     interface: IMediaPipeline
     path: native
     kind: property
-    abi: 1
   - id: RC-CORE-PIPE-031
     title: "switchSource switches a media source stream"
     interface: IMediaPipeline
     path: native
     kind: positive
-    abi: 1
   - id: RC-CORE-PIPE-032
     title: "renderFrame requests rendering of a prerolled frame"
     interface: IMediaPipeline
     path: native
     kind: positive
-    abi: 1
 
   # === Surface B (native) — IMediaPipeline data-flow protocol ===============
   - id: RC-CORE-DATA-001
@@ -279,75 +246,67 @@ requirements:
     interface: IMediaPipelineClient
     path: native
     kind: protocol
-    abi: 1
   - id: RC-CORE-DATA-002
     title: "Data cannot be requested while a data request is already pending for the source"
     interface: IMediaPipelineClient
     path: native
     kind: negative
-    abi: 1
   - id: RC-CORE-DATA-003
     title: "addSegment returns OK when a segment is accepted"
     interface: IMediaPipeline
     path: native
     kind: protocol
-    abi: 1
   - id: RC-CORE-DATA-004
     title: "addSegment NO_SPACE is not an error: retain the segment, call haveData, and resend on the next notifyNeedMediaData"
     interface: IMediaPipeline
     path: native
     kind: negative
-    abi: 1
     notes: "Prescribed retain-and-retry protocol; NO_SPACE != failure."
   - id: RC-CORE-DATA-005
     title: "addSegment returns ERROR on an unexpected error"
     interface: IMediaPipeline
     path: native
     kind: negative
-    abi: 1
   - id: RC-CORE-DATA-006
     title: "haveData(status, needDataRequestId) correlates to its need-data request; OK/EOS/ERROR carry documented meaning"
     interface: IMediaPipeline
     path: native
     kind: protocol
-    abi: 1
     notes: "EOS = success with data still present; ERROR = no data returned."
   - id: RC-CORE-DATA-007
     title: "notifyCancelNeedMediaData cancels an outstanding request; cancelling with none pending is not an error"
     interface: IMediaPipelineClient
     path: native
     kind: negative
-    abi: 1
   - id: RC-CORE-DATA-008
     title: "A MediaSegment data buffer must remain valid until the matching haveData() completes"
     interface: IMediaPipeline
     path: native
     kind: protocol
-    abi: 1
   - id: RC-CORE-DATA-009
-    title: "For MSE playback, notifyNetworkState emits only IDLE, BUFFERED, or DECODE_ERROR"
+    title: "For clear MSE playback, notifyNetworkState emits BUFFERING at load and BUFFERED once data is buffered; a clean run never emits an error state"
     interface: IMediaPipelineClient
     path: native
     kind: negative
-    abi: 1
+    # Reworded 2026-07-08 to the implemented vocabulary: the server emits
+    # BUFFERING from load() and BUFFERED from the player once buffered; the
+    # previous title (IDLE/BUFFERED/DECODE_ERROR only) contradicted both
+    # emission sites in the reference implementation.
   - id: RC-CORE-DATA-010
     title: "notifyPlaybackError (non-fatal) leaves PlaybackState unchanged"
     interface: IMediaPipelineClient
     path: native
     kind: negative
-    abi: 1
   - id: RC-CORE-DATA-011
     title: "notifyDuration uses the kDurationUnknown / kDurationUnending sentinels for unknown/live media"
     interface: IMediaPipelineClient
     path: native
     kind: protocol
-    abi: 1
   - id: RC-CORE-DATA-012
     title: "notifyQos reports processed/dropped counts; notifyBufferUnderflow and notifyFirstFrameReceived fire per source"
     interface: IMediaPipelineClient
     path: native
     kind: event
-    abi: 1
 
   # === Surface B (native) — IMediaPipelineCapabilities ======================
   - id: RC-CORE-CAPS-001
@@ -355,25 +314,21 @@ requirements:
     interface: IMediaPipelineCapabilities
     path: [native, mse]
     kind: consistency
-    abi: 1
   - id: RC-CORE-CAPS-002
     title: "Video-master state is reported (native isVideoMaster out-param == video sink is-master property)"
     interface: IMediaPipelineCapabilities
     path: [native, mse]
     kind: consistency
-    abi: 3
   - id: RC-CORE-CAPS-003
     title: "getSupportedProperties returns the subset of queried names supported; MediaSourceType::UNKNOWN searches AUDIO and VIDEO"
     interface: IMediaPipelineCapabilities
     path: native
     kind: positive
-    abi: 1
   - id: RC-CORE-CAPS-004
     title: "getSupportedMimeTypes returns a per-source-type list for AUDIO, VIDEO, and SUBTITLE"
     interface: IMediaPipelineCapabilities
     path: native
     kind: positive
-    abi: 1
 
   # === Baseline codec (mandatory surface) ===================================
   - id: RC-CORE-CODEC-AVC
@@ -381,7 +336,6 @@ requirements:
     interface: "IMediaPipelineCapabilities <-> rialtomsevideosink"
     path: [native, mse]
     kind: positive
-    abi: 1
     notes: "Mandatory baseline codec — absence is a conformance failure, not a skip."
 
   # === Surface B (native) — IMediaKeys (DRM session lifecycle) ==============
@@ -390,76 +344,64 @@ requirements:
     interface: IMediaKeys
     path: native
     kind: state
-    abi: 1
   - id: RC-CORE-KEYS-002
     title: "generateRequest triggers onLicenseRequest asynchronously with the request message and a url (empty when none applies)"
     interface: IMediaKeys
     path: native
     kind: event
-    abi: 1
   - id: RC-CORE-KEYS-003
     title: "updateSession applies a licence response and surfaces key state via onKeyStatusesChanged"
     interface: IMediaKeys
     path: native
     kind: state
-    abi: 1
   - id: RC-CORE-KEYS-004
     title: "setDrmHeader updates a session's DRM header (DRMHEADER init-data path)"
     interface: IMediaKeys
     path: native
     kind: positive
-    abi: 1
   - id: RC-CORE-KEYS-005
     title: "closeKeySession / removeKeySession / releaseKeySession return OK for a valid open session"
     interface: IMediaKeys
     path: native
     kind: state
-    abi: 1
   - id: RC-CORE-KEYS-006
     title: "Session operations on an unknown session id return BAD_SESSION_ID"
     interface: IMediaKeys
     path: native
     kind: negative
-    abi: 1
     notes: "generateRequest/loadSession/updateSession/setDrmHeader/close/remove/release."
   - id: RC-CORE-KEYS-007
     title: "loadSession / updateSession / setDrmHeader on a session in the wrong state return INVALID_STATE"
     interface: IMediaKeys
     path: native
     kind: negative
-    abi: 1
   - id: RC-CORE-KEYS-008
     title: "generateRequest / loadSession with an unsupported session type or init-data type return NOT_SUPPORTED"
     interface: IMediaKeys
     path: native
     kind: negative
-    abi: 1
   - id: RC-CORE-KEYS-009
     title: "containsKey returns whether a session holds a given key id"
     interface: IMediaKeys
     path: native
     kind: positive
-    abi: 1
     notes: "Returns raw bool — no error channel to distinguish absent-key from bad-session."
   - id: RC-CORE-KEYS-010
     title: "onLicenseRenewal is followed by updateSession to complete renewal"
     interface: IMediaKeysClient
     path: native
     kind: event
-    abi: 1
   - id: RC-CORE-KEYS-011
     title: "Store/maintenance queries return status and out-params: deleteDrmStore, deleteKeyStore, getDrmStoreHash, getKeyStoreHash, getLdlSessionsLimit, getLastDrmError, getDrmTime, getCdmKeySessionId, getMetricSystemData"
     interface: IMediaKeys
     path: native
     kind: positive
-    abi: 1
     notes: "Buffer-out getters are BUFFER_TOO_SMALL candidates."
   - id: RC-CORE-KEYS-012
     title: "The client is held as weak_ptr — no callbacks are delivered after the client is destroyed"
     interface: IMediaKeys
     path: native
     kind: lifetime
-    abi: 1
 
   # === Surface B (native) — IMediaKeysCapabilities ==========================
   - id: RC-CORE-KEYSCAP-001
@@ -467,26 +409,22 @@ requirements:
     interface: IMediaKeysCapabilities
     path: native
     kind: positive
-    abi: 1
   - id: RC-CORE-KEYSCAP-002
     title: "supportsKeySystem returns true iff the system is in the supported set; any string is a legal query and an unsupported one returns false (not an error)"
     interface: IMediaKeysCapabilities
     path: native
     kind: negative
-    abi: 1
     notes: "Distinguishes accepted-as-query from supported."
   - id: RC-CORE-KEYSCAP-003
     title: "getSupportedKeySystemVersion writes the version and returns true for a supported key system"
     interface: IMediaKeysCapabilities
     path: native
     kind: positive
-    abi: 1
   - id: RC-CORE-KEYSCAP-004
     title: "isServerCertificateSupported reports server-certificate support per key system"
     interface: IMediaKeysCapabilities
     path: native
     kind: positive
-    abi: 1
 
   # === Surface B (native) — IWebAudioPlayer =================================
   - id: RC-CORE-WEBAUDIO-001
@@ -494,53 +432,62 @@ requirements:
     interface: IWebAudioPlayer
     path: native
     kind: positive
-    abi: 1
   - id: RC-CORE-WEBAUDIO-002
     title: "play / pause / setEos drive IDLE -> PLAYING / PAUSED -> END_OF_STREAM and notifyState reports each transition"
     interface: IWebAudioPlayer
     path: native
     kind: state
-    abi: 1
   - id: RC-CORE-WEBAUDIO-003
     title: "getBufferAvailable bounds the write; writeBuffer must not exceed availableFrames"
     interface: IWebAudioPlayer
     path: native
     kind: protocol
-    abi: 1
   - id: RC-CORE-WEBAUDIO-004
     title: "getBufferDelay writes the frames remaining to play"
     interface: IWebAudioPlayer
     path: native
     kind: positive
-    abi: 1
   - id: RC-CORE-WEBAUDIO-005
     title: "getDeviceInfo writes preferred/maximum frames and supportDeferredPlay; deferred play (commit before Play) is allowed only when supported"
     interface: IWebAudioPlayer
     path: native
     kind: negative
-    abi: 1
   - id: RC-CORE-WEBAUDIO-006
     title: "setVolume / getVolume round-trip a value in [0.0, 1.0]"
     interface: IWebAudioPlayer
     path: native
     kind: property
-    abi: 1
   - id: RC-CORE-WEBAUDIO-007
     title: "A player created with priority greater than the platform's supported player count appears to function but its audio is silently discarded"
     interface: IWebAudioPlayer
     path: native
     kind: negative
-    abi: 1
     notes: "Documented quiet-fail — the suite asserts the documented behaviour, not a surfaced error."
 
   # === Surface B (native) — client log control ==============================
   - id: RC-CORE-LOG-001
-    title: "IClientLogControl registers a log handler that receives client log records; registration is idempotent/replaceable per contract"
+    title: "IClientLogControlFactory::createFactory() is non-null and createClientLogControl() returns the singleton IClientLogControl (same instance across calls)"
     interface: IClientLogControl
     path: native
     kind: positive
-    abi: 1
-    notes: "IClientLogControl.h / IClientLogHandler.h — enumerate fully when authoring the case."
+    notes: "createClientLogControl() is documented as returning a singleton."
+  - id: RC-CORE-LOG-002
+    title: "registerLogHandler(handler, ignoreLogLevels=true) returns true and the handler's log() receives client log records with a defined Level and populated file/line/function/message"
+    interface: IClientLogControl
+    path: native
+    kind: event
+    notes: "ignoreLogLevels=true delivers all levels regardless of the configured log level; Level enum in IClientLogHandler.h."
+  - id: RC-CORE-LOG-003
+    title: "Registering a new handler replaces the previous one; only the current handler receives subsequent records"
+    interface: IClientLogControl
+    path: native
+    kind: state
+  - id: RC-CORE-LOG-004
+    title: "registerLogHandler(nullptr, ...) cancels delivery: no further log() callbacks are made"
+    interface: IClientLogControl
+    path: native
+    kind: negative
+    notes: "Documented cancel path — pass nullptr to stop callbacks."
 
   # === Surface A (mse) — element registration ===============================
   - id: RC-CORE-MSE-001
@@ -548,20 +495,17 @@ requirements:
     interface: rialtosinks
     path: mse
     kind: positive
-    abi: 1
   - id: RC-CORE-MSE-002
     title: "Element registration is skipped entirely when the computed rank is 0 (RIALTO_SOCKET_PATH unset and RIALTO_SINKS_RANK not >0)"
     interface: rialtosinks
     path: mse
     kind: negative
-    abi: 1
     notes: "Rank > 0 from RIALTO_SOCKET_PATH (INT_MAX) or RIALTO_SINKS_RANK override; else no elements register."
   - id: RC-CORE-MSE-003
     title: "Each sink advertises the documented metadata/klass and the audio sink implements the GstStreamVolume interface"
     interface: rialtosinks
     path: mse
     kind: positive
-    abi: 1
     notes: "Video=Decoder/Video/Sink/Video, Audio=Decoder/Audio/Sink/Audio, Subtitle=Parser/Subtitle/Sink/Subtitle."
 
   # === Surface A (mse) — GObject properties =================================
@@ -570,61 +514,51 @@ requirements:
     interface: RialtoMSEBaseSink
     path: mse
     kind: property
-    abi: 1
   - id: RC-CORE-MSEPROP-002
     title: "Base sink exposes the buffer-underflow-callback and first-video-frame-callback GSignals"
     interface: RialtoMSEBaseSink
     path: mse
     kind: event
-    abi: 1
   - id: RC-CORE-MSEPROP-003
     title: "Audio-sink unconditional properties exist with documented defaults: volume(1.0,[0..1]), mute(F), gap(WO), use-buffering(F), async, web-audio(F)"
     interface: rialtomseaudiosink
     path: mse
     kind: property
-    abi: 1
   - id: RC-CORE-MSEPROP-004
     title: "The audio-sink web-audio property is settable only while state == NULL; a set after NULL is rejected"
     interface: rialtomseaudiosink
     path: mse
     kind: negative
-    abi: 1
   - id: RC-CORE-MSEPROP-005
     title: "Audio-sink server-conditional properties are installed iff the server reports them: low-latency, sync, sync-off, stream-sync-mode, audio-fade, fade-volume([0..100]), limit-buffering-ms([0..20000],750)"
     interface: rialtomseaudiosink
     path: mse
     kind: property
-    abi: 1
   - id: RC-CORE-MSEPROP-006
     title: "Video-sink properties exist with documented defaults: rectangle, max-video-width(3840,[0..3840]), max-video-height(2160,[0..2160]), frame-step-on-preroll(F), is-master(RO), video_pts(RO)"
     interface: rialtomsevideosink
     path: mse
     kind: property
-    abi: 1
   - id: RC-CORE-MSEPROP-007
     title: "Deprecated aliases maxVideoWidth/maxVideoHeight map to max-video-width/height and warn on get"
     interface: rialtomsevideosink
     path: mse
     kind: negative
-    abi: 1
   - id: RC-CORE-MSEPROP-008
     title: "Video-sink server-conditional properties are installed iff supported: immediate-output, syncmode-streaming, show-video-window"
     interface: rialtomsevideosink
     path: mse
     kind: property
-    abi: 1
   - id: RC-CORE-MSEPROP-009
     title: "Subtitle-sink properties exist with documented values: mute(F), text-track-identifier(CC[1-4]/TEXT[1-4]/SERVICE[1-64]), window-id([0..256]), async(F)"
     interface: rialtomsesubtitlesink
     path: mse
     kind: property
-    abi: 1
   - id: RC-CORE-MSEPROP-010
     title: "Each readable property returns its documented fallback default when the delegate cannot supply a value"
     interface: RialtoMSEBaseSink
     path: mse
     kind: property
-    abi: 1
 
   # === Surface A (mse) — pad templates / caps ===============================
   - id: RC-CORE-MSECAPS-001
@@ -632,37 +566,31 @@ requirements:
     interface: RialtoMSEBaseSink
     path: mse
     kind: caps
-    abi: 1
   - id: RC-CORE-MSECAPS-002
     title: "A sink advertises exactly the supported subset of the documented MIME->caps mapping; a server MIME absent from the mapping is dropped with a warning"
     interface: rialtosinks
     path: mse
     kind: caps
-    abi: 1
   - id: RC-CORE-MSECAPS-003
     title: "Audio MIME->caps mapping is correct (mp4->mpeg{1,2,4}, mp3->mpeg{1,2}, aac->mpeg{2,4}, x-eac3->{x-ac3,x-eac3}, x-opus, x-flac, x-raw, b-wav)"
     interface: rialtomseaudiosink
     path: mse
     kind: caps
-    abi: 1
   - id: RC-CORE-MSECAPS-004
     title: "Video MIME->caps mapping is correct (h264->x-h264, h265->x-h265, x-av1, x-vp9)"
     interface: rialtomsevideosink
     path: mse
     kind: caps
-    abi: 1
   - id: RC-CORE-MSECAPS-005
     title: "Subtitle MIME->caps mapping is correct (vtt->{text/vtt, application/x-subtitle-vtt}, ttml->application/ttml+xml, cc->cea-608/708 variants)"
     interface: rialtomsesubtitlesink
     path: mse
     kind: caps
-    abi: 1
   - id: RC-CORE-MSECAPS-006
     title: "Incoming CAPS-event fields are parsed: codec_data, alignment(au/nal), stream-format(raw/avc/byte-stream/hvc1/hev1), Dolby-Vision (dovi-stream/dv_profile), raw-audio layout/format"
     interface: RialtoMSEBaseSink
     path: mse
     kind: caps
-    abi: 1
 
   # === Surface A (mse) — state transitions ==================================
   - id: RC-CORE-MSESTATE-001
@@ -670,37 +598,31 @@ requirements:
     interface: RialtoMSEBaseSink
     path: mse
     kind: negative
-    abi: 1
   - id: RC-CORE-MSESTATE-002
     title: "NULL->READY fails without a sink pad and waits for the Rialto control client to reach RUNNING"
     interface: RialtoMSEBaseSink
     path: mse
     kind: state
-    abi: 1
   - id: RC-CORE-MSESTATE-003
     title: "READY->PAUSED tolerates a not-yet-attached source (caps arrive later) and returns GST_STATE_CHANGE_ASYNC for async/NOT_ATTACHED"
     interface: RialtoMSEBaseSink
     path: mse
     kind: state
-    abi: 1
   - id: RC-CORE-MSESTATE-004
     title: "PAUSED->PLAYING requires a media-player client; NOT_ATTACHED returns FAILURE"
     interface: RialtoMSEBaseSink
     path: mse
     kind: negative
-    abi: 1
   - id: RC-CORE-MSESTATE-005
     title: "PAUSED->READY removes the source, clears queued buffers, and posts async-done when a commit was pending"
     interface: RialtoMSEBaseSink
     path: mse
     kind: state
-    abi: 1
   - id: RC-CORE-MSESTATE-006
     title: "READY->NULL releases the media-player client and removes the control backend"
     interface: RialtoMSEBaseSink
     path: mse
     kind: state
-    abi: 1
 
   # === Surface A (mse) — events / queries ===================================
   - id: RC-CORE-MSEEVENT-001
@@ -708,73 +630,61 @@ requirements:
     interface: RialtoMSEBaseSink
     path: mse
     kind: query
-    abi: 1
   - id: RC-CORE-MSEEVENT-002
     title: "GST_QUERY_POSITION returns the server position for GST_FORMAT_TIME; FALSE with no client, a negative position, or during a server flush+time-reset"
     interface: RialtoMSEBaseSink
     path: mse
     kind: query
-    abi: 1
   - id: RC-CORE-MSEEVENT-003
     title: "GST_QUERY_DURATION returns the server duration for GST_FORMAT_TIME and FALSE otherwise"
     interface: RialtoMSEBaseSink
     path: mse
     kind: query
-    abi: 1
   - id: RC-CORE-MSEEVENT-004
     title: "GST_QUERY_SEGMENT returns the last segment's rate/format and stream-time start/stop"
     interface: RialtoMSEBaseSink
     path: mse
     kind: query
-    abi: 1
   - id: RC-CORE-MSEEVENT-005
     title: "Only FLUSH seeks are supported; SEEK_TYPE_END in TIME format is rejected, and non-flush/non-instant seeks are rejected"
     interface: RialtoMSEBaseSink
     path: mse
     kind: negative
-    abi: 1
   - id: RC-CORE-MSEEVENT-006
     title: "Instant-rate-change handling (GStreamer >=1.18): the seek flag is translated to an instant-rate-change event and INSTANT_RATE_SYNC_TIME applies setPlaybackRate"
     interface: RialtoMSEBaseSink
     path: mse
     kind: event
-    abi: 1
   - id: RC-CORE-MSEEVENT-007
     title: "GST_EVENT_SEGMENT is copied and applied to the server source"
     interface: RialtoMSEBaseSink
     path: mse
     kind: event
-    abi: 1
   - id: RC-CORE-MSEEVENT-008
     title: "GST_EVENT_EOS marks end-of-stream and notifies the flush/data synchronizer"
     interface: RialtoMSEBaseSink
     path: mse
     kind: event
-    abi: 1
   - id: RC-CORE-MSEEVENT-009
     title: "GST_EVENT_CAPS stores/updates the source caps and triggers source attach"
     interface: RialtoMSEBaseSink
     path: mse
     kind: event
-    abi: 1
   - id: RC-CORE-MSEEVENT-010
     title: "GST_EVENT_FLUSH_START / FLUSH_STOP begin and stop flushing, honouring the reset-time flag"
     interface: RialtoMSEBaseSink
     path: mse
     kind: event
-    abi: 1
   - id: RC-CORE-MSEEVENT-011
     title: "GST_EVENT_STREAM_COLLECTION counts a/v/text streams, reports the collection to the server, and triggers all-sources-attached"
     interface: RialtoMSEBaseSink
     path: mse
     kind: event
-    abi: 1
   - id: RC-CORE-MSEEVENT-012
     title: "Unknown upstream events are forwarded upstream; other unhandled events are consumed"
     interface: RialtoMSEBaseSink
     path: mse
     kind: event
-    abi: 1
 
   # === Cross-surface consistency (native <-> mse agree) =====================
   - id: RC-CORE-CONSIST-001
@@ -782,19 +692,16 @@ requirements:
     interface: "IMediaPipelineCapabilities <-> rialtomse*sink"
     path: [native, mse]
     kind: consistency
-    abi: 1
     notes: "Pairs with RC-CORE-CAPS-001 / RC-CORE-MSECAPS-002."
   - id: RC-CORE-CONSIST-002
     title: "native isVideoMaster() agrees with the rialtomsevideosink is-master property"
     interface: "IMediaPipelineCapabilities <-> rialtomsevideosink"
     path: [native, mse]
     kind: consistency
-    abi: 3
     notes: "Pairs with RC-CORE-CAPS-002."
   - id: RC-CORE-CONSIST-003
     title: "native setVolume/getVolume agrees with the rialtomseaudiosink volume property over [0.0, 1.0]"
     interface: "IMediaPipeline <-> rialtomseaudiosink"
     path: [native, mse]
     kind: consistency
-    abi: 1
     notes: "Pairs with RC-CORE-PIPE-017/018."

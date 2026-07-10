@@ -26,9 +26,16 @@
 # Local session marker — not part of the suite
 .lastlogin
 
+# Local session-starter — a working handover for the next session, not part of
+# the published suite. Kept on disk, never committed.
+/HANDOVER.md
+
 # ut-core / ut-raft run artefacts
 *.log
 *.xml
 __pycache__/
 *.pyc
 /logs/
+
+# Local-only: app/SoC usage study (partner names — must NOT enter the public tree)
+/coverage/STUDY-per-app-gstreamer-properties-caps.md

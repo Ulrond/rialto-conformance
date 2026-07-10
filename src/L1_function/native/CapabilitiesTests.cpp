@@ -33,7 +33,6 @@
 
 #include <ut.h>
 
-#include "conformance/AbiVersion.h"
 #include "conformance/CapabilityGate.h"
 #include "conformance/Surfaces.h"
 #include "conformance/TierGate.h"
@@ -123,13 +122,14 @@ UT_ADD_TEST(L1CapabilitiesTests, Av1MimeTypeSupportedWhenDeclared)
 }
 
 /**
- * isVideoMaster() returns a status and writes its out-param. Entered at ABI v3
- * (video-master); a backend below v3 self-skips via the ABI gate (§4).
+ * isVideoMaster() returns a status and writes its out-param. Part of the
+ * capabilities surface in the targeted Rialto release, so it applies
+ * unconditionally; a CONFORMANCE_REQUIRE_SINCE gate would be added only if a
+ * future requirement needed a newer Rialto release.
  */
 UT_ADD_TEST(L1CapabilitiesTests, IsVideoMasterReportsStatus)
 {
     CONFORMANCE_CORE_TEST();
-    CONFORMANCE_REQUIRE_ABI(3);
 
     auto factory = IMediaPipelineCapabilitiesFactory::createFactory();
     UT_ASSERT_NOT_NULL_FATAL(factory.get());
@@ -138,4 +138,82 @@ UT_ADD_TEST(L1CapabilitiesTests, IsVideoMasterReportsStatus)
 
     bool isMaster = false;
     UT_ASSERT_TRUE(caps->isVideoMaster(isMaster));
+}
+
+/**
+ * RC-CORE-CAPS-004 — getSupportedMimeTypes reports a per-source-type list for
+ * AUDIO, VIDEO and SUBTITLE. VIDEO and AUDIO must be non-empty (baseline H.264 +
+ * AAC are mandatory); SUBTITLE content varies, so it is only required to return.
+ */
+UT_ADD_TEST(L1CapabilitiesTests, SupportedMimeTypesPerSourceType)
+{
+    CONFORMANCE_CORE_TEST();
+
+    auto factory = IMediaPipelineCapabilitiesFactory::createFactory();
+    UT_ASSERT_NOT_NULL_FATAL(factory.get());
+    auto caps = factory->createMediaPipelineCapabilities();
+    UT_ASSERT_NOT_NULL_FATAL(caps.get());
+
+    UT_ASSERT_FALSE(caps->getSupportedMimeTypes(MediaSourceType::VIDEO).empty());
+    UT_ASSERT_FALSE(caps->getSupportedMimeTypes(MediaSourceType::AUDIO).empty());
+
+    // SUBTITLE support is platform-variable; the call must be valid regardless.
+    const std::vector<std::string> subtitle = caps->getSupportedMimeTypes(MediaSourceType::SUBTITLE);
+    (void)subtitle;
+}
+
+/**
+ * RC-CORE-CAPS-003 — getSupportedProperties returns the subset of the queried
+ * names that are supported (never a name that was not queried), an unknown name
+ * is never reported, and MediaSourceType::UNKNOWN searches AUDIO and VIDEO (so
+ * its result is the union of the per-type results).
+ */
+UT_ADD_TEST(L1CapabilitiesTests, SupportedPropertiesContract)
+{
+    CONFORMANCE_CORE_TEST();
+
+    auto factory = IMediaPipelineCapabilitiesFactory::createFactory();
+    UT_ASSERT_NOT_NULL_FATAL(factory.get());
+    auto caps = factory->createMediaPipelineCapabilities();
+    UT_ASSERT_NOT_NULL_FATAL(caps.get());
+
+    // A mix of documented server-conditional sink properties plus one that can
+    // never exist. Whichever are supported is platform-variable; the contract is
+    // the shape of the result, not which names are present.
+    const std::string bogus{"rc-core-nonexistent-property"};
+    const std::vector<std::string> queried{"low-latency", "sync", "audio-fade", "immediate-output", bogus};
+
+    auto isSubsetOfQuery = [&](const std::vector<std::string> &result)
+    {
+        for (const std::string &name : result)
+        {
+            if (std::find(queried.begin(), queried.end(), name) == queried.end())
+            {
+                return false;
+            }
+        }
+        return true;
+    };
+    auto contains = [](const std::vector<std::string> &v, const std::string &s)
+    { return std::find(v.begin(), v.end(), s) != v.end(); };
+
+    const std::vector<std::string> audio = caps->getSupportedProperties(MediaSourceType::AUDIO, queried);
+    const std::vector<std::string> video = caps->getSupportedProperties(MediaSourceType::VIDEO, queried);
+    const std::vector<std::string> unknown = caps->getSupportedProperties(MediaSourceType::UNKNOWN, queried);
+
+    // Every returned name was queried; the impossible name is never returned.
+    UT_ASSERT_TRUE(isSubsetOfQuery(audio));
+    UT_ASSERT_TRUE(isSubsetOfQuery(video));
+    UT_ASSERT_TRUE(isSubsetOfQuery(unknown));
+    UT_ASSERT_FALSE(contains(unknown, bogus));
+
+    // UNKNOWN searches AUDIO and VIDEO, so it reports anything either reports.
+    for (const std::string &name : audio)
+    {
+        UT_ASSERT_TRUE(contains(unknown, name));
+    }
+    for (const std::string &name : video)
+    {
+        UT_ASSERT_TRUE(contains(unknown, name));
+    }
 }

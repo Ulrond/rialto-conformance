@@ -22,7 +22,13 @@ deviceConfig:
     prompt: "$ "
 
     rialto:
-      abiVersion: 5
+
+      control:
+        stateToggle: true           # the gate runs against a ServerManagerSim it
+                                    # controls, so a case can drive an
+                                    # INACTIVE<->ACTIVE transition after connecting
+                                    # (RC-CORE-CONTROL-002 notify-on-transition).
+                                    # Off / absent on real hardware — no sim to drive.
 
       codecs:
         video:
@@ -34,8 +40,17 @@ deviceConfig:
           ac4: false
           opus: false
 
+      webaudio:
+        playout: false              # headless software build has no audio-render
+                                    # device; the create + query surface is tested
+                                    # unconditionally, only the play-out state
+                                    # machine (WEBAUDIO-002) gates on this
+
       drm:
-        widevine: false             # no real CDM in the stubbed software build
+        clearkey: true              # W3C org.w3.clearkey — the software build's
+                                    # OpenCDM backend (backends/opencdm/clearkey,
+                                    # RIALTO_OCDM_BACKEND=clearkey)
+        widevine: false             # no real vendor CDM in the software build
         playready: false
         fairplay: false             # com.apple.fps — unmet by Rialto (coverage/matrix.yaml gap)
         secureVideoPath: false
