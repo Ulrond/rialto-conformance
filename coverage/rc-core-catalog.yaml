@@ -705,3 +705,15 @@ requirements:
     path: [native, mse]
     kind: consistency
     notes: "Pairs with RC-CORE-PIPE-017/018."
+  - id: RC-CORE-CONSIST-004
+    title: "native setMute/getMute agrees with the rialtomse{audio,subtitle}sink mute property (boolean, default false)"
+    interface: "IMediaPipeline <-> rialtomseaudiosink / rialtomsesubtitlesink"
+    path: [native, mse]
+    kind: consistency
+    notes: "Pairs with RC-CORE-PIPE-019. Session-independent contract only (type + default); see coverage/cross-surface-fact-inventory.md."
+  - id: RC-CORE-CONSIST-005
+    title: "every optional property a rialtomse{audio,video}sink installs is reported supported by native getSupportedProperties (installed set is a subset of the native answer)"
+    interface: "IMediaPipelineCapabilities <-> rialtomse{audio,video}sink"
+    path: [native, mse]
+    kind: consistency
+    notes: "A sink must not expose a gated knob the platform disowns. Subset, not equality: native getSupportedProperties is a registry scan (superset, time-varying) — see IDG-008. Pairs with RC-CORE-CAPS-003 / RC-CORE-MSEPROP-005 / RC-CORE-MSEPROP-008."

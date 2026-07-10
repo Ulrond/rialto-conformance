@@ -1294,6 +1294,27 @@ consistency:
     # own), so consistency is asserted for the session-independent contract —
     # range + default — not per-session state.
 
+  - req: [RC-CORE-CONSIST-004, RC-CORE-PIPE-019]
+    tier: core
+    path: both
+    expected: "The mute contract agrees across surfaces: the audio and subtitle sinks' mute is boolean, default false, matching the native mute default (native per-source round-trip covered by PIPE-019)"
+    case: "L2CapabilityConsistencyTests.MuteContractAgreesAcrossSurfaces"
+    status: covered
+    # Session-independent contract only (type + default), same rationale as
+    # CONSIST-003; per-session mute state is not shareable across two clients.
+
+  - req: [RC-CORE-CONSIST-005, RC-CORE-CAPS-003]
+    tier: core
+    path: both
+    expected: "every vendor-gated optional property a sink installs is reported supported by native getSupportedProperties (audio: low-latency, sync, sync-off, stream-sync-mode, limit-buffering-ms, audio-fade, fade-volume; video: immediate-output, syncmode-streaming, show-video-window) — a sink must not expose a knob the platform disowns"
+    case: "L2CapabilityConsistencyTests.InstalledOptionalPropertiesAreNativeSupported"
+    status: covered
+    # Subset, not equality: native getSupportedProperties is a live registry scan
+    # (superset — it also reports properties like `sync` owned only by other
+    # platform elements, and its answer grows over the process lifetime), so
+    # native-only names are expected. See IDG-008. Per-surface property conformance
+    # is MSEPROP-005/008.
+
 # --- Known coverage gaps (surfacing unmet requirements is a primary point, §5)-
 gaps:
   - req: [RC-EXT-DRM-FPS-001]

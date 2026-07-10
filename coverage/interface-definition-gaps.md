@@ -109,3 +109,30 @@ app / compositor / server responsibility), or are they gaps that surface as
 players migrate onto the Rialto sinks?
 **Impact:** determines whether these become covered rows (if in-contract) or are
 documented as deliberate non-goals; today they are neither tested nor promised.
+
+### IDG-008 — `getSupportedProperties` is a registry-snapshot, not a stable platform fact
+`getSupportedProperties(mediaType, names)` returns a name if **any** GStreamer
+element factory of that media type registered *at call time* installs a property
+of that name (`GstCapabilities::getSupportedProperties` scans the live factory
+list). Two consequences observed cross-surface (RC-CORE-CONSIST-005):
+
+1. The answer is **time-varying** — a scan-based property such as `sync` (carried
+   by core `GstBaseSink`-derived audio sinks) can be absent from an early query
+   and present from a later one, as more audio plugins register over the process
+   lifetime. `audio-fade` is stable only because it has a dedicated always-on
+   fallback in the scan.
+2. It reports a property **the `rialtomse*sink` does not expose** — the sinks
+   derive from `GST_TYPE_ELEMENT`, so `sync` (and any property owned only by
+   other platform audio elements) is reported "supported" by the platform yet has
+   no corresponding sink `GParamSpec`.
+
+So the native supported-property set is a **superset** of what any one sink
+installs; the assertable cross-surface invariant is that each sink's installed
+optional properties are a subset of the native answer (a sink must not expose an
+optional knob the platform disowns), **not** set equality.
+**Question:** is `getSupportedProperties` intended as a "does any element on the
+platform support this" probe (registry-scan semantics, as implemented), or as the
+stable per-source property contract its name suggests? If the latter, the scan
+should be pinned to a defined element set so the answer is deterministic.
+**Impact:** ratifies the subset semantics RC-CORE-CONSIST-005 asserts; a "stable
+contract" answer would instead make the native/sink set-equality testable.
