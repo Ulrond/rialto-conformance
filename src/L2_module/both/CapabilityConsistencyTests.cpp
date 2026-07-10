@@ -36,7 +36,10 @@
  * RC-CORE-CONSIST-001 (native supported MIME types map into the matching sink's
  * advertised caps), RC-CORE-CONSIST-002 (isVideoMaster agrees with the video
  * sink's is-master property), RC-CORE-CONSIST-003 (the volume contract agrees
- * across surfaces).
+ * across surfaces), RC-CORE-CONSIST-004 (the mute contract agrees across
+ * surfaces), RC-CORE-CONSIST-005 (the optional-property set agrees across
+ * surfaces). The classification behind these rows is coverage/
+ * cross-surface-fact-inventory.md.
  */
 
 #include <ut.h>
@@ -53,6 +56,7 @@
 #include <cstddef>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -221,4 +225,107 @@ UT_ADD_TEST(L2CapabilityConsistencyTests, VolumeContractAgreesAcrossSurfaces)
     // [0.0, 1.0] and the realized-pipeline default reads 1.0 — asserted by the
     // native data-path row (L4PipelineAuxDataPathTests.VolumeRoundTrips...); here
     // the agreement is that Surface A publishes the identical range + default.
+}
+
+/**
+ * RC-CORE-CONSIST-004 — the mute contract agrees across surfaces. Mute is a
+ * both-surfaces backend fact (native getMute/setMute per source; the audio and
+ * subtitle sinks' `mute` property), so the two must carry the same contract.
+ * As with volume, the surfaces cannot share one backend session, so the
+ * session-independent contract — boolean type + FALSE default — is the
+ * assertable consistency; the native per-source round-trip is covered by
+ * L4PipelineAuxDataPathTests.MuteRoundTripsPerSource (PIPE-019).
+ */
+UT_ADD_TEST(L2CapabilityConsistencyTests, MuteContractAgreesAcrossSurfaces)
+{
+    CONFORMANCE_CORE_TEST();
+
+    // Surface A: mute is exposed on both the audio and subtitle sinks; both must
+    // publish the identical boolean contract with default FALSE.
+    for (const char *factoryName : {kAudioSink, kSubtitleSink})
+    {
+        GstElement *sink = gst_element_factory_make(factoryName, nullptr);
+        UT_ASSERT_NOT_NULL_FATAL(sink);
+        GParamSpec *spec = g_object_class_find_property(G_OBJECT_GET_CLASS(sink), "mute");
+        UT_ASSERT_NOT_NULL_FATAL(spec);
+        UT_ASSERT_TRUE_FATAL(G_IS_PARAM_SPEC_BOOLEAN(spec));
+        GParamSpecBoolean *bspec = G_PARAM_SPEC_BOOLEAN(spec);
+        UT_LOG("[consistency] %s mute: default=%d", factoryName, bspec->default_value != FALSE);
+        UT_ASSERT_TRUE(bspec->default_value == FALSE);
+
+        gboolean sinkMute = TRUE;
+        g_object_get(sink, "mute", &sinkMute, nullptr);
+        gst_object_unref(sink);
+        UT_ASSERT_TRUE(sinkMute == FALSE);
+    }
+
+    // Surface B carries the same contract: setMute/getMute round-trips the mute
+    // flag per source and the realized-pipeline default reads false — asserted by
+    // the native data-path row (L4PipelineAuxDataPathTests.MuteRoundTripsPerSource);
+    // here the agreement is that Surface A publishes the identical default.
+}
+
+/**
+ * RC-CORE-CONSIST-005 — a sink's optional-property set is a subset of what native
+ * reports supported. Each rialtomse*sink installs a vendor-gated property only if
+ * its class-init getSupportedProperties(type, names) query returned that name, so
+ * no sink may expose an optional knob the platform disowns: every installed gated
+ * property must be reported supported by a native capabilities query.
+ *
+ * The relationship is subset, not equality: native getSupportedProperties is a
+ * live registry scan across all platform elements of the media type, so it also
+ * reports properties owned only by other elements (e.g. `sync`, carried by core
+ * GstBaseSink audio sinks) that the GST_TYPE_ELEMENT-derived rialto sink does not
+ * expose, and its answer grows as plugins register over the process lifetime
+ * (see IDG-008). The per-surface conformance of the installed properties is
+ * covered by MSEPROP-005 (audio) / MSEPROP-008 (video).
+ */
+UT_ADD_TEST(L2CapabilityConsistencyTests, InstalledOptionalPropertiesAreNativeSupported)
+{
+    CONFORMANCE_CORE_TEST();
+
+    auto factory = IMediaPipelineCapabilitiesFactory::createFactory();
+    UT_ASSERT_NOT_NULL_FATAL(factory.get());
+    std::unique_ptr<IMediaPipelineCapabilities> caps = factory->createMediaPipelineCapabilities();
+    UT_ASSERT_NOT_NULL_FATAL(caps.get());
+
+    // The vendor-gated property names each sink queries at class-init, per
+    // MediaSourceType. Kept in lock-step with the sink sources
+    // (framework/rialto-gstreamer RialtoGStreamerMSE{Audio,Video}Sink.cpp).
+    const struct
+    {
+        MediaSourceType type;
+        const char *sinkFactory;
+        std::vector<std::string> gatedNames;
+    } kSurfaces[] = {
+        {MediaSourceType::AUDIO,
+         kAudioSink,
+         {"low-latency", "sync", "sync-off", "stream-sync-mode", "limit-buffering-ms", "audio-fade", "fade-volume"}},
+        {MediaSourceType::VIDEO, kVideoSink, {"immediate-output", "syncmode-streaming", "show-video-window"}},
+    };
+
+    for (const auto &surface : kSurfaces)
+    {
+        const std::vector<std::string> supported = caps->getSupportedProperties(surface.type, surface.gatedNames);
+        const std::set<std::string> supportedSet(supported.begin(), supported.end());
+
+        GstElement *sink = gst_element_factory_make(surface.sinkFactory, nullptr);
+        UT_ASSERT_NOT_NULL_FATAL(sink);
+        GObjectClass *klass = G_OBJECT_GET_CLASS(sink);
+
+        for (const std::string &name : surface.gatedNames)
+        {
+            const bool nativeSupports = supportedSet.count(name) != 0;
+            const bool sinkInstalls = g_object_class_find_property(klass, name.c_str()) != nullptr;
+            UT_LOG("[consistency] %s %s: native=%d sink=%d", surface.sinkFactory, name.c_str(), nativeSupports,
+                   sinkInstalls);
+            // Subset: a sink must not expose a gated property native denies. The
+            // converse (native-only, e.g. `sync`) is expected — see IDG-008.
+            if (sinkInstalls)
+            {
+                UT_ASSERT_TRUE(nativeSupports);
+            }
+        }
+        gst_object_unref(sink);
+    }
 }
