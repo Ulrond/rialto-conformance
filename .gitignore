@@ -36,3 +36,6 @@
 __pycache__/
 *.pyc
 /logs/
+
+# Local-only: app/SoC usage study (partner names — must NOT enter the public tree)
+/coverage/STUDY-per-app-gstreamer-properties-caps.md
