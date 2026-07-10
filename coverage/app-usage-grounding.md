@@ -46,16 +46,19 @@ Players attach codec media-type caps and the sink reads
 from the incoming caps to build the server source — covered by
 **RC-CORE-MSECAPS-006** (with DV/raw-audio as the platform-variable slice).
 
-### Version skew — the suite pins an older sink than the deployed stack
-The suite targets **rialto-gstreamer v0.20.1** (`framework.lock`). The deployed
-application stack drives a **later** rialto-gstreamer whose video sink exposes
-additional properties the pinned release does not — `report-decode-errors` and
-`queued-frames` — and at least one is set by a shipping player. So the pinned
-property surface **lags** the deployed one: the suite cannot currently test
-properties real players set. Tracked as a suite-target decision (see the pin
-evaluation) rather than an interface question — the release the suite targets is
-a deliberate, single-release choice (invariant #6), so closing the skew means
-consciously advancing the `framework.lock` pin and adding the new-property cases.
+### Property-surface churn — the study's sink data is version-sensitive
+The suite targets **rialto-gstreamer v0.20.1** (`framework.lock`), which is the
+latest release tag. Two video-sink properties the usage study lists —
+`report-decode-errors` and `queued-frames` — are **not** in v0.20.1: they were
+present in v0.16.0–v0.18.0 and **removed in v0.19.0**. The study's
+rialto-gstreamer checkout therefore predates that removal, so its video-sink
+property list is version-stale relative to the targeted release, not ahead of it.
+The suite covers the **current** v0.20.1 sink property surface **completely** —
+every unconditional video / audio / base-sink property is asserted by the MSEPROP
+cases (verified by enumerating the installed `g_param_spec` names against the test
+source). So there is no pin bump warranted (v0.20.1 is newest) and no
+missing-property gap; when reading the study, treat its property inventory as of
+its older checkout, not the targeted release.
 
 ### Properties with no Rialto MSE sink equivalent
 Players set several properties on their platform video sink that the
