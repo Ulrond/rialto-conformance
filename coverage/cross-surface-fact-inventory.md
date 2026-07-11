@@ -83,6 +83,31 @@ Correctly single-surface (mse `path` rows), no consistency row applies:
 - **Write-only tuning (no read-back either surface):** `gap`, `low-latency`,
   `sync-off`, `audio-fade`, `syncmode-streaming`.
 
+## The common interface is what is tested
+
+Migrating an application onto Rialto means it stops driving its own (often
+platform-specific) sink properties and relies on the property set Rialto
+guarantees on **every** target — the *common interface*. That is the portability
+the transformation buys, and the compromise it asks of the app: bespoke,
+platform-specific knobs are given up for a stable common surface.
+
+So the external-interface contract splits in two:
+
+- **Common interface** — properties present on every Rialto target (volume, mute,
+  is-master, codec caps, the unconditional sink properties). Tested
+  **unconditionally**; absence is a failure. This is the surface a portable app
+  may depend on.
+- **Platform-specific extensions** — properties present only where the backend
+  supports them (the vendor-gated set: `sync`, `stream-sync-mode`,
+  `immediate-output`, …). Tested **when present**; never required, never a
+  portability dependency.
+
+The boundary between the two must be **defined and stable** for the guarantee to
+mean anything. Finding 2 and [IDG-008](interface-definition-gaps.md) are exactly
+where that boundary is currently undefined; [IDG-007](interface-definition-gaps.md)
+is the same theme for video-placement properties that have no common-interface
+equivalent at all.
+
 ## Findings
 
 ### 1. Mute overlap is uncovered → add RC-CORE-CONSIST-004
@@ -121,6 +146,12 @@ supported (a sink must not expose a knob the platform disowns); native-only name
 are expected. This closes the vendor-gated overlap (sync, stream-sync-mode,
 immediate-output, buffering-limit …) in one session-independent assertion rather
 than a fragile per-property live case each.
+
+The reverse direction — that native and sink **agree** on the optional-property
+set — is what a defined, stable common interface would make testable, and is
+recorded as a gap ([IDG-008](interface-definition-gaps.md)): while the query
+stays a registry scan, the common-vs-extension boundary is undefined and `sync`
+sits ambiguously across it.
 
 ### 3. Position is NOT cross-surface-assertable — per-session, by construction
 

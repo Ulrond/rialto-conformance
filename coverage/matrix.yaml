@@ -1328,3 +1328,27 @@ gaps:
       com.apple.fps. FPS is a flagged coverage gap and a backlog item (add the
       FPS key system to Rialto/OCDM).
     status: gap
+
+  - req: [RC-CORE-CONSIST-005, RC-CORE-CAPS-003]
+    tier: core
+    path: [native, mse]
+    surface: "IMediaPipelineCapabilities <-> rialtomse{audio,video}sink"
+    detail: >
+      The common-vs-platform-specific property boundary is undefined, so the
+      optional-property interface is not a stable, surface-accurate contract.
+      getSupportedProperties is a live registry scan
+      (GstCapabilities::getSupportedProperties): its answer depends on which
+      element factories are registered at call time and reflects any platform
+      element, not the rialto surface. Observed reproducibly on every gate run:
+      native getSupportedProperties(AUDIO) reports `sync`, yet rialtomseaudiosink
+      exposes no `sync` property (the backend supports it — server SetupElement
+      sets it), so the two surfaces disagree about whether `sync` is part of the
+      interface. Because a sink queries once at class-init and installs the
+      returned subset permanently, a property registering later is reported
+      supported natively but is absent from the sink forever. CONSIST-005
+      therefore asserts only the subset guard (a sink must not over-expose); the
+      equality/stability the common interface needs is not met. See IDG-008.
+      Backlog: define the common property set (tested unconditionally) vs
+      platform extensions, and make getSupportedProperties deterministic /
+      surface-accurate. Filed upstream against rdkcentral/rialto.
+    status: gap
