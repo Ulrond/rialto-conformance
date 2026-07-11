@@ -110,29 +110,51 @@ players migrate onto the Rialto sinks?
 **Impact:** determines whether these become covered rows (if in-contract) or are
 documented as deliberate non-goals; today they are neither tested nor promised.
 
-### IDG-008 — `getSupportedProperties` is a registry-snapshot, not a stable platform fact
-`getSupportedProperties(mediaType, names)` returns a name if **any** GStreamer
-element factory of that media type registered *at call time* installs a property
-of that name (`GstCapabilities::getSupportedProperties` scans the live factory
-list). Two consequences observed cross-surface (RC-CORE-CONSIST-005):
+### IDG-008 — the common-vs-platform-specific property boundary is undefined (`getSupportedProperties` is registry-dependent)
+The value of migrating an application onto Rialto is a **common, platform-
+independent external interface**: the app stops driving its own (often platform-
+specific) sink properties and relies on the property set Rialto guarantees on
+every target. That guarantee requires a **defined common property set** — the
+properties present on every Rialto target, testable unconditionally (absence is a
+failure). Everything else is a **platform-specific extension**, present only where
+the backend supports it and never something a portable app may depend on. The
+boundary between the two is the portability contract.
 
-1. The answer is **time-varying** — a scan-based property such as `sync` (carried
-   by core `GstBaseSink`-derived audio sinks) can be absent from an early query
-   and present from a later one, as more audio plugins register over the process
-   lifetime. `audio-fade` is stable only because it has a dedicated always-on
-   fallback in the scan.
-2. It reports a property **the `rialtomse*sink` does not expose** — the sinks
-   derive from `GST_TYPE_ELEMENT`, so `sync` (and any property owned only by
-   other platform audio elements) is reported "supported" by the platform yet has
-   no corresponding sink `GParamSpec`.
+Today that boundary is not defined, because the query meant to describe it is
+registry-dependent. `getSupportedProperties(mediaType, names)` returns a name if
+**any** GStreamer element factory of that media type registered *at call time*
+installs a property of that name (`GstCapabilities::getSupportedProperties` scans
+the live factory list). Two consequences, observed cross-surface
+(RC-CORE-CONSIST-005), reproducibly on every gate run:
 
-So the native supported-property set is a **superset** of what any one sink
-installs; the assertable cross-surface invariant is that each sink's installed
-optional properties are a subset of the native answer (a sink must not expose an
-optional knob the platform disowns), **not** set equality.
-**Question:** is `getSupportedProperties` intended as a "does any element on the
-platform support this" probe (registry-scan semantics, as implemented), or as the
-stable per-source property contract its name suggests? If the latter, the scan
-should be pinned to a defined element set so the answer is deterministic.
-**Impact:** ratifies the subset semantics RC-CORE-CONSIST-005 asserts; a "stable
-contract" answer would instead make the native/sink set-equality testable.
+1. **Not surface-accurate.** It reports a property the `rialtomse*sink` does not
+   expose — `native getSupportedProperties(AUDIO)` returns `sync`, yet
+   `rialtomseaudiosink` has no `sync` `GParamSpec` (the sink derives from
+   `GST_TYPE_ELEMENT`; `sync` is carried by other platform audio elements the scan
+   also sees). The backend nonetheless honours `sync` (server `SetupElement` sets
+   it), so this is not "sync is unsupported" — it is the interface disagreeing with
+   itself about whether `sync` is part of the contract.
+2. **Not deterministic.** The answer depends on registry state at call time. A sink
+   queries once at class-init and installs the returned subset permanently; a
+   property registering later (as plugins load over the process lifetime) is then
+   reported supported by a native query but is absent from the sink forever.
+   `audio-fade` is stable only because it has a dedicated always-on fallback in
+   the scan.
+
+So the native answer is a **superset** of, and can drift from, what any sink
+actually exposes. The assertable cross-surface invariant is therefore only that a
+sink's installed optional set is a **subset** of the native answer (a sink must
+not expose a knob the platform disowns), not equality — RC-CORE-CONSIST-005.
+**Decision (this suite):** a platform-independent conformance interface must be
+stable and surface-accurate, so the undefined boundary is recorded as a **gap**
+(matrix `gaps:`), not left as an open style choice.
+**Question (upstream):** (a) which optional properties are part of the **common**
+Rialto interface (guaranteed on every target) versus platform-specific extensions
+— i.e. is `sync` common or an extension? (b) Is `getSupportedProperties` intended
+as a stable per-source contract, or a "does any element currently support this"
+probe? If a contract, the scan must be pinned to a defined element set (or the
+common set specified directly) so every caller — the sink at class-init and an app
+later — gets the same answer.
+**Impact:** settling (a) defines the portable property surface the suite tests
+unconditionally; settling (b) makes native/sink set-**equality** testable instead
+of only the subset guard. Filed upstream against rdkcentral/rialto.
