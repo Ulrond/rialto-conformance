@@ -13,7 +13,8 @@
 # Lines starting with # and blank lines are ignored.
 
 ut-core           https://github.com/rdkcentral/ut-core.git           5.1.0     test runner (VARIANT=CPP / GoogleTest)
-python_raft       https://github.com/rdkcentral/python_raft.git       1.8.2     raft core (host orchestration)
+# TEMPORARY pin: Wake-on-LAN power module pending rdkcentral/python_raft#217; revert to the upstream tag on merge.
+python_raft       https://github.com/Ulrond/python_raft.git       feature/216-wake-on-lan-power-module     raft core (host orchestration)
 ut-raft           https://github.com/rdkcentral/ut-raft.git           2.1.2     raft plugin: drive ut-core binaries
 rialto            https://github.com/rdkcentral/rialto.git            v0.22.3   API reference: public client headers (Surface B)
 rialto-gstreamer  https://github.com/rdkcentral/rialto-gstreamer.git  v0.20.1   API reference: rialtomse*sink (Surface A)
