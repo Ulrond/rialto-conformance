@@ -19,11 +19,14 @@
 # */
 #
 # Bundle the standalone installable artifact (§4 packaging model): the built
-# binary + KVP capability profiles + asset manifest + raft scripts. ut-raft
-# installs this on the target and runs it against the already-installed Rialto.
-# This packages — it does NOT build Rialto, and the artifact carries no Rialto
-# internals (the binary links only the public client library, resolved on the
-# target).
+# binary + asset manifest + raft scripts. ut-raft installs this on the target and
+# runs it against the already-installed Rialto. This packages — it does NOT build
+# Rialto, and the artifact carries no Rialto internals (the binary links only the
+# public client library, resolved on the target).
+#
+# NO capability profiles are bundled. The capability gate is the platform's HFP;
+# it is platform-owned and fetched host-side, and ut-raft ships the resolved HFP
+# to the target separately at run time (never baked into this artifact).
 #
 # Output: build/dist/rialto-conformance-<ut-core-tag>.tar.gz
 # The LAST line printed is the artifact path (consumed by the raft adjudicator).
@@ -45,15 +48,12 @@ UT_CORE_TAG="$(git -C "${ROOT_DIR}/framework/ut-core" describe --tags 2>/dev/nul
 ARTIFACT="${DIST_DIR}/rialto-conformance-${UT_CORE_TAG}.tar.gz"
 
 rm -rf "${STAGE_DIR}"
-mkdir -p "${STAGE_DIR}/profiles" "${STAGE_DIR}/raft" "${STAGE_DIR}/assets" "${DIST_DIR}"
+mkdir -p "${STAGE_DIR}/raft" "${STAGE_DIR}/assets" "${DIST_DIR}"
 
 # Binary + the ut-control runtime libs it loads (copied next to the binary by the
 # ut-core build into build/bin).
 cp "${BIN}" "${STAGE_DIR}/"
 find "${ROOT_DIR}/build/bin" -maxdepth 1 -name '*.so*' -exec cp -a {} "${STAGE_DIR}/" \; 2>/dev/null || true
-
-# Capability profiles (the per-target platform-feature gate) + schema.
-cp -a "${ROOT_DIR}/profiles/." "${STAGE_DIR}/profiles/"
 
 # Asset registry (real streams are fetched at run start, never bundled — §7.1).
 cp -a "${ROOT_DIR}/assets/manifest.yaml" "${STAGE_DIR}/assets/"

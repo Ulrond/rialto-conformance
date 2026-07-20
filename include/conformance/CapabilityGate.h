@@ -34,10 +34,15 @@
  * Two sources, in priority order:
  *   1. End state  — the platform API reports the requirements it exposes
  *                   dynamically; the suite reads them at runtime.
- *   2. Fallback   — the ut-core KVP profile (deviceConfig.yaml, loaded with -p)
+ *   2. Fallback   — the ut-core KVP profile (the platform HFP, loaded with -p)
  *                   carries per-platform feature toggles. Read with
  *                   UT_KVP_PROFILE_GET_BOOL(); a case self-skips via
  *                   UT_IGNORE_TEST() when its feature is off.
+ *
+ * The HFP (Hardware Feature Profile) is platform-specific and platform-owned. It
+ * is NOT python_raft's deviceConfig: deviceConfig is host-only and merely names
+ * the HFP by URL; the host fetches it and hands the resolved file to this binary
+ * with -p. The target consumes the HFP and never sees deviceConfig.
  *
  * A case asks `CapabilityGate::requires("feature.key")` at the top of its body;
  * if unsupported the macro SKIPs (GTEST_SKIP) and the case is reported skipped,
@@ -56,22 +61,21 @@
 namespace rialto::conformance
 {
 /**
- * Root of the conformance capability gate within the deviceConfig KVP profile.
+ * Root of the conformance capability gate within the HFP KVP profile.
  *
- * The deviceConfig follows python_raft's shape — deviceConfig > cpe1 > platform
- * — and the gate is nested under the cpe at `rialto:`. A feature key such as
- * "codecs.video.av1" resolves to "deviceConfig/cpe1/rialto/codecs/video/av1".
- * One constant so the cpe/root convention lives in a single place.
+ * The HFP nests its variable-feature toggles under an `hfp:` root. A feature key
+ * such as "codecs.video.av1" resolves to "hfp/codecs/video/av1". One constant so
+ * the root convention lives in a single place.
  */
-constexpr const char *kCapabilityRoot = "deviceConfig/cpe1/rialto";
+constexpr const char *kCapabilityRoot = "hfp";
 
 /**
  * Resolves per-target feature applicability from the active capability source.
  *
  * The end-state dynamic reader is wired in here as backends gain it; until then
- * every lookup falls through to the deviceConfig KVP toggle of the same key, so
- * a case is authored once and never edited as a target moves from the fallback
- * bridge to dynamic reporting.
+ * every lookup falls through to the HFP KVP toggle of the same key, so a case is
+ * authored once and never edited as a target moves from the fallback bridge to
+ * dynamic reporting.
  */
 class CapabilityGate
 {
@@ -79,11 +83,10 @@ public:
     /**
      * @brief Is @p featureKey a feature this target's PLATFORM supports?
      *
-     * Reads the deviceConfig capability boolean at
-     * "deviceConfig/cpe1/rialto/<featureKey>". A missing key is treated as
-     * unsupported, so a case only runs where the target has explicitly declared
-     * the platform supports that variable feature. (Standard required features
-     * are not gated — they are tested unconditionally.)
+     * Reads the HFP capability boolean at "hfp/<featureKey>". A missing key is
+     * treated as unsupported, so a case only runs where the platform has
+     * explicitly declared it supports that variable feature. (Standard required
+     * features are not gated — they are tested unconditionally.)
      *
      * @param featureKey  dot/slash sub-key under the gate root, e.g.
      *                     "drm.widevine" or "codecs.video.av1".
@@ -93,7 +96,7 @@ public:
     {
         // End state hook: when the backend reports capabilities dynamically,
         // consult that first and return its verdict. Until a backend provides
-        // it, fall through to the deviceConfig KVP toggle (the interim bridge).
+        // it, fall through to the HFP KVP toggle (the interim bridge).
         return readProfileBool(std::string{kCapabilityRoot} + "/" + featureKey);
     }
 

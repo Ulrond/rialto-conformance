@@ -11,9 +11,10 @@
 #       --config raft/rack_config.yml --rack rack1 --slotName reference-target
 #
 # The `platform` field in each slot's device entry links to device_config.yml,
-# which names the per-target capability profile shipped to that target. Slot
-# names are config-named target instances — NOT SoC families; the suite never
-# branches on platform identity.
+# which names that platform's HFP (Hardware Feature Profile) by URL. The host
+# fetches the HFP and ships the resolved file to the target. Slot names are
+# config-named target instances — NOT SoC families; the suite never branches on
+# platform identity.
 
 globalConfig:
   includes:
@@ -26,7 +27,7 @@ rackConfig:
   rack1:
     # One slot per available target. Selected by --slotName. The platform is not
     # relevant to the suite — only the console reaches the box and the device
-    # entry names which capability profile to ship.
+    # entry names which platform HFP to fetch and ship.
     reference-target:
       devices:
         - dut:
