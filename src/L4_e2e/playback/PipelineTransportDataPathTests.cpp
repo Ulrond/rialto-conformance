@@ -20,11 +20,17 @@
  * @file PipelineTransportDataPathTests.cpp
  *
  * L4 — end-to-end data-path cases for the Surface B (native IMediaPipeline)
- * transport surface: attach/remove source, the allSourcesAttached gate, and the
- * play/pause/stop playback state machine. These only exercise meaningfully once a
- * source is attached and the backend media pipeline is realized, so each drives a
- * real synthesised AAC source through a live RialtoServer (MediaFeed), hermetic
- * and headless via the software render path (issue #18).
+ * transport state machine: the transitions that only take effect once a source
+ * is attached and the backend media pipeline is realized — play, pause, stop,
+ * setPlaybackRate, and setPosition's seek branch. Each drives a real synthesised
+ * AAC source through a live RialtoServer (MediaFeed) to PLAYING, hermetic and
+ * headless via the software render path (issue #18).
+ *
+ * The pre-realization module-setup steps — load, attachSource, removeSource, and
+ * the allSourcesAttached gate — take effect without a realized backend, so they
+ * are the L2 module cases (L2_module/native/PipelineLifecycleTests.cpp,
+ * RC-CORE-PIPE-003/004/005/006); this file owns the transitions below that
+ * boundary.
  *
  * The state-transition cases assert both the synchronous return contract and the
  * asynchronous PlaybackState notification the transition produces (observed via
@@ -34,9 +40,8 @@
  * transform-safety contract.
  *
  * Coverage trace: coverage/rc-core-catalog.yaml / matrix.yaml —
- * RC-CORE-PIPE-003 (load), -004 (attachSource id), -005 (removeSource),
- * -006 (allSourcesAttached once), -007 (play/PLAYING), -008 (pause/PAUSED),
- * -009 (stop/STOPPED), -010 (setPlaybackRate), -011 (setPosition/seek).
+ * RC-CORE-PIPE-007 (play/PLAYING), -008 (pause/PAUSED), -009 (stop/STOPPED),
+ * -010 (setPlaybackRate), -011 (setPosition/seek).
  */
 
 #include <ut.h>
@@ -121,91 +126,6 @@ class L4PipelineTransportDataPathTests : public NativeClientSurface
 } // namespace
 
 UT_ADD_TEST_TO_GROUP(L4PipelineTransportDataPathTests, UT_TESTS_L4);
-
-/**
- * RC-CORE-PIPE-003 + RC-CORE-PIPE-004 — load(MSE, ...) returns true for a
- * supported source type, and attachSource is valid for MediaType::MSE and assigns
- * a source id retrievable via MediaSource::getId(). The returned id is the handle
- * every later transport/data call uses, so it must be a real, stable value.
- */
-UT_ADD_TEST(L4PipelineTransportDataPathTests, LoadAndAttachAssignRetrievableSourceId)
-{
-    CONFORMANCE_CORE_TEST();
-
-    AacElementaryStream stream = generateAacAdtsStream(kLifecycleFrames);
-    UT_ASSERT_TRUE_FATAL(!stream.frames.empty());
-
-    auto client = std::make_shared<FeedingMediaPipelineClient>();
-
-    auto factory = IMediaPipelineFactory::createFactory();
-    UT_ASSERT_NOT_NULL_FATAL(factory.get());
-    VideoRequirements requirements{kMaxWidth, kMaxHeight};
-    std::unique_ptr<IMediaPipeline> pipeline = factory->createMediaPipeline(client, requirements);
-    UT_ASSERT_NOT_NULL_FATAL(pipeline.get());
-    client->setPipeline(pipeline.get());
-
-    // PIPE-003: load MSE for a supported source type.
-    UT_ASSERT_TRUE(pipeline->load(MediaType::MSE, "", "mse://1", false));
-
-    // PIPE-004: attachSource assigns a retrievable id.
-    AudioConfig audioConfig;
-    audioConfig.numberOfChannels = stream.channels;
-    audioConfig.sampleRate = stream.sampleRate;
-    std::unique_ptr<IMediaPipeline::MediaSource> source =
-        std::make_unique<IMediaPipeline::MediaSourceAudio>("audio/mp4", false, audioConfig);
-    UT_ASSERT_TRUE(pipeline->attachSource(source));
-    const int32_t sourceId = source->getId();
-    UT_LOG("[transport] attached audio source id=%d", sourceId);
-    UT_ASSERT_TRUE(sourceId >= 0);
-
-    pipeline.reset();
-}
-
-/**
- * RC-CORE-PIPE-005 — removeSource(id) returns true for a previously attached
- * source id.
- */
-UT_ADD_TEST(L4PipelineTransportDataPathTests, RemoveSourceSucceedsForAttachedSource)
-{
-    CONFORMANCE_CORE_TEST();
-
-    AacElementaryStream stream = generateAacAdtsStream(kLifecycleFrames);
-    UT_ASSERT_TRUE_FATAL(!stream.frames.empty());
-
-    auto client = std::make_shared<FeedingMediaPipelineClient>();
-    int32_t sourceId = -1;
-    std::unique_ptr<IMediaPipeline> pipeline = loadAndAttachAudio(client, stream, sourceId);
-    UT_ASSERT_NOT_NULL_FATAL(pipeline.get());
-
-    UT_ASSERT_TRUE(pipeline->removeSource(sourceId));
-
-    pipeline.reset();
-}
-
-/**
- * RC-CORE-PIPE-006 — allSourcesAttached must be called before streaming and may be
- * called only once: the first call returns true, a second call is illegal and
- * returns false (the server guards it with m_wasAllSourcesAttachedCalled).
- */
-UT_ADD_TEST(L4PipelineTransportDataPathTests, AllSourcesAttachedIsLegalOnlyOnce)
-{
-    CONFORMANCE_CORE_TEST();
-
-    AacElementaryStream stream = generateAacAdtsStream(kLifecycleFrames);
-    UT_ASSERT_TRUE_FATAL(!stream.frames.empty());
-
-    auto client = std::make_shared<FeedingMediaPipelineClient>();
-    int32_t sourceId = -1;
-    std::unique_ptr<IMediaPipeline> pipeline = loadAndAttachAudio(client, stream, sourceId);
-    UT_ASSERT_NOT_NULL_FATAL(pipeline.get());
-
-    UT_ASSERT_TRUE(pipeline->allSourcesAttached());
-    // A second call is illegal and must be rejected.
-    UT_ASSERT_FALSE(pipeline->allSourcesAttached());
-
-    pipeline->stop();
-    pipeline.reset();
-}
 
 /**
  * RC-CORE-PIPE-007 / -008 / -009 — the play/pause/stop state machine. play and

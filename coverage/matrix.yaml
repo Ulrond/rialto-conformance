@@ -405,10 +405,14 @@ operations:
     case: "L1PipelineTests.GetClientReturnsSuppliedClient"
     status: covered
 
-  # Transport + playback state machine — driven over the software render / data
-  # path (#18): a real AAC source is loaded, attached, and taken through
-  # play/pause/stop against the live server (MediaFeed). The state-transition rows
-  # assert both the synchronous return and the PlaybackState notification the
+  # Transport + playback state machine. The pre-realization setup rows — load,
+  # attachSource, removeSource, allSourcesAttached (PIPE-003/004/005/006) — take
+  # effect without a realized backend and are L2 module cases
+  # (L2PipelineLifecycleTests), asserted data-path-free. The transitions below the
+  # realized-backend boundary — play/pause/stop, setPlaybackRate, setPosition/seek
+  # (PIPE-007..011) — are driven over the software render / data path (#18): a real
+  # AAC source is fed to PLAYING against the live server (MediaFeed), and each row
+  # asserts both the synchronous return and the PlaybackState notification the
   # transition produces; that notification sequence is the one Rialto's own
   # component tests encode (see coverage/interface-definition-gaps.md IDG-004),
   # asserted as the CORE transform-safety contract.
@@ -418,7 +422,7 @@ operations:
     path: native
     req: [RC-CORE-PIPE-003]
     expected: "load(MSE, mimeType, url, isLive) returns true for a supported source type"
-    case: "L4PipelineTransportDataPathTests.LoadAndAttachAssignRetrievableSourceId"
+    case: "L2PipelineLifecycleTests.LoadAttachRemoveSource"
     status: covered
 
   - op: attachSource
@@ -426,8 +430,8 @@ operations:
     tier: core
     path: native
     req: [RC-CORE-PIPE-004]
-    expected: "attachSource is valid for MediaType::MSE and assigns a source id retrievable via MediaSource::getId()"
-    case: "L4PipelineTransportDataPathTests.LoadAndAttachAssignRetrievableSourceId"
+    expected: "attachSource is valid for MediaType::MSE and assigns a source id retrievable via MediaSource::getId(); a second source of a different type gets its own distinct id"
+    case: "L2PipelineLifecycleTests.LoadAttachRemoveSource (+ .MultiSourceAttachComposition for the multi-source composition leg)"
     status: covered
 
   - op: removeSource
@@ -436,7 +440,7 @@ operations:
     path: native
     req: [RC-CORE-PIPE-005]
     expected: "removeSource(id) returns true for a previously attached source id"
-    case: "L4PipelineTransportDataPathTests.RemoveSourceSucceedsForAttachedSource"
+    case: "L2PipelineLifecycleTests.LoadAttachRemoveSource"
     status: covered
 
   - op: allSourcesAttached
@@ -444,8 +448,8 @@ operations:
     tier: core
     path: native
     req: [RC-CORE-PIPE-006]
-    expected: "allSourcesAttached must precede streaming and may be called only once; the first call returns true, a second returns false"
-    case: "L4PipelineTransportDataPathTests.AllSourcesAttachedIsLegalOnlyOnce"
+    expected: "allSourcesAttached must precede streaming and may be called only once; the first call returns true, a second returns false; one call gates the whole attached set"
+    case: "L2PipelineLifecycleTests.AllSourcesAttachedIsLegalOnlyOnce (+ .MultiSourceAttachComposition gating the multi-source set)"
     status: covered
 
   - op: play
