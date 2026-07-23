@@ -158,3 +158,27 @@ later — gets the same answer.
 **Impact:** settling (a) defines the portable property surface the suite tests
 unconditionally; settling (b) makes native/sink set-**equality** testable instead
 of only the subset guard. Filed upstream against rdkcentral/rialto.
+
+**Data points** (from [common-interface-review.md](common-interface-review.md),
+which reads the boundary off the pinned sink source):
+
+- **The boundary moves across releases.** `show-video-window` sits *inside* the
+  `getSupportedProperties` guard at the v0.20.1 pin, so the suite tests it as a
+  when-present extension (RC-CORE-MSEPROP-008). In another rialto-gstreamer
+  revision the same property is installed **unconditionally** — i.e. as a common
+  member. A property has crossed the common↔extension boundary between releases,
+  so "common" is defined only relative to a release pin. Direct evidence for
+  question (a): the common set is not stable across releases unless specified
+  authoritatively rather than derived from the element's install-time decision.
+
+- **Unconditional install ≠ portable behaviour.** `frame-step-on-preroll` and
+  `max-video-width`/`-height` are installed unconditionally (so their `GParamSpec`
+  presence is common by construction), yet each maps to a platform-variable
+  *capability*: the step-while-paused backend support is present on some targets
+  and absent on at least one other, and the decode-resolution ceiling is bounded
+  by what a platform can decode (installed with the same UHD default everywhere).
+  The suite over-asserts nothing — it asserts only existence/type/default (L1) —
+  but this shows the sink's unconditional-install decision is not a reliable
+  definition of the common *behavioural* contract. Standing rule for the suite:
+  any future **behavioural** (L4) assertion on these properties MUST be
+  when-present, never unconditional.
