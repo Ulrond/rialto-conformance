@@ -19,7 +19,7 @@
 /**
  * @file MemoryUsageTests.cpp
  *
- * L3 — a NON-FUNCTIONAL memory-usage dimension for Surface B.
+ * L3 — a NON-FUNCTIONAL memory-usage dimension for Firebolt interface.
  *
  * Unlike the interface-conformance cases (which assert the published contract),
  * this case exercises the client API under repeated object-lifecycle churn and

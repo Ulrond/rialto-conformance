@@ -19,12 +19,12 @@
 /**
  * @file CapsTests.cpp
  *
- * L1 — function testing for Surface A: the sink-pad template and the MIME->caps
+ * L1 — function testing for mseSink interface: the sink-pad template and the MIME->caps
  * mapping advertised by the rialtomse{audio,video,subtitle}sink elements. An
  * external media app links its pipeline to these sinks by negotiating caps
  * against their sink-pad template, so the suite introspects that template exactly
  * as GStreamer presents it — its direction/presence/name and the caps it carries.
- * No Rialto internal headers are involved (§2 Surface A).
+ * No Rialto internal headers are involved (§2 mseSink interface).
  *
  * The template caps are the intersection of the documented MIME->caps mapping
  * with what the connected server reports as supported, so the conformance

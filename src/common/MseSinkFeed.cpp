@@ -19,7 +19,7 @@
 /**
  * @file MseSinkFeed.cpp
  *
- * Implementation of the Surface A MSE-sink data-path feed harness (MseSinkFeed.h):
+ * Implementation of the mseSink interface MSE-sink data-path feed harness (MseSinkFeed.h):
  * a real `appsrc ! rialtomseaudiosink` pipeline that feeds synthesised AAC through
  * the Rialto MSE audio sink to the live RialtoServer.
  */

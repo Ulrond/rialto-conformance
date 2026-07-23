@@ -19,7 +19,7 @@
 /**
  * @file KeysSessionTests.cpp
  *
- * L1 — function testing for Surface B: the IMediaKeys key-session lifecycle,
+ * L1 — function testing for Firebolt interface: the IMediaKeys key-session lifecycle,
  * driven against the live RialtoServer with the suite's ClearKey OpenCDM backend
  * (backends/opencdm/clearkey — a real W3C ClearKey exchange: keyids init data →
  * license-request JSON via onLicenseRequest → JWK response via updateSession →

@@ -25,10 +25,10 @@
  * Test fixtures for the two — and only two — northbound external surfaces (§2).
  * Cases derive from these; nothing here reaches into Rialto internals.
  *
- *   Surface A — MSE GStreamer sink: the app keeps its own pipeline and plugs in
+ *   mseSink interface — MSE GStreamer sink: the app keeps its own pipeline and plugs in
  *               the rialtomse{audio,video}sink + text-track elements present on
  *               the target. Under test: element names, properties, caps.
- *   Surface B — Native client API: drive playback through Rialto's published
+ *   Firebolt interface — Native client API: drive playback through Rialto's published
  *               C++ interfaces (the media/public/include headers) and callbacks.
  */
 
@@ -37,7 +37,7 @@
 namespace rialto::conformance
 {
 /**
- * Base fixture for Surface A (MSE sink) cases.
+ * Base fixture for mseSink interface (MSE sink) cases.
  *
  * Brings up a minimal GStreamer pipeline owned by the test (as an external
  * media app would), into which the rialtomse*sink elements are plugged by name. No
@@ -50,14 +50,14 @@ protected:
     void SetUp() override;    ///< gst_init + locate rialtomse*sink in the registry
     void TearDown() override; ///< tear the pipeline down cleanly
 
-    /// rialtomse*sink element factory names under test (Surface A).
+    /// rialtomse*sink element factory names under test (mseSink interface).
     static constexpr const char *kAudioSink = "rialtomseaudiosink";
     static constexpr const char *kVideoSink = "rialtomsevideosink";
     static constexpr const char *kSubtitleSink = "rialtomsesubtitlesink";
 };
 
 /**
- * Base fixture for Surface B (native client API) cases.
+ * Base fixture for Firebolt interface (native client API) cases.
  *
  * Owns the IControl handle + the application-state lifecycle so module/group/
  * E2E cases can drive load/attach/play/pause/seek/EOS through the public

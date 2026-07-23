@@ -19,7 +19,7 @@
 /**
  * @file PipelineLifecycleTests.cpp
  *
- * L2 — module-integration cases for the Surface B (native IMediaPipeline)
+ * L2 — module-integration cases for the Firebolt interface (native IMediaPipeline)
  * pre-realization lifecycle: load, attachSource, removeSource, and the
  * allSourcesAttached gate. These are the module-setup and state-machine steps
  * that take effect *before* the backend media pipeline is realized — they need

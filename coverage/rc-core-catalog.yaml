@@ -41,7 +41,7 @@ targetRialtoRelease: "v0.22.3"
 
 requirements:
 
-  # === Surface B (native) — IControl ========================================
+  # === Firebolt interface (native) — IControl ========================================
   - id: RC-CORE-CONTROL-001
     title: "registerClient returns true and writes the current ApplicationState out-param"
     interface: IControl
@@ -58,7 +58,7 @@ requirements:
     path: native
     kind: lifetime
 
-  # === Surface B (native) — factories =======================================
+  # === Firebolt interface (native) — factories =======================================
   - id: RC-CORE-FACTORY-001
     title: "Every public createFactory() returns a non-null factory"
     interface: "IControlFactory / IMediaPipelineFactory / IMediaPipelineCapabilitiesFactory / IMediaKeysFactory / IMediaKeysCapabilitiesFactory / IWebAudioPlayerFactory"
@@ -71,7 +71,7 @@ requirements:
     kind: negative
     notes: "Documented null-on-error contract on every create* method."
 
-  # === Surface B (native) — IMediaPipeline lifecycle/transport ==============
+  # === Firebolt interface (native) — IMediaPipeline lifecycle/transport ==============
   - id: RC-CORE-PIPE-001
     title: "createMediaPipeline with valid VideoRequirements returns a usable instance bound to the supplied client"
     interface: IMediaPipeline
@@ -240,7 +240,7 @@ requirements:
     path: native
     kind: positive
 
-  # === Surface B (native) — IMediaPipeline data-flow protocol ===============
+  # === Firebolt interface (native) — IMediaPipeline data-flow protocol ===============
   - id: RC-CORE-DATA-001
     title: "notifyNeedMediaData requests data with a frame count + shm info; the client must honour numFrames <= frameCount and numBytes <= maxMediaBytes"
     interface: IMediaPipelineClient
@@ -308,7 +308,7 @@ requirements:
     path: native
     kind: event
 
-  # === Surface B (native) — IMediaPipelineCapabilities ======================
+  # === Firebolt interface (native) — IMediaPipelineCapabilities ======================
   - id: RC-CORE-CAPS-001
     title: "getSupportedMimeTypes and isMimeTypeSupported are mutually consistent for a source type"
     interface: IMediaPipelineCapabilities
@@ -338,7 +338,7 @@ requirements:
     kind: positive
     notes: "Mandatory baseline codec — absence is a conformance failure, not a skip."
 
-  # === Surface B (native) — IMediaKeys (DRM session lifecycle) ==============
+  # === Firebolt interface (native) — IMediaKeys (DRM session lifecycle) ==============
   - id: RC-CORE-KEYS-001
     title: "createMediaKeys(supportedKeySystem) yields an instance; createKeySession writes a valid id and registers the client"
     interface: IMediaKeys
@@ -408,7 +408,7 @@ requirements:
     path: native
     kind: positive
 
-  # === Surface B (native) — IMediaKeysCapabilities ==========================
+  # === Firebolt interface (native) — IMediaKeysCapabilities ==========================
   - id: RC-CORE-KEYSCAP-001
     title: "getSupportedKeySystems returns the set of key systems actually supported by Rialto"
     interface: IMediaKeysCapabilities
@@ -431,7 +431,7 @@ requirements:
     path: native
     kind: positive
 
-  # === Surface B (native) — IWebAudioPlayer =================================
+  # === Firebolt interface (native) — IWebAudioPlayer =================================
   - id: RC-CORE-WEBAUDIO-001
     title: "createWebAudioPlayer(\"audio/x-raw\", priority, pcm config) returns an instance in IDLE"
     interface: IWebAudioPlayer
@@ -474,7 +474,7 @@ requirements:
     path: native
     kind: positive
 
-  # === Surface B (native) — client log control ==============================
+  # === Firebolt interface (native) — client log control ==============================
   - id: RC-CORE-LOG-001
     title: "IClientLogControlFactory::createFactory() is non-null and createClientLogControl() returns the singleton IClientLogControl (same instance across calls)"
     interface: IClientLogControl
@@ -499,7 +499,7 @@ requirements:
     kind: negative
     notes: "Documented cancel path — pass nullptr to stop callbacks."
 
-  # === Surface A (mse) — element registration ===============================
+  # === mseSink interface (mse) — element registration ===============================
   - id: RC-CORE-MSE-001
     title: "rialtomseaudiosink, rialtomsevideosink, and rialtomsesubtitlesink are registered under their documented factory names"
     interface: rialtosinks
@@ -518,7 +518,7 @@ requirements:
     kind: positive
     notes: "Video=Decoder/Video/Sink/Video, Audio=Decoder/Audio/Sink/Audio, Subtitle=Parser/Subtitle/Sink/Subtitle."
 
-  # === Surface A (mse) — GObject properties =================================
+  # === mseSink interface (mse) — GObject properties =================================
   - id: RC-CORE-MSEPROP-001
     title: "Base-sink properties exist with documented types/defaults/flags: single-path-stream(F), streams-number(1,[1..MAX]), has-drm(T), stats(RO), enable-last-sample(F), last-sample(RO)"
     interface: RialtoMSEBaseSink
@@ -570,7 +570,7 @@ requirements:
     path: mse
     kind: property
 
-  # === Surface A (mse) — pad templates / caps ===============================
+  # === mseSink interface (mse) — pad templates / caps ===============================
   - id: RC-CORE-MSECAPS-001
     title: "Each sink exposes exactly one ALWAYS sink pad template named \"sink\""
     interface: RialtoMSEBaseSink
@@ -602,7 +602,7 @@ requirements:
     path: mse
     kind: caps
 
-  # === Surface A (mse) — state transitions ==================================
+  # === mseSink interface (mse) — state transitions ==================================
   - id: RC-CORE-MSESTATE-001
     title: "A state change with a null playback delegate returns GST_STATE_CHANGE_FAILURE"
     interface: RialtoMSEBaseSink
@@ -634,7 +634,7 @@ requirements:
     path: mse
     kind: state
 
-  # === Surface A (mse) — events / queries ===================================
+  # === mseSink interface (mse) — events / queries ===================================
   - id: RC-CORE-MSEEVENT-001
     title: "GST_QUERY_SEEKING answers seekable=FALSE with range [0, -1]"
     interface: RialtoMSEBaseSink

@@ -19,7 +19,7 @@
 /**
  * @file MediaFeed.cpp
  *
- * Implementation of the Surface B data-path feed harness (see MediaFeed.h): the
+ * Implementation of the Firebolt interface data-path feed harness (see MediaFeed.h): the
  * in-process AAC elementary-stream synthesiser and the active feeding client.
  */
 

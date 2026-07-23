@@ -25,7 +25,7 @@
  * Test-side handle to the RialtoServerManagerSim HTTP control surface, so a case
  * can drive the server's application-state machine *after* it has connected.
  *
- * The native client API (Surface B) reports the server application state to a
+ * The native client API (Firebolt interface) reports the server application state to a
  * registering IControl client via the registerClient out-param, but the
  * notifyApplicationState callback only fires on a subsequent *transition*
  * (ControlServerInternal::setApplicationState). The gate harness activates the

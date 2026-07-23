@@ -19,7 +19,7 @@
 /**
  * @file PipelineTransportDataPathTests.cpp
  *
- * L4 — end-to-end data-path cases for the Surface B (native IMediaPipeline)
+ * L4 — end-to-end data-path cases for the Firebolt interface (native IMediaPipeline)
  * transport state machine: the transitions that only take effect once a source
  * is attached and the backend media pipeline is realized — play, pause, stop,
  * setPlaybackRate, and setPosition's seek branch. Each drives a real synthesised

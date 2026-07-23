@@ -15,13 +15,13 @@ to the `RC-*` rows they correspond to.
 
 ## Findings
 
-### Surface A is the app-facing contract; Surface B is its dependency
+### mseSink interface is the app-facing contract; Firebolt interface is its dependency
 Deployed players drive playback through the **GStreamer MSE sinks**
-(`rialtomse{audio,video}sink`, Surface A) — they install the sinks into a
+(`rialtomse{audio,video}sink`, mseSink interface) — they install the sinks into a
 `playbin`/`appsrc` graph and set element properties. No shipping player drives
-the native `IMediaPipeline` (Surface B) directly; that surface is exercised
+the native `IMediaPipeline` (Firebolt interface) directly; that surface is exercised
 internally by the sinks. The suite covers both, and both matter — the sinks
-depend on the native contract — but the **app-facing priority is Surface A**.
+depend on the native contract — but the **app-facing priority is mseSink interface**.
 Reflected in the matrix: the `path: mse` rows are the app contract; the
 `path: native` rows are the contract the sinks rely on.
 

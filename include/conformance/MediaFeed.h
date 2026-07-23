@@ -22,7 +22,7 @@
 /**
  * @file MediaFeed.h
  *
- * Data-path feed harness for the Surface B (native IMediaPipeline) conformance
+ * Data-path feed harness for the Firebolt interface (native IMediaPipeline) conformance
  * cases (§7.1). These cases must drive *real* elementary-stream buffers through
  * a live RialtoServer — attach a source, answer the server's need-data requests
  * with decodable samples, and reach PLAYING — rather than merely introspecting

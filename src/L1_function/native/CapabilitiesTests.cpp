@@ -19,7 +19,7 @@
 /**
  * @file CapabilitiesTests.cpp
  *
- * L1 — function testing for Surface B: IMediaPipelineCapabilities.
+ * L1 — function testing for Firebolt interface: IMediaPipelineCapabilities.
  *
  * Each function exercised on its own against the published interface (§6 L1).
  * These cases also prove the Phase-0 link surface: the binary links ONLY

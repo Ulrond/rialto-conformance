@@ -22,7 +22,7 @@
 #                   external contract as the old one. Run first; must be green.
 #        extended — app/player-requirement conformance (Phase 2), layered on top.
 #
-# path:  native (Surface B, public client API) | mse (Surface A, rialtomse*sink)
+# path:  native (Firebolt interface, public client API) | mse (mseSink interface, rialtomse*sink)
 #        | both (a consistency case asserting the two surfaces agree)
 #
 # A requirement is surface-neutral. Where the same backend fact is exposed on
@@ -387,7 +387,7 @@ operations:
     case: "L1ClientLogControlTests.NullHandlerCancelsDelivery"
     status: covered
 
-  # --- IMediaPipeline (Surface B native) -------------------------------------
+  # --- IMediaPipeline (Firebolt interface native) -------------------------------------
   # Create + client-binding introspection (green on the software platform). The
   # rest of the IMediaPipeline surface — transport (attachSource /
   # allSourcesAttached / play / seek / flush), per-source properties, AND the
@@ -827,7 +827,7 @@ operations:
     case: "(needs a SUBTITLE source — same dependency as PIPE-020)"
     status: planned
 
-  # --- IWebAudioPlayer (Surface B native) ------------------------------------
+  # --- IWebAudioPlayer (Firebolt interface native) ------------------------------------
   - op: createWebAudioPlayer
     interface: IWebAudioPlayerFactory
     tier: core
@@ -1297,7 +1297,7 @@ consistency:
   - req: [RC-CORE-CONSIST-001, RC-CORE-CAPS-001]
     tier: core
     path: both
-    expected: "Each codec in native getSupportedMimeTypes with a documented Surface A translation is advertised by the matching sink's pad template"
+    expected: "Each codec in native getSupportedMimeTypes with a documented mseSink interface translation is advertised by the matching sink's pad template"
     case: "L2CapabilityConsistencyTests.SupportedMimesMatchSinkCaps"
     status: covered
 

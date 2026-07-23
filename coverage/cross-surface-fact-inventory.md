@@ -5,16 +5,16 @@ SPDX-License-Identifier: Apache-2.0
 
 # Cross-surface fact inventory
 
-Surface A (the `rialtomse*sink` GStreamer elements) and Surface B (the native
+mseSink interface (the `rialtomse*sink` GStreamer elements) and Firebolt interface (the native
 `IMediaPipeline` / capabilities client API) are two abstractions over one Rialto
 backend. This document classifies every client-**observable fact** — every
 getter, capability answer, read-back property, or query result — as exposed on
-**Surface B only**, **Surface A only**, or **both**, and states, for each
+**Firebolt interface only**, **mseSink interface only**, or **both**, and states, for each
 both-surfaces fact, whether cross-surface agreement is assertable.
 
 It is the map that scopes the L2 CONSIST cases: a both-surfaces fact is a
-candidate for a `path: both` consistency row; an A-only or B-only fact is
-correctly covered by a single per-surface row.
+candidate for a `path: both` consistency row; a single-surface fact (one
+interface only) is correctly covered by a single per-surface row.
 
 ## The governing constraint
 
@@ -31,7 +31,7 @@ default), not a live volume read-back.
 
 ## Both surfaces — the overlap
 
-| Fact | Surface B accessor | Surface A accessor | Session-indep? | CONSIST |
+| Fact | Firebolt interface accessor | mseSink interface accessor | Session-indep? | CONSIST |
 |---|---|---|---|---|
 | Supported codec MIME/caps | `getSupportedMimeTypes(type)` | sink pad-template caps | yes | **001 ✓** |
 | Video-master | `isVideoMaster(bool&)` | `is-master` (video, R) | yes | **002 ✓** |
@@ -48,7 +48,7 @@ default), not a live volume read-back.
 | Frame stats | `getStats(id,rendered,dropped)` | `stats` (base, R `GstStructure`) | no (per-session) | per-surface rows |
 | Text-track id | `getTextTrackIdentifier(str&)` | `text-track-identifier` (subtitle) | no (per-session) | per-surface rows |
 
-## Surface B only — no Surface A read-back
+## Firebolt interface only — no mseSink interface read-back
 
 Correctly single-surface (native `path` rows), no consistency row applies:
 
@@ -61,19 +61,19 @@ Correctly single-surface (native `path` rows), no consistency row applies:
   `getMetricSystemData`.
 - **App lifecycle:** `IControl` `ApplicationState` (register-time out-param).
 - **Web-audio buffer/device:** `getBufferAvailable`, `getBufferDelay`,
-  `getDeviceInfo`. (`IWebAudioPlayer::getVolume` *does* overlap Surface A's
+  `getDeviceInfo`. (`IWebAudioPlayer::getVolume` *does* overlap mseSink interface's
   `rialtowebaudiosink volume` — same volume contract as the row above.)
 
 The sinks expose no key-system, DRM, app-state, or web-audio-buffer surface, so
-these are Surface B's alone.
+these are Firebolt interface's alone.
 
-## Surface A only — no Surface B getter
+## mseSink interface only — no Firebolt interface getter
 
 Correctly single-surface (mse `path` rows), no consistency row applies:
 
 - **Video window / decode bounds:** `rectangle`, `show-video-window`,
   `max-video-width`/`-height` (+ deprecated `maxVideoWidth`/`maxVideoHeight`),
-  `frame-step-on-preroll`. Surface B's `setVideoWindow` is write-only — no
+  `frame-step-on-preroll`. Firebolt interface's `setVideoWindow` is write-only — no
   read-back — so no agreement can be asserted.
 - **Element read-backs with no native getter:** `video_pts` (video, R),
   `fade-volume` (audio, R).
@@ -112,8 +112,8 @@ equivalent at all.
 
 ### 1. Mute overlap is uncovered → add RC-CORE-CONSIST-004
 
-Mute is a genuine both-surfaces backend fact: Surface B `getMute`/`setMute`,
-Surface A `mute` on both the audio and subtitle sinks (boolean, default
+Mute is a genuine both-surfaces backend fact: Firebolt interface `getMute`/`setMute`,
+mseSink interface `mute` on both the audio and subtitle sinks (boolean, default
 `FALSE`). It is currently unverified cross-surface. It is assertable exactly as
 volume is — the **session-independent contract**: the sink's `mute` `GParamSpec`
 is boolean with default `FALSE`, agreeing with the native mute default that the
@@ -169,16 +169,16 @@ Native `getDuration` is `gst_element_query_duration(GST_FORMAT_TIME)`, which
 returns **false** for the stream-type appsrc backing every MSE source
 ([IDG-003](interface-definition-gaps.md)), and `notifyDuration` is never emitted
 ([IDG-002](interface-definition-gaps.md)) — duration is **app-owned**. There is
-therefore no backend duration fact for the two surfaces to agree on: Surface B
-declines to answer, and Surface A's `GST_QUERY_DURATION` is answered from
+therefore no backend duration fact for the two surfaces to agree on: Firebolt interface
+declines to answer, and mseSink interface's `GST_QUERY_DURATION` is answered from
 app-supplied state the backend never owns. So the handover's open question — "do
 duration reads align cross-surface?" — resolves to **there is nothing to align**;
 this is recorded here (and via IDG-002/003), not chased as a CONSIST row.
 
 ### 5. Web-audio volume already overlaps
 
-`IWebAudioPlayer::getVolume` (Surface B) and `rialtowebaudiosink volume`
-(Surface A) share the volume contract (double, default `1.0`, `[0.0, 1.0]`) —
+`IWebAudioPlayer::getVolume` (Firebolt interface) and `rialtowebaudiosink volume`
+(mseSink interface) share the volume contract (double, default `1.0`, `[0.0, 1.0]`) —
 the same contract CONSIST-003 asserts for the MSE audio path. No separate row is
 needed; the volume contract is one fact across all three carriers.
 

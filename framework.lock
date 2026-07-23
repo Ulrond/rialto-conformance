@@ -19,5 +19,5 @@ ut-core           https://github.com/rdkcentral/ut-core.git           5.1.0     
 # and lands in a release (post-1.9.0).
 python_raft       https://github.com/Ulrond/python_raft.git       1fc2e62357c772e3feec4bf27dc2eb03c044ab2e     raft core (host orchestration)
 ut-raft           https://github.com/rdkcentral/ut-raft.git           2.1.2     raft plugin: drive ut-core binaries
-rialto            https://github.com/rdkcentral/rialto.git            v0.22.3   API reference: public client headers (Surface B)
-rialto-gstreamer  https://github.com/rdkcentral/rialto-gstreamer.git  v0.20.1   API reference: rialtomse*sink (Surface A)
+rialto            https://github.com/rdkcentral/rialto.git            v0.22.3   API reference: public client headers (Firebolt interface)
+rialto-gstreamer  https://github.com/rdkcentral/rialto-gstreamer.git  v0.20.1   API reference: rialtomse*sink (mseSink interface)
