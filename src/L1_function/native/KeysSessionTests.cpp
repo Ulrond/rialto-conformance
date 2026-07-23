@@ -339,9 +339,9 @@ UT_ADD_TEST(L1KeysSessionTests, UnknownSessionIdReturnsBadSessionId)
  * RC-CORE-KEYS-011 — the store/maintenance queries return a status and write
  * their out-params rather than crashing or hanging: getDrmTime and
  * getCdmKeySessionId succeed on the ClearKey backend (the CDM session id is the
- * backend's session name); the store hashes / LDL limit / metrics return a
- * defined status for a store-less CDM (not asserted OK — ClearKey keeps no
- * persistent store).
+ * backend's session name); the store hashes / LDL limit / metrics queries and the
+ * deleteDrmStore / deleteKeyStore mutations return a defined status for a
+ * store-less CDM (not asserted OK — ClearKey keeps no persistent store).
  */
 UT_ADD_TEST(L1KeysSessionTests, StoreAndMaintenanceQueriesAnswer)
 {
@@ -383,6 +383,53 @@ UT_ADD_TEST(L1KeysSessionTests, StoreAndMaintenanceQueriesAnswer)
     UT_LOG("[keys] store queries: drmStoreHash=%d keyStoreHash=%d ldl=%d lastDrmError=%d metrics=%d",
            static_cast<int>(drmStoreHash), static_cast<int>(keyStoreHash), static_cast<int>(ldl),
            static_cast<int>(lastDrmError), static_cast<int>(metricStatus));
+
+    // Store deletion (also KEYS-011): deleteDrmStore / deleteKeyStore answer a
+    // defined status on the store-less ClearKey CDM (no persistent store to
+    // clear) without hanging — the store-mutation half of the maintenance surface.
+    const MediaKeyErrorStatus drmStoreDeleted = mediaKeys->deleteDrmStore();
+    const MediaKeyErrorStatus keyStoreDeleted = mediaKeys->deleteKeyStore();
+    UT_LOG("[keys] store deletion: deleteDrmStore=%d deleteKeyStore=%d",
+           static_cast<int>(drmStoreDeleted), static_cast<int>(keyStoreDeleted));
+
+    mediaKeys->closeKeySession(sessionId);
+}
+
+/**
+ * RC-CORE-KEYS-013 — selectKeyId(sessionId, keyId) selects which key in a
+ * multi-key session decrypts subsequent buffers. On a valid, key-loaded session
+ * (the full generateRequest -> onLicenseRequest -> updateSession ->
+ * onKeyStatusesChanged exchange) the call is answered with a defined status and
+ * the session is recognised (not BAD_SESSION_ID). ClearKey sessions carry a
+ * single key, so the ClearKey backend answers a defined status rather than
+ * performing a selection — the call must still be handled without hanging. This
+ * firms into an OK-selection assertion on a multi-key vendor CDM.
+ */
+UT_ADD_TEST(L1KeysSessionTests, SelectKeyIdAnswersForValidSession)
+{
+    CONFORMANCE_CORE_TEST();
+    CONFORMANCE_REQUIRE_CAP("drm.clearkey");
+
+    std::unique_ptr<IMediaKeys> mediaKeys = createClearKeyMediaKeys();
+    UT_ASSERT_NOT_NULL_FATAL(mediaKeys.get());
+
+    auto client = std::make_shared<RecordingMediaKeysClient>();
+    int32_t sessionId = -1;
+    UT_ASSERT_EQUAL(mediaKeys->createKeySession(KeySessionType::TEMPORARY, client, sessionId),
+                    MediaKeyErrorStatus::OK);
+    UT_ASSERT_EQUAL(mediaKeys->generateRequest(sessionId, InitDataType::KEY_IDS, toBytes(kInitDataJson)),
+                    MediaKeyErrorStatus::OK);
+    UT_ASSERT_TRUE_FATAL(client->waitForLicenseRequest(kCallbackTimeout));
+    UT_ASSERT_EQUAL(mediaKeys->updateSession(sessionId, toBytes(kJwkResponse)), MediaKeyErrorStatus::OK);
+    UT_ASSERT_TRUE_FATAL(client->waitForKeyStatuses(kCallbackTimeout));
+
+    // The session is valid and key-loaded, so selectKeyId recognises it and
+    // answers a defined status. ClearKey (single-key sessions) may not perform a
+    // selection, so a specific OK is not required here — only that the valid
+    // session is recognised (not BAD_SESSION_ID) and the call does not hang.
+    const MediaKeyErrorStatus status = mediaKeys->selectKeyId(sessionId, kKeyId);
+    UT_LOG("[keys] selectKeyId(valid session) status=%d", static_cast<int>(status));
+    UT_ASSERT_TRUE(status != MediaKeyErrorStatus::BAD_SESSION_ID);
 
     mediaKeys->closeKeySession(sessionId);
 }

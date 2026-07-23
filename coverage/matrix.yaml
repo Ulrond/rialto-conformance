@@ -290,7 +290,7 @@ operations:
     tier: core
     path: native
     req: [RC-CORE-KEYS-011]
-    expected: "getDrmTime + getCdmKeySessionId succeed; the store-less queries answer a defined status without hanging"
+    expected: "getDrmTime + getCdmKeySessionId succeed; the store-less queries (hashes/LDL/metrics) and the deleteDrmStore/deleteKeyStore mutations answer a defined status without hanging"
     case: "L1KeysSessionTests.StoreAndMaintenanceQueriesAnswer"
     status: covered
     # ClearKey keeps no persistent store, so the store hashes / LDL limit /
@@ -304,6 +304,15 @@ operations:
     req: [RC-CORE-KEYS-012]
     expected: "The client is held weak_ptr: it is releasable while the session stays operable, and no callback is delivered after release"
     case: "L1KeysSessionTests.ClientHeldWeaklyAndReleasable"
+    status: covered
+
+  - op: selectKeyId
+    interface: IMediaKeys
+    tier: core
+    path: native
+    req: [RC-CORE-KEYS-013]
+    expected: "selectKeyId answers a valid key-loaded session with a defined status and recognises it (not BAD_SESSION_ID); ClearKey is single-key, so a specific OK is not required (firms into OK on a multi-key vendor CDM)"
+    case: "L1KeysSessionTests.SelectKeyIdAnswersForValidSession"
     status: covered
 
   - op: setDrmHeader
@@ -593,21 +602,23 @@ operations:
     case: "L4DataProtocolTests.CleanRunNetworkStateVocabulary"
     status: covered
 
-  - op: "notifyBufferUnderflow / notifyFirstFrameReceived / notifyQos"
+  - op: "notifyBufferUnderflow / notifyFirstFrameReceived / notifyQos / notifyPosition"
     interface: IMediaPipelineClient
     tier: core
     path: native
     req: [RC-CORE-DATA-012]
-    expected: "A starved source never fails the pipeline; underflow/first-frame/QoS delivery observed (vendor-element-dependent)"
+    expected: "A starved source never fails the pipeline; underflow/first-frame/QoS/position delivery is recorded and observed (a delivered position is non-negative)"
     case: "L4DataProtocolTests.StarvationIsToleratedAndEventsObserved"
     status: covered
     # notifyBufferUnderflow rides the vendor buffer-underflow-callback GSignal —
     # the server connects to it where a decoder/sink exposes it (Rialto's own
     # UnderflowTest mocks the signal into existence), so delivery is structurally
-    # unavailable on the software elements. First-frame is sink-dependent and QoS
-    # needs real frame drops. The platform-independent starvation-robustness
-    # clause is asserted; the notifications are recorded and logged, firming up
-    # into asserts on a vendor target.
+    # unavailable on the software elements. First-frame is sink-dependent, QoS
+    # needs real frame drops, and position is a best-effort push. The harness
+    # records all four (QoS and position callback bodies capture count + last
+    # value); the platform-independent starvation-robustness clause is asserted and
+    # a delivered position is asserted non-negative, firming into hard delivery
+    # asserts on a vendor target that guarantees them.
 
   - op: addSegment
     interface: IMediaPipeline
@@ -882,6 +893,15 @@ operations:
     req: [RC-CORE-WEBAUDIO-007]
     expected: "A player created with priority above the supported count still creates and appears to function (audio silently discarded)"
     case: "L1WebAudioTests.HighPriorityPlayerAppearsToFunction"
+    status: covered
+
+  - op: getClient
+    interface: IWebAudioPlayer
+    tier: core
+    path: native
+    req: [RC-CORE-WEBAUDIO-008]
+    expected: "getClient returns the client the player was created with (held weakly)"
+    case: "L1WebAudioTests.GetClientReturnsSuppliedClient"
     status: covered
 
 # --- Properties (sink/decoder properties) × path ------------------------------

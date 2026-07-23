@@ -372,7 +372,12 @@ void FeedingMediaPipelineClient::notifyPlaybackState(PlaybackState state)
 }
 
 void FeedingMediaPipelineClient::notifyDuration(int64_t) {}
-void FeedingMediaPipelineClient::notifyPosition(int64_t) {}
+void FeedingMediaPipelineClient::notifyPosition(int64_t position)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    ++m_positionUpdates;
+    m_lastPosition = position;
+}
 void FeedingMediaPipelineClient::notifyNativeSize(uint32_t, uint32_t, double) {}
 void FeedingMediaPipelineClient::notifyNetworkState(NetworkState state)
 {
@@ -382,7 +387,12 @@ void FeedingMediaPipelineClient::notifyNetworkState(NetworkState state)
 void FeedingMediaPipelineClient::notifyVideoData(bool) {}
 void FeedingMediaPipelineClient::notifyAudioData(bool) {}
 void FeedingMediaPipelineClient::notifyCancelNeedMediaData(int32_t) {}
-void FeedingMediaPipelineClient::notifyQos(int32_t, const QosInfo &) {}
+void FeedingMediaPipelineClient::notifyQos(int32_t, const QosInfo &qosInfo)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    ++m_qosCount;
+    m_lastQos = qosInfo;
+}
 void FeedingMediaPipelineClient::notifyBufferUnderflow(int32_t sourceId)
 {
     {
@@ -453,6 +463,30 @@ bool FeedingMediaPipelineClient::sawFirstFrame(int32_t sourceId)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
     return m_firstFrameSources.count(sourceId) != 0;
+}
+
+size_t FeedingMediaPipelineClient::positionUpdateCount()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_positionUpdates;
+}
+
+int64_t FeedingMediaPipelineClient::lastPosition()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_lastPosition;
+}
+
+size_t FeedingMediaPipelineClient::qosCount()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_qosCount;
+}
+
+firebolt::rialto::QosInfo FeedingMediaPipelineClient::lastQos()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_lastQos;
 }
 
 } // namespace rialto::conformance

@@ -402,6 +402,11 @@ requirements:
     interface: IMediaKeys
     path: native
     kind: lifetime
+  - id: RC-CORE-KEYS-013
+    title: "selectKeyId(sessionId, keyId) is answered for a valid key-loaded session with a defined status and the session is recognised (not BAD_SESSION_ID); firms into OK selection on a multi-key vendor CDM (ClearKey sessions are single-key)"
+    interface: IMediaKeys
+    path: native
+    kind: positive
 
   # === Surface B (native) — IMediaKeysCapabilities ==========================
   - id: RC-CORE-KEYSCAP-001
@@ -463,6 +468,11 @@ requirements:
     path: native
     kind: negative
     notes: "Documented quiet-fail — the suite asserts the documented behaviour, not a surfaced error."
+  - id: RC-CORE-WEBAUDIO-008
+    title: "getClient returns the client the player was created with (held weakly)"
+    interface: IWebAudioPlayer
+    path: native
+    kind: positive
 
   # === Surface B (native) — client log control ==============================
   - id: RC-CORE-LOG-001
