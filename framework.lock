@@ -13,7 +13,11 @@
 # Lines starting with # and blank lines are ignored.
 
 ut-core           https://github.com/rdkcentral/ut-core.git           5.1.0     test runner (VARIANT=CPP / GoogleTest)
-python_raft       https://github.com/rdkcentral/python_raft.git       1.8.2     raft core (host orchestration)
+# TEMPORARY pin: Wake-on-LAN network/wake module pending rdkcentral/python_raft#217.
+# Pinned to the #217 head COMMIT (not the branch) so a rebase/force-push on the PR
+# can't silently move what we resolve; revert to the upstream tag once #217 merges
+# and lands in a release (post-1.9.0).
+python_raft       https://github.com/Ulrond/python_raft.git       1fc2e62357c772e3feec4bf27dc2eb03c044ab2e     raft core (host orchestration)
 ut-raft           https://github.com/rdkcentral/ut-raft.git           2.1.2     raft plugin: drive ut-core binaries
 rialto            https://github.com/rdkcentral/rialto.git            v0.22.3   API reference: public client headers (Surface B)
 rialto-gstreamer  https://github.com/rdkcentral/rialto-gstreamer.git  v0.20.1   API reference: rialtomse*sink (Surface A)
