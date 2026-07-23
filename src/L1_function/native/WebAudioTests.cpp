@@ -19,7 +19,7 @@
 /**
  * @file WebAudioTests.cpp
  *
- * L1 — function testing for Surface B: IWebAudioPlayer (§6 L1).
+ * L1 — function testing for Firebolt interface: IWebAudioPlayer (§6 L1).
  *
  * IWebAudioPlayer is the native client API for mixing PCM audio with the current
  * audio output. An external app creates a player through the published factory,

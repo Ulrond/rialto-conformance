@@ -7,11 +7,11 @@
 # software Rialto, bring up a RialtoServer, run the conformance gate, tear down.
 # Runs inside the SC docker (cwd = the mounted repo); invoked by sc-run.sh.
 #
-# Surface B (native client API) is IPC-based: the client connects to a
+# Firebolt interface (native client API) is IPC-based: the client connects to a
 # RialtoServer over RIALTO_SOCKET_PATH. We stand one up via the ServerManagerSim
 # (an HTTP control surface on :9008): POST /SetState/<app>/Active with a socket
 # name launches a RialtoServer SessionServer on /tmp/<socket>; the client then
-# connects there. Surface A (sinks) only needs RIALTO_SINKS_RANK.
+# connects there. mseSink interface (sinks) only needs RIALTO_SINKS_RANK.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

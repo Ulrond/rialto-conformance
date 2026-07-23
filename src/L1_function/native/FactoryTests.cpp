@@ -19,7 +19,7 @@
 /**
  * @file FactoryTests.cpp
  *
- * L1 — function testing for Surface B: the public factory link surface.
+ * L1 — function testing for Firebolt interface: the public factory link surface.
  *
  * Every native client object is reached through a published createFactory().
  * These cases prove the whole public factory surface is linkable and returns

@@ -19,7 +19,7 @@
 /**
  * @file PlaybackDataPathTests.cpp
  *
- * L4 — end-to-end data-path cases for Surface B (native IMediaPipeline).
+ * L4 — end-to-end data-path cases for Firebolt interface (native IMediaPipeline).
  *
  * Unlike the L1 IMediaPipeline cases (create + synchronous introspection), these
  * drive REAL elementary-stream buffers through a live RialtoServer: attach an

@@ -25,7 +25,7 @@
 # rather than a SoC. Rialto's NATIVE_BUILD stubs the platform deps (opencdm,
 # wpeframework, rdk_gstreamer_utils), so `framework/rialto` + `framework/rialto-
 # gstreamer` build into a self-contained software stack — libRialtoClient (Surface
-# B) and the rialtomse*sink plugin (Surface A).
+# B) and the rialtomse*sink plugin (mseSink interface).
 #
 # This is OPT-IN. The default suite flow (install.sh + build.sh) links an
 # *installed* libRialtoClient and never builds Rialto — that is correct for real
@@ -179,7 +179,7 @@ make -C "${FRAMEWORK_DIR}/rialto/build" -j"${JOBS}"
 make -C "${FRAMEWORK_DIR}/rialto/build" install
 
 # 2. Build rialto-gstreamer natively against the installed Rialto, providing the
-#    rialtomse*sink plugin (Surface A).
+#    rialtomse*sink plugin (mseSink interface).
 echo "[build-rialto] building rialto-gstreamer (NATIVE_BUILD) against ${PREFIX}"
 cmake -S "${FRAMEWORK_DIR}/rialto-gstreamer" -B "${FRAMEWORK_DIR}/rialto-gstreamer/build" \
       -DNATIVE_BUILD=ON -DRIALTO_BUILD_TYPE="Debug" \

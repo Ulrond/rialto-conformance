@@ -25,8 +25,8 @@
  * Elementary-stream feed for both surfaces (§3 req 5 / §7.1). Cases declare an
  * asset dependency by `id`; the loader resolves it against assets/manifest.yaml
  * and returns a handle to the real elementary stream on disk. Real content
- * flows through the MSE pipeline (Surface A) and the native data path
- * (Surface B) — this is specifically NOT a mock.
+ * flows through the MSE pipeline (mseSink interface) and the native data path
+ * (Firebolt interface) — this is specifically NOT a mock.
  *
  * Assets are fetched, not vendored: at the start of a run the loader downloads
  * any manifest asset that the selected cases need into assets/cache/ (verified

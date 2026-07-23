@@ -20,8 +20,8 @@
  * @file CapabilityConsistencyTests.cpp
  *
  * L2 — cross-surface consistency (path: both). A requirement exposed on both
- * surfaces must be answered the same way by each: Surface B (the native client
- * API) and Surface A (the rialtomse*sink elements) sit on one backend, so a
+ * surfaces must be answered the same way by each: Firebolt interface (the native client
+ * API) and mseSink interface (the rialtomse*sink elements) sit on one backend, so a
  * backend fact reported differently by the two is a conformance failure even
  * when each surface is individually well-formed. Each surface runs as itself —
  * the native API is queried through its factories, the sinks through the
@@ -67,8 +67,8 @@ namespace
 {
 /**
  * The documented MIME -> caps mapping the sinks build their pad templates from
- * (the published Surface A translation of the server's Surface B MIME list).
- * A native MIME with no entry here is not advertised on Surface A by design.
+ * (the published mseSink interface translation of the server's Firebolt interface MIME list).
+ * A native MIME with no entry here is not advertised on mseSink interface by design.
  */
 const std::map<std::string, std::vector<std::string>> kMimeToCaps = {
     {"audio/mp4", {"audio/mpeg, mpegversion=1", "audio/mpeg, mpegversion=2", "audio/mpeg, mpegversion=4"}},
@@ -117,7 +117,7 @@ UT_ADD_TEST_TO_GROUP(L2CapabilityConsistencyTests, UT_TESTS_L2);
 
 /**
  * RC-CORE-CONSIST-001 — every codec the native capabilities API reports
- * (getSupportedMimeTypes for AUDIO and VIDEO) that has a documented Surface A
+ * (getSupportedMimeTypes for AUDIO and VIDEO) that has a documented mseSink interface
  * translation is advertised by the matching sink's pad template. The two
  * surfaces answer the same backend fact — "which formats does this platform
  * play?" — and must agree.
@@ -148,7 +148,7 @@ UT_ADD_TEST(L2CapabilityConsistencyTests, SupportedMimesMatchSinkCaps)
         {
             const auto mapping = kMimeToCaps.find(mime);
             if (mapping == kMimeToCaps.end())
-                continue; // no documented Surface A translation for this MIME
+                continue; // no documented mseSink interface translation for this MIME
             for (const std::string &capsStr : mapping->second)
             {
                 UT_ASSERT_TRUE(advertises(advertised, capsStr));
@@ -172,7 +172,7 @@ UT_ADD_TEST(L2CapabilityConsistencyTests, VideoMasterNativeMatchesMse)
 {
     CONFORMANCE_CORE_TEST();
 
-    // Surface B: the native capabilities answer.
+    // Firebolt interface: the native capabilities answer.
     auto factory = IMediaPipelineCapabilitiesFactory::createFactory();
     UT_ASSERT_NOT_NULL_FATAL(factory.get());
     std::unique_ptr<IMediaPipelineCapabilities> caps = factory->createMediaPipelineCapabilities();
@@ -180,7 +180,7 @@ UT_ADD_TEST(L2CapabilityConsistencyTests, VideoMasterNativeMatchesMse)
     bool nativeIsMaster = false;
     UT_ASSERT_TRUE_FATAL(caps->isVideoMaster(nativeIsMaster));
 
-    // Surface A: the video sink's read-only is-master property.
+    // mseSink interface: the video sink's read-only is-master property.
     GstElement *sink = gst_element_factory_make(kVideoSink, nullptr);
     UT_ASSERT_NOT_NULL_FATAL(sink);
     gboolean sinkIsMaster = FALSE;
@@ -202,7 +202,7 @@ UT_ADD_TEST(L2CapabilityConsistencyTests, VolumeContractAgreesAcrossSurfaces)
 {
     CONFORMANCE_CORE_TEST();
 
-    // Surface A: the audio sink's volume property — default and range from the
+    // mseSink interface: the audio sink's volume property — default and range from the
     // installed GParamSpec, the published contract of the property.
     GstElement *sink = gst_element_factory_make(kAudioSink, nullptr);
     UT_ASSERT_NOT_NULL_FATAL(sink);
@@ -221,10 +221,10 @@ UT_ADD_TEST(L2CapabilityConsistencyTests, VolumeContractAgreesAcrossSurfaces)
     gst_object_unref(sink);
     UT_ASSERT_TRUE(sinkVolume == 1.0);
 
-    // Surface B carries the same contract: setVolume documents targetVolume in
+    // Firebolt interface carries the same contract: setVolume documents targetVolume in
     // [0.0, 1.0] and the realized-pipeline default reads 1.0 — asserted by the
     // native data-path row (L4PipelineAuxDataPathTests.VolumeRoundTrips...); here
-    // the agreement is that Surface A publishes the identical range + default.
+    // the agreement is that mseSink interface publishes the identical range + default.
 }
 
 /**
@@ -240,7 +240,7 @@ UT_ADD_TEST(L2CapabilityConsistencyTests, MuteContractAgreesAcrossSurfaces)
 {
     CONFORMANCE_CORE_TEST();
 
-    // Surface A: mute is exposed on both the audio and subtitle sinks; both must
+    // mseSink interface: mute is exposed on both the audio and subtitle sinks; both must
     // publish the identical boolean contract with default FALSE.
     for (const char *factoryName : {kAudioSink, kSubtitleSink})
     {
@@ -259,10 +259,10 @@ UT_ADD_TEST(L2CapabilityConsistencyTests, MuteContractAgreesAcrossSurfaces)
         UT_ASSERT_TRUE(sinkMute == FALSE);
     }
 
-    // Surface B carries the same contract: setMute/getMute round-trips the mute
+    // Firebolt interface carries the same contract: setMute/getMute round-trips the mute
     // flag per source and the realized-pipeline default reads false — asserted by
     // the native data-path row (L4PipelineAuxDataPathTests.MuteRoundTripsPerSource);
-    // here the agreement is that Surface A publishes the identical default.
+    // here the agreement is that mseSink interface publishes the identical default.
 }
 
 /**

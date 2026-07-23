@@ -15,10 +15,10 @@ which no `RC-*` id was ever written is invisible in `matrix.yaml`; here it shows
 
 The two interfaces (§2):
 
-- **Surface A — MSE sink** — the `rialtomse{audio,video,subtitle}sink` GObject
+- **mseSink interface — MSE sink** — the `rialtomse{audio,video,subtitle}sink` GObject
   properties, signals, caps, and element registration. Source of truth:
   `framework/rialto-gstreamer/source/`.
-- **Surface B — native client API** — the public C++ methods in
+- **Firebolt interface — native client API** — the public C++ methods in
   `framework/rialto/media/public/include/*.h`.
 
 **Status:**
@@ -31,7 +31,7 @@ The two interfaces (§2):
 
 ---
 
-## Surface A — MSE sink
+## mseSink interface — MSE sink
 
 Every installed `GParamSpec` maps 1:1 to an `RC-CORE-MSE*` case: the L1
 `PropertyTests` / `CapsTests` / `SinkRegistrationTests` mirror the full property
@@ -98,7 +98,7 @@ GParamSpec level only, not functionally retrieved.
 
 ---
 
-## Surface B — native client API
+## Firebolt interface — native client API
 
 **115 public methods: 92 COVERED, 8 GATED, 15 UNTESTED.**
 
@@ -226,16 +226,16 @@ notifyQos false-positive; and MSEPROP-008 asserts the source-installed defaults.
 
 | Interface | Total | COVERED | GATED | UNTESTED |
 |---|---|---|---|---|
-| Surface A — MSE sink (properties) | 34 | 24 | 10 | 0 |
-| Surface B — factories + IControl/log | 19 | 19 | 0 | 0 |
-| Surface B — IMediaPipelineCapabilities | 4 | 4 | 0 | 0 |
-| Surface B — IMediaKeysCapabilities | 4 | 4 | 0 | 0 |
-| Surface B — IMediaKeys | 19 | 17 | 0 | 2 |
-| Surface B — IMediaKeysClient | 3 | 2 | 0 | 1 |
-| Surface B — IMediaPipeline | 40 | 31 | 4 | 5 |
-| Surface B — IMediaPipelineClient | 15 | 4 | 4 | 7 |
-| Surface B — IWebAudioPlayer(+Client) | 11 | 11 | 0 | 0 |
+| mseSink interface — MSE sink (properties) | 34 | 24 | 10 | 0 |
+| Firebolt interface — factories + IControl/log | 19 | 19 | 0 | 0 |
+| Firebolt interface — IMediaPipelineCapabilities | 4 | 4 | 0 | 0 |
+| Firebolt interface — IMediaKeysCapabilities | 4 | 4 | 0 | 0 |
+| Firebolt interface — IMediaKeys | 19 | 17 | 0 | 2 |
+| Firebolt interface — IMediaKeysClient | 3 | 2 | 0 | 1 |
+| Firebolt interface — IMediaPipeline | 40 | 31 | 4 | 5 |
+| Firebolt interface — IMediaPipelineClient | 15 | 4 | 4 | 7 |
+| Firebolt interface — IWebAudioPlayer(+Client) | 11 | 11 | 0 | 0 |
 
-Surface A is complete on the existence axis (0 untested). Surface B's remaining
+mseSink interface is complete on the existence axis (0 untested). Firebolt interface's remaining
 untested set is deferred on the native video/subtitle/CDM paths that the
 deployed-stack run (#89) covers; the software-provable gaps are closed.

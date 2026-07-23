@@ -19,12 +19,12 @@
 /**
  * @file PropertyTests.cpp
  *
- * L1 — function testing for Surface A: the GObject property surface of the
+ * L1 — function testing for mseSink interface: the GObject property surface of the
  * rialtomse{audio,video,subtitle}sink elements. An external media app configures
  * these sinks purely through their published GObject properties and GSignals, so
  * the suite introspects the same surface the app sees — the installed GParamSpecs
  * (name, type, flags, default, range) and the class GSignals — via the standard
- * GObject registry. No Rialto internal headers are involved (§2 Surface A), and
+ * GObject registry. No Rialto internal headers are involved (§2 mseSink interface), and
  * no live RialtoServer is needed: the property surface is a property of the
  * registered element classes themselves.
  *
@@ -169,7 +169,7 @@ void assertBoolIfPresent(GstElement *e, const char *name, gboolean def, bool rea
 
 UT_ADD_TEST_TO_GROUP(L1PropertyTests, UT_TESTS_L1);
 
-// The MSE sinks are the required Surface A — their documented unconditional
+// The MSE sinks are the required mseSink interface — their documented unconditional
 // property surface is tested unconditionally; absence is a FAILURE, not a skip.
 // Server-conditional properties are gated in-body ("if installed, conforms").
 

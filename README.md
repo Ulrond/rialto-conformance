@@ -27,10 +27,10 @@ provenance of those ids is kept out of this repo (see
 
 It tests two surfaces, and only these — never internal wiring:
 
-- **Surface A — MSE GStreamer sink** — the `rialtomse{audio,video}sink` and
+- **mseSink interface — MSE GStreamer sink** — the `rialtomse{audio,video}sink` and
   text-track sink elements (`rialto-gstreamer`): element names, properties, and
   caps negotiation.
-- **Surface B — Native client API** — the published C++ interfaces in
+- **Firebolt interface — Native client API** — the published C++ interfaces in
   `media/public/include/*` and their client/event callbacks.
 
 The suite is a standalone **installable package**. It links **only** Rialto's
@@ -64,8 +64,8 @@ which builds the software Rialto + the suite, brings up a **RialtoServer** via t
 ServerManagerSim (so the IPC-based native client API connects), and runs the gate.
 
 On the Linux software platform the CORE gate runs end-to-end: the MSE sinks
-(Surface A) and the native capabilities — codec/mime reporting, baseline H.264,
-video-master (Surface B) — pass against the live software Rialto. Two DRM-
+(mseSink interface) and the native capabilities — codec/mime reporting, baseline H.264,
+video-master (Firebolt interface) — pass against the live software Rialto. Two DRM-
 capability cases (`RC-CORE-KEYSCAP-002/003`) **fail by design**: the
 `NATIVE_BUILD` stubs OCDM, so it accepts any key system and reports no version —
 i.e. the gate correctly flags the stub as a non-conformant DRM backend. That is a
