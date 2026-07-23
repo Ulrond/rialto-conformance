@@ -52,6 +52,12 @@ clone_repo()
 
     if [ -d "${path}/.git" ]; then
         echo "[install.sh] ${name}: present, checking out pinned ${ref}"
+        # Honour a change of repo_url in the lock (e.g. a temporary fork pin):
+        # re-point origin at the locked URL and fetch it, so a pinned commit that
+        # lives only in that remote (not the one the clone was first made from)
+        # resolves. Without this an existing clone fetches the stale origin and a
+        # fork-only SHA fails with "reference is not a tree".
+        git -C "${path}" remote set-url origin "${repo_url}"
         git -C "${path}" fetch --quiet --tags origin || true
         git -C "${path}" checkout --quiet "${ref}"
         return
