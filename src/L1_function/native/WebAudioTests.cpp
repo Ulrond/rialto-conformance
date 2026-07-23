@@ -321,3 +321,21 @@ UT_ADD_TEST(L1WebAudioTests, HighPriorityPlayerAppearsToFunction)
     UT_ASSERT_TRUE(player->getDeviceInfo(preferredFrames, maximumFrames, supportDeferredPlay));
     UT_ASSERT_FALSE(client->saw(WebAudioPlayerState::FAILURE));
 }
+
+/**
+ * RC-CORE-WEBAUDIO-008 — getClient returns the client the player was created with.
+ * The web-audio player holds its client weakly (the mirror of the pipeline's
+ * getClient contract), so a client the caller still owns is retrievable through
+ * the player.
+ */
+UT_ADD_TEST(L1WebAudioTests, GetClientReturnsSuppliedClient)
+{
+    CONFORMANCE_CORE_TEST();
+
+    auto client = std::make_shared<RecordingWebAudioClient>();
+    auto player = makePlayer(client, kTopPriority);
+    UT_ASSERT_NOT_NULL_FATAL(player.get());
+
+    auto returned = player->getClient().lock();
+    UT_ASSERT_TRUE(returned.get() == client.get());
+}

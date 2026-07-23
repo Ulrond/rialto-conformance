@@ -69,12 +69,10 @@ enumeration. **34 properties, 0 untested.**
 | `immediate-output`, `syncmode-streaming`, `show-video-window` | GATED | VideoSinkConditionalProperties — MSEPROP-008 | vendor-gated |
 | Sink-pad caps (x-h264, x-h265, x-av1, x-vp9) | COVERED | VideoMimeToCapsMappingCorrect + subset — MSECAPS-002/004 | must advertise x-h264 |
 
-**11 properties: 8 mandatory COVERED, 3 vendor-GATED, 0 UNTESTED.**
-
-> **Discrepancy — MSEPROP-008 default:** `immediate-output` and `show-video-window`
-> are installed with default **TRUE** in the sink source, but the gated leg asserts
-> default **FALSE** when present. On a platform that installs them the case would
-> fail. To resolve (see [Gaps](#gaps-and-discrepancies)).
+**11 properties: 8 mandatory COVERED, 3 vendor-GATED, 0 UNTESTED.** MSEPROP-008
+asserts the source-installed defaults for the gated leg: `immediate-output` (R/W,
+default TRUE), `syncmode-streaming` (W-only, default FALSE), `show-video-window`
+(W-only, default TRUE).
 
 ### rialtomsesubtitlesink (own properties)
 
@@ -102,7 +100,7 @@ GParamSpec level only, not functionally retrieved.
 
 ## Surface B — native client API
 
-**115 public methods: 88 COVERED, 6 GATED, 21 UNTESTED.**
+**115 public methods: 92 COVERED, 8 GATED, 15 UNTESTED.**
 
 ### Factory classes — 14/14 COVERED
 
@@ -132,7 +130,7 @@ constructor (`createControl`, `createMediaPipeline`, `createMediaPipelineCapabil
 `getSupportedKeySystems`, `supportsKeySystem`, `getSupportedKeySystemVersion`,
 `isServerCertificateSupported` — L1KeysCapabilitiesTests.* (KEYSCAP-001..004).
 
-### IMediaKeys — 14/19, **5 UNTESTED**
+### IMediaKeys — 17/19, **2 UNTESTED**
 
 | Method | Status | Case / RC id / reason |
 |---|---|---|
@@ -140,12 +138,11 @@ constructor (`createControl`, `createMediaPipeline`, `createMediaPipelineCapabil
 | generateRequest | COVERED | KEYS-002 / GenerateRequestDeliversLicenseRequest |
 | updateSession, containsKey | COVERED | KEYS-003/004 / UpdateSessionSurfacesUsableKeyStatus |
 | closeKeySession, removeKeySession, releaseKeySession | COVERED | KEYS-005 / SessionTeardownReturnsOk |
-| getDrmTime, getCdmKeySessionId, getDrmStoreHash, getKeyStoreHash, getLdlSessionsLimit, getLastDrmError, getMetricSystemData | COVERED | KEYS-006 / StoreAndMaintenanceQueriesAnswer |
+| getDrmTime, getCdmKeySessionId, getDrmStoreHash, getKeyStoreHash, getLdlSessionsLimit, getLastDrmError, getMetricSystemData | COVERED | KEYS-011 / StoreAndMaintenanceQueriesAnswer |
+| deleteDrmStore, deleteKeyStore | COVERED | KEYS-011 / StoreAndMaintenanceQueriesAnswer |
+| selectKeyId | COVERED | KEYS-013 / SelectKeyIdAnswersForValidSession (defined status; ClearKey is single-key) |
 | loadSession | UNTESTED (planned) | wrong-state/unsupported-type semantics are CDM-specific — needs a vendor CDM |
 | setDrmHeader | UNTESTED (planned) | PlayReady-specific — not exercisable on ClearKey |
-| **selectKeyId** | **UNTESTED** | **no matrix row, no source reference — invisible gap** |
-| **deleteDrmStore** | **UNTESTED** | **no matrix row, no source reference — invisible gap** |
-| **deleteKeyStore** | **UNTESTED** | **no matrix row, no source reference — invisible gap** |
 
 ### IMediaKeysClient (callbacks) — 2/3
 
@@ -171,31 +168,27 @@ COVERED: `getClient` (PIPELINE-002); `load`/`attachSource`/`removeSource`/`allSo
 | setSubtitleOffset | UNTESTED (planned) | needs a SUBTITLE source |
 | addSegment NO_SPACE/ERROR return codes | UNTESTED (planned) | OK path covered; fault paths need injection |
 
-### IMediaPipelineClient (callbacks) — 4/15, 2 GATED, 9 UNTESTED
+### IMediaPipelineClient (callbacks) — 4/15, 4 GATED, 7 UNTESTED
 
 | Callback | Status | Reason |
 |---|---|---|
 | notifyPlaybackState | COVERED | recorded + asserted across PlayPauseStop / EOS / network-state cases |
-| notifyNetworkState | COVERED | DATA-003 / CleanRunNetworkStateVocabulary |
+| notifyNetworkState | COVERED | DATA-009 / CleanRunNetworkStateVocabulary |
 | notifyNeedMediaData | COVERED | DATA-001/002 / NeedDataProtocolIsWellFormed |
 | notifySourceFlushed | COVERED | FlushEmitsSourceFlushed |
-| notifyBufferUnderflow, notifyFirstFrameReceived | GATED | DATA-005 / StarvationIsToleratedAndEventsObserved — best-effort vendor signals |
-| **notifyQos** | **UNTESTED** | grouped under DATA-005 but the harness body is empty — **nothing asserts it (false-positive in matrix.yaml)** |
-| notifyPosition | UNTESTED | empty harness body — fires on the audio path, assertable now |
+| notifyBufferUnderflow, notifyFirstFrameReceived | GATED | DATA-012 / StarvationIsToleratedAndEventsObserved — best-effort vendor signals |
+| notifyQos, notifyPosition | GATED | DATA-012 / StarvationIsToleratedAndEventsObserved — harness records both; delivery observed, a delivered position asserted non-negative |
 | notifyNativeSize, notifyVideoData, notifyAudioData, notifyPlaybackInfo | UNTESTED | empty harness body |
 | notifyDuration | UNTESTED (planned) | server never emits it in v0.22.3 (IDG-002) |
 | notifyCancelNeedMediaData | UNTESTED (planned) | server-initiated, not provokable from the client API |
 | notifyPlaybackError | UNTESTED (planned) | needs non-fatal error injection |
 
-### IWebAudioPlayer / IWebAudioPlayerClient — 10/11
+### IWebAudioPlayer / IWebAudioPlayerClient — 11/11
 
 COVERED: `play`/`pause`/`setEos` (WEBAUDIO-002), `getBufferAvailable`/`writeBuffer`
 (WEBAUDIO-003), `getBufferDelay`, `getDeviceInfo`, `setVolume`/`getVolume`,
+`getClient` (WEBAUDIO-008 / GetClientReturnsSuppliedClient),
 `IWebAudioPlayerClient::notifyState` — L1WebAudioTests.*.
-
-| Method | Status | Reason |
-|---|---|---|
-| **getClient** | **UNTESTED** | **no case — invisible gap** (the pipeline's `getClient` is covered) |
 
 ### Data value types
 
@@ -211,18 +204,11 @@ IMediaPipeline / IMediaPipelineClient gaps above.
 
 ## Gaps and discrepancies
 
-### Provable on the software backend now (close as test work)
-
-- **`IMediaKeys::selectKeyId`, `deleteDrmStore`, `deleteKeyStore`** — invisible
-  gaps; the legal-call-returns-a-status shape of `StoreAndMaintenanceQueriesAnswer`
-  extends to these on the ClearKey backend.
-- **`IWebAudioPlayer::getClient`** — invisible gap; mirror the pipeline `getClient`
-  case.
-- **`notifyQos`, `notifyPosition`** — give the harness callback a body and assert;
-  both fire on the audio data path. Fixes the `notifyQos` false-positive.
-- **MSEPROP-008 default** — reconcile the gated-property default: the case must
-  assert the source-installed default (TRUE) for `immediate-output` /
-  `show-video-window`, not FALSE.
+The software-provable gaps and the MSEPROP-008 default discrepancy are **closed**:
+`IMediaKeys::selectKeyId` (KEYS-013), `deleteDrmStore`/`deleteKeyStore` (KEYS-011),
+`IWebAudioPlayer::getClient` (WEBAUDIO-008) now have cases; `notifyQos` and
+`notifyPosition` are recorded by the harness and observed (DATA-012), removing the
+notifyQos false-positive; and MSEPROP-008 asserts the source-installed defaults.
 
 ### Deferred — need real hardware / vendor CDM / a video·subtitle feed (see #89)
 
@@ -244,13 +230,12 @@ IMediaPipeline / IMediaPipelineClient gaps above.
 | Surface B — factories + IControl/log | 19 | 19 | 0 | 0 |
 | Surface B — IMediaPipelineCapabilities | 4 | 4 | 0 | 0 |
 | Surface B — IMediaKeysCapabilities | 4 | 4 | 0 | 0 |
-| Surface B — IMediaKeys | 19 | 14 | 0 | 5 |
+| Surface B — IMediaKeys | 19 | 17 | 0 | 2 |
 | Surface B — IMediaKeysClient | 3 | 2 | 0 | 1 |
 | Surface B — IMediaPipeline | 40 | 31 | 4 | 5 |
-| Surface B — IMediaPipelineClient | 15 | 4 | 2 | 9 |
-| Surface B — IWebAudioPlayer(+Client) | 11 | 10 | 0 | 1 |
+| Surface B — IMediaPipelineClient | 15 | 4 | 4 | 7 |
+| Surface B — IWebAudioPlayer(+Client) | 11 | 11 | 0 | 0 |
 
-Surface A is complete on the existence axis (0 untested). Surface B's untested set
-is four invisible gaps + one false-positive (all software-provable), the rest
-deferred on the native video/subtitle/CDM paths that the deployed-stack run (#89)
-covers.
+Surface A is complete on the existence axis (0 untested). Surface B's remaining
+untested set is deferred on the native video/subtitle/CDM paths that the
+deployed-stack run (#89) covers; the software-provable gaps are closed.

@@ -357,9 +357,13 @@ UT_ADD_TEST(L1PropertyTests, VideoSinkConditionalProperties)
     GstElement *sink = gst_element_factory_make(kVideoSink, nullptr);
     UT_ASSERT_NOT_NULL_FATAL(sink);
 
-    assertBoolIfPresent(sink, "immediate-output", FALSE, /*R*/ false, /*W*/ true);
+    // immediate-output and show-video-window install with default TRUE; the
+    // write-only syncmode-streaming installs FALSE (see rialto-gstreamer
+    // RialtoGStreamerMSEVideoSink property registration). immediate-output is
+    // read/write; the other two are write-only.
+    assertBoolIfPresent(sink, "immediate-output", TRUE, /*R*/ true, /*W*/ true);
     assertBoolIfPresent(sink, "syncmode-streaming", FALSE, /*R*/ false, /*W*/ true);
-    assertBoolIfPresent(sink, "show-video-window", FALSE, /*R*/ false, /*W*/ true);
+    assertBoolIfPresent(sink, "show-video-window", TRUE, /*R*/ false, /*W*/ true);
 
     gst_object_unref(sink);
 }

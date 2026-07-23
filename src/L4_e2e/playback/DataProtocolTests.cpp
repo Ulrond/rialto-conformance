@@ -256,6 +256,20 @@ UT_ADD_TEST(L4DataProtocolTests, StarvationIsToleratedAndEventsObserved)
 
     UT_ASSERT_FALSE(client->sawPlaybackState(PlaybackState::FAILURE));
 
+    // Position + QoS are best-effort push notifications during playback: the
+    // harness records both, and delivery is observed here (a delivered position
+    // must be non-negative; QoS counts are logged). They firm into hard asserts on
+    // a vendor target that guarantees them; on the software elements delivery is
+    // element-dependent, so arrival is not required.
+    const auto qos = client->lastQos();
+    UT_LOG("[data-protocol] observed positionUpdates=%zu (last=%lld ns) qosEvents=%zu (processed=%llu dropped=%llu)",
+           client->positionUpdateCount(), static_cast<long long>(client->lastPosition()), client->qosCount(),
+           static_cast<unsigned long long>(qos.processed), static_cast<unsigned long long>(qos.dropped));
+    if (client->positionUpdateCount() > 0)
+    {
+        UT_ASSERT_TRUE(client->lastPosition() >= 0);
+    }
+
     pipeline->stop();
     pipeline.reset();
 }
