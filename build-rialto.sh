@@ -43,7 +43,7 @@
 #   RIALTO_PREFIX=/path ./build-rialto.sh
 #
 # After it completes, build.sh/Makefile auto-discover the prefix (no env needed):
-#   ./build.sh && RIALTO_CONFORMANCE_TIER=core ./build/bin/rialto_conformance -a -p <deviceConfig>
+#   ./build.sh && RIALTO_CONFORMANCE_TIER=core ./build/bin/rialto_conformance -a -p profiles/hfp.linux.yaml
 #
 # Native build deps (Rialto's own list, installed by default):
 #   build-essential cmake libunwind-dev libgstreamer1.0-dev

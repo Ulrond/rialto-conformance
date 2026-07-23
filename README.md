@@ -114,11 +114,13 @@ is the opt-in Linux software platform — `build-rialto.sh` produces a local
 ## Run (standalone, on a target with Rialto installed)
 
 ```bash
-./rialto_conformance -a -p deviceConfig.yaml     # automated xUnit + capability profile
-./rialto_conformance -b -p deviceConfig.yaml     # basic stdout
+./rialto_conformance -a -p hfp.yaml     # automated xUnit + HFP capability profile
+./rialto_conformance -b -p hfp.yaml     # basic stdout
 ```
 
-In practice ut-raft installs the package and runs it — see [raft/](raft/).
+`-p` loads the platform's HFP (Hardware Feature Profile) — the capability gate.
+In practice ut-raft fetches the HFP host-side and installs + runs the package —
+see [raft/](raft/).
 
 ## Test levels (scope of test, not platform)
 
@@ -149,9 +151,9 @@ the capability/release gates), and the active selection is read from the
 `RIALTO_CONFORMANCE_TIER` environment variable:
 
 ```bash
-RIALTO_CONFORMANCE_TIER=core     ./rialto_conformance -a -p deviceConfig.yaml  # the gate
-RIALTO_CONFORMANCE_TIER=extended ./rialto_conformance -a -p deviceConfig.yaml
-./rialto_conformance -a -p deviceConfig.yaml                                   # both (default)
+RIALTO_CONFORMANCE_TIER=core     ./rialto_conformance -a -p hfp.yaml  # the gate
+RIALTO_CONFORMANCE_TIER=extended ./rialto_conformance -a -p hfp.yaml
+./rialto_conformance -a -p hfp.yaml                                   # both (default)
 ```
 
 Because tier gating is an in-test skip, it composes with the ut-core level filter
@@ -179,16 +181,21 @@ conformance **failure**, not a skip.
 
 - **End state** — the platform API reports the requirements it exposes; the suite
   reads them at runtime and self-selects its applicable cases.
-- **Interim / fallback** — the per-target `deviceConfig` (python_raft shape,
-  `deviceConfig: → cpe1: → platform:`; see
-  [profiles/deviceConfig.example.yaml](profiles/deviceConfig.example.yaml))
-  carries the per-platform feature toggles under `rialto:`. Cases read them with
-  `UT_KVP_PROFILE_GET_BOOL("deviceConfig/cpe1/rialto/<key>")` and self-skip via
-  `UT_IGNORE_TEST()` when a feature is off. Retired per backend as each gains
-  dynamic capability reporting.
+- **Interim / fallback** — the platform's **HFP** (Hardware Feature Profile; see
+  [profiles/hfp.example.yaml](profiles/hfp.example.yaml)) carries the per-platform
+  feature toggles under `hfp:`. Cases read them with
+  `UT_KVP_PROFILE_GET_BOOL("hfp/<key>")` and self-skip via `UT_IGNORE_TEST()` when
+  a feature is off. Retired per backend as each gains dynamic capability
+  reporting.
 
-Adding a target adds one `deviceConfig` (named by config) and a `raft/` entry —
-**no new test code**.
+The HFP is platform-specific and platform-owned. The host-only `deviceConfig`
+(python_raft shape; see
+[profiles/deviceConfig.example.yaml](profiles/deviceConfig.example.yaml)) names it
+by URL (`conformance.hfp`); the host fetches it and loads it into the on-target
+binary with `-p`, and the target never reads deviceConfig.
+
+Adding a target adds one host-only `deviceConfig` (named by config) pointing at
+that platform's HFP, and a `raft/` entry — **no new test code**.
 
 ## Layout
 

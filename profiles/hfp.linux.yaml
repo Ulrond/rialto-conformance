@@ -1,0 +1,60 @@
+# Copyright 2026 RDK Management
+# SPDX-License-Identifier: Apache-2.0
+#
+# Hardware Feature Profile (HFP) — the LINUX software platform.
+#
+# The variable-feature declaration for the software Rialto built by
+# ../build-rialto.sh (NATIVE_BUILD). Linux is treated as just another platform:
+# the backend underneath is a software stack, not a SoC. This is the HFP the
+# local gate loads:
+#   RIALTO_CONFORMANCE_TIER=core ./build/bin/rialto_conformance -a \
+#       -p profiles/hfp.linux.yaml
+#
+# The host-side deviceConfig.linux.yaml points at this file (file:// URL) via its
+# `conformance.hfp` field; the software gate loads it directly. Set a toggle false
+# if the local software build does not provide that feature. Schema: hfp.schema.yaml.
+
+hfp:
+  schemaVersion: 1
+  platform: "linux-native"        # the Linux software platform (not a SoC family)
+
+  control:
+    stateToggle: true             # the gate runs against a ServerManagerSim it
+                                  # controls, so a case can drive an
+                                  # INACTIVE<->ACTIVE transition after connecting
+                                  # (RC-CORE-CONTROL-002 notify-on-transition).
+                                  # Off / absent on real hardware — no sim to drive.
+
+  codecs:
+    video:
+      hevc:        false          # software backend: enable per what NATIVE_BUILD provides
+      vp9:         false
+      av1:         false
+      dolbyvision: false
+    audio:
+      eac3:      false
+      ac4:       false
+      opus:      false
+      rawLayout: false
+
+  webaudio:
+    playout: false                # headless software build has no audio-render
+                                  # device; the create + query surface is tested
+                                  # unconditionally, only the play-out state
+                                  # machine (WEBAUDIO-002) gates on this
+
+  drm:
+    clearkey:        true         # W3C org.w3.clearkey — the software build's
+                                  # OpenCDM backend (backends/opencdm/clearkey,
+                                  # RIALTO_OCDM_BACKEND=clearkey)
+    widevine:        false        # no real vendor CDM in the software build
+    playready:       false
+    fairplay:        false        # com.apple.fps — unmet by Rialto (coverage/matrix.yaml gap)
+    secureVideoPath: false
+
+  passthrough:
+    hdr:   false
+    hfr:   false
+    uhd4k: false
+    uhd8k: false
+    atmos: false
