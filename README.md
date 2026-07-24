@@ -122,6 +122,42 @@ is the opt-in Linux software platform — `build-rialto.sh` produces a local
 In practice ut-raft fetches the HFP host-side and installs + runs the package —
 see [raft/](raft/).
 
+## Run against a render-capable backend (one command)
+
+[target-run.sh](target-run.sh) is the drop-in counterpart to
+[sc-run.sh](sc-run.sh): where `sc-run.sh` builds a *software* Rialto and stands
+up its own server, `target-run.sh` runs the gate against an **already-running**
+external backend — a real target, or a render-capable x86 VM whose video sink
+actually renders (unlike the headless software platform, which fakes the render
+path). Same binary, same cases; only the backend underneath differs, so any diff
+in the verdict is a real backend difference.
+
+The backend contract is a single **session env** file it exports — the running
+server socket, the runtime paths of its real sinks, and the install prefix to
+link against:
+
+```bash
+# session.env (emitted by the backend)
+export RIALTO_SOCKET_PATH=/run/rialto/session.sock   # the live server
+export LD_LIBRARY_PATH=/opt/rialto/lib:$LD_LIBRARY_PATH
+export GST_PLUGIN_PATH=/opt/rialto/lib/gstreamer-1.0
+export RIALTO_NATIVE_PREFIX=/opt/rialto               # has lib/pkgconfig/RialtoClient.pc
+```
+
+Any backend that emits such a file is then testable with one command:
+
+```bash
+./target-run.sh --session-env session.env                 # CORE gate on the backend
+./target-run.sh --session-env session.env --tier all      # both tiers
+./target-run.sh --session-env session.env --profile profiles/hfp.<target>.yaml
+```
+
+It builds the suite against the backend's `RialtoClient.pc`, points the runtime
+at the backend's real sinks (no fake-sink promotion), and runs `-a -p <hfp>`
+against the live socket. It starts no server of its own — the backend owns that;
+cases that need the software sim's control surface self-skip when the HFP does
+not declare the feature.
+
 ## Test levels (scope of test, not platform)
 
 | Level | Group ID | Scope |
