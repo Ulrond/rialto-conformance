@@ -122,41 +122,34 @@ is the opt-in Linux software platform — `build-rialto.sh` produces a local
 In practice ut-raft fetches the HFP host-side and installs + runs the package —
 see [raft/](raft/).
 
-## Run against a render-capable backend (one command)
+## Run on a Linux box via raft (one command)
 
-[target-run.sh](target-run.sh) is the drop-in counterpart to
-[sc-run.sh](sc-run.sh): where `sc-run.sh` builds a *software* Rialto and stands
-up its own server, `target-run.sh` runs the gate against an **already-running**
-external backend — a real target, or a render-capable x86 VM whose video sink
-actually renders (unlike the headless software platform, which fakes the render
-path). Same binary, same cases; only the backend underneath differs, so any diff
-in the verdict is a real backend difference.
-
-The backend contract is a single **session env** file it exports — the running
-server socket, the runtime paths of its real sinks, and the install prefix to
-link against:
+For a **render-capable Linux box** — an x86 VM whose video sink actually renders
+(unlike the headless software platform) or a local software Rialto — the box is
+just another raft **slot**. [run-linux.sh](run-linux.sh) is the friendly entry:
 
 ```bash
-# session.env (emitted by the backend)
-export RIALTO_SOCKET_PATH=/run/rialto/session.sock   # the live server
-export LD_LIBRARY_PATH=/opt/rialto/lib:$LD_LIBRARY_PATH
-export GST_PLUGIN_PATH=/opt/rialto/lib/gstreamer-1.0
-export RIALTO_NATIVE_PREFIX=/opt/rialto               # has lib/pkgconfig/RialtoClient.pc
+./run-linux.sh                              # rack1 / linux-native (default)
+./run-linux.sh --slotName lab-linux-2       # a different Linux slot
 ```
 
-Any backend that emits such a file is then testable with one command:
+python_raft then runs the standard flow: build the suite if it is not already
+built ([packaging/package.sh](packaging/package.sh) → `build.sh`), connect to the
+box, copy the binary across, and run the cases from the host — exec'ing the binary
+on the target and adjudicating the xUnit it returns. Same binary, same cases as
+every other target; only the backend underneath differs.
 
-```bash
-./target-run.sh --session-env session.env                 # CORE gate on the backend
-./target-run.sh --session-env session.env --tier all      # both tiers
-./target-run.sh --session-env session.env --profile profiles/hfp.<target>.yaml
-```
+Point it at your box by editing the slot's console `ip`/`username` in
+[raft/rack_config.linux.yml](raft/rack_config.linux.yml) — the render VM's address,
+or `localhost` for a box on this host. The `linux-native` platform's capability
+gate + orchestration inputs come from the included
+[profiles/deviceConfig.linux.yaml](profiles/deviceConfig.linux.yaml) (which points
+its HFP at [profiles/hfp.linux.yaml](profiles/hfp.linux.yaml)). The box must be
+running a Rialto server the deployed binary connects to; swapping the box is a
+config edit, never a test change.
 
-It builds the suite against the backend's `RialtoClient.pc`, points the runtime
-at the backend's real sinks (no fake-sink promotion), and runs `-a -p <hfp>`
-against the live socket. It starts no server of its own — the backend owns that;
-cases that need the software sim's control surface self-skip when the HFP does
-not declare the feature.
+The equivalent hardware-target flow is the same command with the target's slot
+(see [raft/rack_config.yml](raft/rack_config.yml)).
 
 ## Test levels (scope of test, not platform)
 
