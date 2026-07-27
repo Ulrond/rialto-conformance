@@ -19,7 +19,7 @@
 /**
  * @file PipelineTests.cpp
  *
- * L1 — function testing for Surface B: IMediaPipeline (§6 L1).
+ * L1 — function testing for Firebolt interface: IMediaPipeline (§6 L1).
  *
  * IMediaPipeline is the native client API an external media app uses to drive
  * playback: it creates a pipeline bound to a client through the published

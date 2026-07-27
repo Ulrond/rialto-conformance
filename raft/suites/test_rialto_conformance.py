@@ -20,15 +20,18 @@
 Host-side orchestration over a RAFT console session:
 
   1. Deploy the standalone package (packaging/package.sh output) to the target.
-  2. Launch the on-target binary in automated mode with the target's KVP profile:
-         rialto_conformance -a -p <kvpProfile>
+  2. Fetch the platform's HFP (Hardware Feature Profile) from the URL named by
+     device_config's `conformance.hfp`, ship the resolved file to the target, and
+     launch the on-target binary in automated mode with it:
+         rialto_conformance -a -p <hfp>
   3. Pull the produced xUnit/JUnit XML back to the host and adjudicate it.
 
 raft is GIVEN the target by config (--rack/--slotName select the slot in
 rack_config.yml; the slot's `platform` links to device_config.yml). It has no
-concept of the platform — the only platform-specific input is which KVP profile
-device_config names, and that is shipped, not coded. The same binary and the
-same cases run on every target.
+concept of the platform — the only platform-specific input is the HFP that
+device_config names by URL. deviceConfig is host-only; the HOST fetches the HFP
+and ships the resolved file, and the target consumes only that. The same binary
+and the same cases run on every target.
 
 Run (via the isolated host venv that install.sh creates):
     python_venv/bin/python raft/suites/test_rialto_conformance.py \
@@ -36,7 +39,11 @@ Run (via the isolated host venv that install.sh creates):
 """
 
 import os
+import shutil
 import subprocess
+import tempfile
+import urllib.parse
+import urllib.request
 import xml.etree.ElementTree as ET
 
 from raft import RAFTUnitTestCase, RAFTUnitTestMain  # provided by python_raft / ut-raft
@@ -50,16 +57,18 @@ class RialtoConformance(RAFTUnitTestCase):
     def setUp(self):
         self.dut.session.open()
         # Per-target conformance params come from device_config.yml — never code.
-        # self.dut.config is the cpe entry (deviceConfig/cpe1); the conformance
-        # block + the rialto capability gate both live under it.
+        # self.dut.config is the cpe entry (deviceConfig/cpe1); the host-only
+        # `conformance` block carries the orchestration inputs + the HFP URL.
         self.conf = self.dut.config.get("conformance", {})
         self.install_dir = self.conf.get("installDir", "/opt/rialto-conformance")
         self.binary = self.conf.get("binary", "rialto_conformance")
         self.results_dir = self.conf.get("resultsDir", f"{self.install_dir}/results")
-        # The deviceConfig file IS the on-target KVP profile (it carries
-        # deviceConfig/cpe1/rialto/*). Ship it and load it with -p.
-        self.device_config = os.path.join(REPO_ROOT, "raft", "device_config.yml")
-        self.remote_profile = f"{self.install_dir}/deviceConfig.yml"
+        # The capability gate is the platform's HFP, named by URL. The HOST fetches
+        # it (deviceConfig is never shipped) and ships the resolved file to the
+        # target, where the binary loads it with -p.
+        self.hfp_url = self.conf.get("hfp")
+        self.assertTrue(self.hfp_url, "device_config conformance.hfp (HFP URL) is not set")
+        self.remote_hfp = f"{self.install_dir}/hfp.yml"
         self.local_results = os.path.join(REPO_ROOT, "logs", "results")
         os.makedirs(self.local_results, exist_ok=True)
 
@@ -78,18 +87,20 @@ class RialtoConformance(RAFTUnitTestCase):
 
     # --- run + adjudicate ---------------------------------------------------
     def test_10_run_conformance(self):
-        """Run `-a -p <profile>` against the installed Rialto and parse xUnit."""
+        """Run `-a -p <hfp>` against the installed Rialto and parse xUnit."""
         remote_xml = f"{self.results_dir}/rialto_conformance.xml"
         self.dut.session.write(f"mkdir -p {self.results_dir}")
         self.dut.session.read_until(self.dut.session.prompt, timeout=15)
 
-        # Ship the deviceConfig (the capability profile) to the target.
-        self._copy_to_target(self.device_config, self.remote_profile)
+        # Host fetches the platform HFP from its URL, then ships the resolved file
+        # to the target. deviceConfig is never shipped; the target sees only the HFP.
+        local_hfp = self._fetch_hfp(self.hfp_url)
+        self._copy_to_target(local_hfp, self.remote_hfp)
 
-        # Automated mode emits xUnit/JUnit XML; -p loads the deviceConfig so the
-        # single binary self-selects the cases this target's platform exposes.
+        # Automated mode emits xUnit/JUnit XML; -p loads the HFP so the single
+        # binary self-selects the cases this target's platform exposes.
         self.dut.session.write(
-            f"cd {self.install_dir} && ./{self.binary} -a -p {self.remote_profile} "
+            f"cd {self.install_dir} && ./{self.binary} -a -p {self.remote_hfp} "
             f"-l {self.results_dir}/ ; echo RUN_DONE_$?"
         )
         self.dut.session.read_until("RUN_DONE_", timeout=900)
@@ -115,6 +126,28 @@ class RialtoConformance(RAFTUnitTestCase):
         path = out.stdout.strip().splitlines()[-1]
         self.assertTrue(os.path.isfile(path), f"package.sh did not produce an artifact: {path}")
         return path
+
+    def _fetch_hfp(self, url):
+        """Resolve the platform HFP URL to a local file on the host.
+
+        Supports http(s):// (fetched) and file:// (copied). A file:// path may be
+        absolute (file:///abs) or repo-relative (file://profiles/hfp.x.yaml). The
+        target never fetches — the host resolves the URL and ships the result.
+        """
+        parts = urllib.parse.urlparse(url)
+        local = os.path.join(tempfile.mkdtemp(prefix="hfp-"), "hfp.yml")
+        if parts.scheme in ("http", "https"):
+            with urllib.request.urlopen(url, timeout=30) as resp, open(local, "wb") as out:
+                shutil.copyfileobj(resp, out)
+        elif parts.scheme == "file":
+            src = parts.netloc + parts.path       # netloc is set for file://relative/...
+            if not os.path.isabs(src):
+                src = os.path.join(REPO_ROOT, src)
+            shutil.copyfile(src, local)
+        else:
+            self.fail(f"unsupported HFP URL scheme in {url!r} (want http(s):// or file://)")
+        self.assertTrue(os.path.getsize(local) > 0, f"fetched HFP is empty: {url}")
+        return local
 
     def _copy_to_target(self, local, remote):
         """Prefer the RAFT console's file transfer; fall back to scp via config."""

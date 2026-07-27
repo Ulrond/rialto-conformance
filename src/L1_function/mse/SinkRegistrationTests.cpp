@@ -19,12 +19,12 @@
 /**
  * @file SinkRegistrationTests.cpp
  *
- * L1 — function testing for Surface A: rialtomse*sink element registration,
+ * L1 — function testing for mseSink interface: rialtomse*sink element registration,
  * naming, rank-gating, and factory metadata. The app sees these elements exactly
  * as the GStreamer registry exposes them — by factory name, with the klass and
  * interfaces it introspects to plug them into a pipeline — so the suite resolves
  * and inspects them the same way; no Rialto internal headers are involved
- * (§2 Surface A).
+ * (§2 mseSink interface).
  *
  * Coverage trace: coverage/rc-core-catalog.yaml — RC-CORE-MSE-001 (availability +
  * naming), RC-CORE-MSE-002 (rank-gated registration), RC-CORE-MSE-003 (factory
@@ -136,7 +136,7 @@ constexpr const char *kRankOneEnv = "unset RIALTO_SOCKET_PATH; export RIALTO_SIN
 
 UT_ADD_TEST_TO_GROUP(L1SinkRegistrationTests, UT_TESTS_L1);
 
-// The MSE sinks are the required Surface A — tested unconditionally. Their
+// The MSE sinks are the required mseSink interface — tested unconditionally. Their
 // absence is a conformance FAILURE, not a capability skip, so these cases are
 // not gated.
 

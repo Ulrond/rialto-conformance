@@ -19,7 +19,7 @@
 /**
  * @file SinkCapsDataPathTests.cpp
  *
- * L4 — end-to-end data-path case for Surface A: the incoming CAPS-event field parse
+ * L4 — end-to-end data-path case for mseSink interface: the incoming CAPS-event field parse
  * of RC-CORE-MSECAPS-006. The sink's CAPS handler reads codec_data, alignment,
  * stream-format (and, on H.265, the Dolby-Vision dovi-stream/dv_profile) out of the
  * incoming caps and carries them into the Rialto video source it attaches

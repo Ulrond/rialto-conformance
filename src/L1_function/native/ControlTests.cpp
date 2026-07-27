@@ -19,7 +19,7 @@
 /**
  * @file ControlTests.cpp
  *
- * L1 — function testing for Surface B: IControl / IControlClient.
+ * L1 — function testing for Firebolt interface: IControl / IControlClient.
  *
  * IControl is the entry point to the native client API: it owns the IPC
  * connection and shared memory, registers a client for application-state

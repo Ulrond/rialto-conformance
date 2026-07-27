@@ -52,7 +52,20 @@ clone_repo()
 
     if [ -d "${path}/.git" ]; then
         echo "[install.sh] ${name}: present, checking out pinned ${ref}"
+        # Honour a change of repo_url in the lock (e.g. a temporary fork pin):
+        # re-point origin at the locked URL and fetch it, so a pinned commit that
+        # lives only in that remote (not the one the clone was first made from)
+        # resolves. Without this an existing clone fetches the stale origin and a
+        # fork-only SHA fails with "reference is not a tree".
+        git -C "${path}" remote set-url origin "${repo_url}"
         git -C "${path}" fetch --quiet --tags origin || true
+        # build-rialto.sh overwrites the in-tree OCDM stub with the selected
+        # backend (backends/opencdm/<name>/open_cdm.cpp), so a clone that has been
+        # built carries a modification git refuses to check out over. It is
+        # generated, never authored here — restore it, exactly as build-rialto.sh
+        # does before it re-applies the backend. Without this a pin bump aborts
+        # with "local changes would be overwritten by checkout".
+        git -C "${path}" checkout --quiet -- stubs/opencdm/open_cdm.cpp 2>/dev/null || true
         git -C "${path}" checkout --quiet "${ref}"
         return
     fi

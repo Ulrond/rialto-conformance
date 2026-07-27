@@ -7,11 +7,11 @@
 # software Rialto, bring up a RialtoServer, run the conformance gate, tear down.
 # Runs inside the SC docker (cwd = the mounted repo); invoked by sc-run.sh.
 #
-# Surface B (native client API) is IPC-based: the client connects to a
+# Firebolt interface (native client API) is IPC-based: the client connects to a
 # RialtoServer over RIALTO_SOCKET_PATH. We stand one up via the ServerManagerSim
 # (an HTTP control surface on :9008): POST /SetState/<app>/Active with a socket
 # name launches a RialtoServer SessionServer on /tmp/<socket>; the client then
-# connects there. Surface A (sinks) only needs RIALTO_SINKS_RANK.
+# connects there. mseSink interface (sinks) only needs RIALTO_SINKS_RANK.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -112,9 +112,11 @@ export RIALTO_SOCKET_PATH="${SOCK}"
 # Expose the sim control surface so a case can drive the server application-state
 # machine after connecting (RC-CORE-CONTROL-002's notify-on-transition clause:
 # SimControl POSTs SetState/<app>/{Inactive,Active}). Gated on the
-# `control.stateToggle` deviceConfig feature (declared for linux-native only).
+# `control.stateToggle` HFP feature (declared for linux-native only).
 export RIALTO_CONFORMANCE_SIM_HOST="localhost"
 export RIALTO_CONFORMANCE_SIM_PORT="${SIM_PORT}"
 export RIALTO_CONFORMANCE_APP="${APP}"
 echo "[run] running CORE gate (tier=${TIER})"
-RIALTO_CONFORMANCE_TIER="${TIER}" ./build/bin/rialto_conformance -a -p profiles/deviceConfig.linux.yaml
+# Direct local run against the software stack: load the Linux platform's HFP (the
+# capability gate) with -p. deviceConfig is host-only and not used here.
+RIALTO_CONFORMANCE_TIER="${TIER}" ./build/bin/rialto_conformance -a -p profiles/hfp.linux.yaml

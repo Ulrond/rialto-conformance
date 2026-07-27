@@ -19,7 +19,7 @@
 /**
  * @file ClientLogControlTests.cpp
  *
- * L1 — function testing for Surface B: IClientLogControl / IClientLogHandler.
+ * L1 — function testing for Firebolt interface: IClientLogControl / IClientLogHandler.
  *
  * IClientLogControl lets an application redirect the Rialto client library's log
  * output to its own handler. These cases exercise the published contract: the

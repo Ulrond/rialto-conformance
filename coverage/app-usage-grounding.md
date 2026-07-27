@@ -15,13 +15,13 @@ to the `RC-*` rows they correspond to.
 
 ## Findings
 
-### Surface A is the app-facing contract; Surface B is its dependency
+### mseSink interface is the app-facing contract; Firebolt interface is its dependency
 Deployed players drive playback through the **GStreamer MSE sinks**
-(`rialtomse{audio,video}sink`, Surface A) — they install the sinks into a
+(`rialtomse{audio,video}sink`, mseSink interface) — they install the sinks into a
 `playbin`/`appsrc` graph and set element properties. No shipping player drives
-the native `IMediaPipeline` (Surface B) directly; that surface is exercised
+the native `IMediaPipeline` (Firebolt interface) directly; that surface is exercised
 internally by the sinks. The suite covers both, and both matter — the sinks
-depend on the native contract — but the **app-facing priority is Surface A**.
+depend on the native contract — but the **app-facing priority is mseSink interface**.
 Reflected in the matrix: the `path: mse` rows are the app contract; the
 `path: native` rows are the contract the sinks rely on.
 
@@ -46,19 +46,22 @@ Players attach codec media-type caps and the sink reads
 from the incoming caps to build the server source — covered by
 **RC-CORE-MSECAPS-006** (with DV/raw-audio as the platform-variable slice).
 
-### Property-surface churn — the study's sink data is version-sensitive
-The suite targets **rialto-gstreamer v0.20.1** (`framework.lock`), which is the
-latest release tag. Two video-sink properties the usage study lists —
-`report-decode-errors` and `queued-frames` — are **not** in v0.20.1: they were
-present in v0.16.0–v0.18.0 and **removed in v0.19.0**. The study's
-rialto-gstreamer checkout therefore predates that removal, so its video-sink
-property list is version-stale relative to the targeted release, not ahead of it.
-The suite covers the **current** v0.20.1 sink property surface **completely** —
-every unconditional video / audio / base-sink property is asserted by the MSEPROP
-cases (verified by enumerating the installed `g_param_spec` names against the test
-source). So there is no pin bump warranted (v0.20.1 is newest) and no
-missing-property gap; when reading the study, treat its property inventory as of
-its older checkout, not the targeted release.
+### Property-surface churn — the sink property set is release-bound
+The suite targets **rialto-gstreamer v0.22.0** (`framework.lock`). The video-sink
+property set is not monotonic across releases, so any statement about "the sink
+properties" is only meaningful against a stated pin.
+
+`report-decode-errors` and `queued-frames` are the worked example: present in
+v0.16.0–v0.18.0, **removed in v0.19.0**, and **re-introduced in v0.22.0** — this
+time backed by first-class public API (`IMediaPipeline::setReportDecodeErrors` /
+`getQueuedFrames`), which makes them interface surface rather than vendor
+extensions. Both are covered at the targeted release by **RC-CORE-MSEPROP-011**.
+
+The suite covers the v0.22.0 sink property surface **completely** — every
+unconditional video / audio / base-sink property is asserted by the MSEPROP cases
+(verified by enumerating the installed `g_param_spec` names against the test
+source). When reading the usage study, treat its property inventory as of its own
+checkout and re-anchor it to the pin before drawing a coverage conclusion.
 
 ### Properties with no Rialto MSE sink equivalent
 Players set several properties on their platform video sink that the

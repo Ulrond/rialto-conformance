@@ -1,0 +1,62 @@
+# Copyright 2026 RDK Management
+# SPDX-License-Identifier: Apache-2.0
+#
+# Hardware Feature Profile (HFP) — full-feature reference template.
+#
+# The HFP declares the VARIABLE platform features the conformance suite gates on.
+# It is PLATFORM-SPECIFIC and platform-owned: each platform hosts its own HFP and
+# names it (by URL) from the host-side deviceConfig `conformance.hfp` field. The
+# host fetches the HFP and hands the resolved file to the on-target binary with
+# `-p`; the target consumes the HFP and never sees deviceConfig.
+#
+# This is NOT python_raft's deviceConfig.yaml — no host orchestration lives here,
+# and no host tooling reads the toggles below. deviceConfig points at the HFP;
+# the HFP holds only the capability gate.
+#
+# ONLY variable features are declared. The standard required surface (the MSE
+# audio/video/text sinks, the core native interfaces, baseline H.264 + AAC) is
+# MANDATORY and tested UNCONDITIONALLY — its absence is a FAILURE, never a skip —
+# so it is not listed here. A toggle means "this genuinely varies between
+# platforms". A missing key reads as unsupported (the case self-skips).
+#
+# Cases read a key with UT_KVP_PROFILE_GET_BOOL("hfp/<key>") and self-skip via
+# UT_IGNORE_TEST() when it is off. Schema + key docs: hfp.schema.yaml. The values
+# below enable a full feature set so every gated case is exercised.
+
+hfp:
+  schemaVersion: 1
+  platform: "reference"          # descriptive label only; the suite never branches on it
+
+  control:
+    stateToggle: false           # ServerManagerSim present to drive INACTIVE<->ACTIVE
+                                 # (RC-CORE-CONTROL-002 notify-on-transition). Off on
+                                 # real hardware — no sim to drive.
+
+  codecs:
+    video:
+      hevc:        true          # H.265
+      vp9:         true
+      av1:         true
+      dolbyvision: false         # MSECAPS-006 dovi-stream/dv_profile field group
+    audio:
+      eac3:      true
+      ac4:       true
+      opus:      true
+      rawLayout: false           # MSECAPS-006 raw-audio layout/format field group
+
+  webaudio:
+    playout: true                # platform renders web-audio (PCM mixing) to a device
+
+  drm:
+    clearkey:        true        # org.w3.clearkey
+    widevine:        true        # com.widevine.alpha
+    playready:       true        # com.microsoft.playready
+    fairplay:        false       # com.apple.fps — unmet by Rialto (coverage/matrix.yaml gap)
+    secureVideoPath: true        # SVP
+
+  passthrough:
+    hdr:   true
+    hfr:   true
+    uhd4k: true
+    uhd8k: false
+    atmos: true

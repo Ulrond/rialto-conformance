@@ -22,7 +22,7 @@
 /**
  * @file MseSinkFeed.h
  *
- * Data-path feed harness for the Surface A (MSE GStreamer sink) conformance cases
+ * Data-path feed harness for the mseSink interface (MSE GStreamer sink) conformance cases
  * whose contract is a transform applied to the server source through an *active*
  * sink pad — RC-CORE-MSEEVENT-006..011 and the MSEEVENT-012 upstream-forward
  * clause. These cannot be introspected on a standalone READY sink (the pad event

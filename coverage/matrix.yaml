@@ -22,7 +22,7 @@
 #                   external contract as the old one. Run first; must be green.
 #        extended — app/player-requirement conformance (Phase 2), layered on top.
 #
-# path:  native (Surface B, public client API) | mse (Surface A, rialtomse*sink)
+# path:  native (Firebolt interface, public client API) | mse (mseSink interface, rialtomse*sink)
 #        | both (a consistency case asserting the two surfaces agree)
 #
 # A requirement is surface-neutral. Where the same backend fact is exposed on
@@ -37,7 +37,7 @@
 schemaVersion: 2
 # The Rialto release this record targets (framework.lock pin). NOT Rialto's binary
 # ABI (fixed per release) — it is the release the suite is validated against.
-targetRialtoRelease: "v0.22.3"
+targetRialtoRelease: "v0.24.0"
 
 # --- Operations (the IMediaPipeline / IMediaKeys / IWebAudioPlayer functions) -
 operations:
@@ -290,7 +290,7 @@ operations:
     tier: core
     path: native
     req: [RC-CORE-KEYS-011]
-    expected: "getDrmTime + getCdmKeySessionId succeed; the store-less queries answer a defined status without hanging"
+    expected: "getDrmTime + getCdmKeySessionId succeed; the store-less queries (hashes/LDL/metrics) and the deleteDrmStore/deleteKeyStore mutations answer a defined status without hanging"
     case: "L1KeysSessionTests.StoreAndMaintenanceQueriesAnswer"
     status: covered
     # ClearKey keeps no persistent store, so the store hashes / LDL limit /
@@ -304,6 +304,15 @@ operations:
     req: [RC-CORE-KEYS-012]
     expected: "The client is held weak_ptr: it is releasable while the session stays operable, and no callback is delivered after release"
     case: "L1KeysSessionTests.ClientHeldWeaklyAndReleasable"
+    status: covered
+
+  - op: selectKeyId
+    interface: IMediaKeys
+    tier: core
+    path: native
+    req: [RC-CORE-KEYS-013]
+    expected: "selectKeyId answers a valid key-loaded session with a defined status and recognises it (not BAD_SESSION_ID); ClearKey is single-key, so a specific OK is not required (firms into OK on a multi-key vendor CDM)"
+    case: "L1KeysSessionTests.SelectKeyIdAnswersForValidSession"
     status: covered
 
   - op: setDrmHeader
@@ -378,7 +387,7 @@ operations:
     case: "L1ClientLogControlTests.NullHandlerCancelsDelivery"
     status: covered
 
-  # --- IMediaPipeline (Surface B native) -------------------------------------
+  # --- IMediaPipeline (Firebolt interface native) -------------------------------------
   # Create + client-binding introspection (green on the software platform). The
   # rest of the IMediaPipeline surface — transport (attachSource /
   # allSourcesAttached / play / seek / flush), per-source properties, AND the
@@ -405,10 +414,14 @@ operations:
     case: "L1PipelineTests.GetClientReturnsSuppliedClient"
     status: covered
 
-  # Transport + playback state machine — driven over the software render / data
-  # path (#18): a real AAC source is loaded, attached, and taken through
-  # play/pause/stop against the live server (MediaFeed). The state-transition rows
-  # assert both the synchronous return and the PlaybackState notification the
+  # Transport + playback state machine. The pre-realization setup rows — load,
+  # attachSource, removeSource, allSourcesAttached (PIPE-003/004/005/006) — take
+  # effect without a realized backend and are L2 module cases
+  # (L2PipelineLifecycleTests), asserted data-path-free. The transitions below the
+  # realized-backend boundary — play/pause/stop, setPlaybackRate, setPosition/seek
+  # (PIPE-007..011) — are driven over the software render / data path (#18): a real
+  # AAC source is fed to PLAYING against the live server (MediaFeed), and each row
+  # asserts both the synchronous return and the PlaybackState notification the
   # transition produces; that notification sequence is the one Rialto's own
   # component tests encode (see coverage/interface-definition-gaps.md IDG-004),
   # asserted as the CORE transform-safety contract.
@@ -418,7 +431,7 @@ operations:
     path: native
     req: [RC-CORE-PIPE-003]
     expected: "load(MSE, mimeType, url, isLive) returns true for a supported source type"
-    case: "L4PipelineTransportDataPathTests.LoadAndAttachAssignRetrievableSourceId"
+    case: "L2PipelineLifecycleTests.LoadAttachRemoveSource"
     status: covered
 
   - op: attachSource
@@ -426,8 +439,8 @@ operations:
     tier: core
     path: native
     req: [RC-CORE-PIPE-004]
-    expected: "attachSource is valid for MediaType::MSE and assigns a source id retrievable via MediaSource::getId()"
-    case: "L4PipelineTransportDataPathTests.LoadAndAttachAssignRetrievableSourceId"
+    expected: "attachSource is valid for MediaType::MSE and assigns a source id retrievable via MediaSource::getId(); a second source of a different type gets its own distinct id"
+    case: "L2PipelineLifecycleTests.LoadAttachRemoveSource (+ .MultiSourceAttachComposition for the multi-source composition leg)"
     status: covered
 
   - op: removeSource
@@ -436,7 +449,7 @@ operations:
     path: native
     req: [RC-CORE-PIPE-005]
     expected: "removeSource(id) returns true for a previously attached source id"
-    case: "L4PipelineTransportDataPathTests.RemoveSourceSucceedsForAttachedSource"
+    case: "L2PipelineLifecycleTests.LoadAttachRemoveSource"
     status: covered
 
   - op: allSourcesAttached
@@ -444,8 +457,8 @@ operations:
     tier: core
     path: native
     req: [RC-CORE-PIPE-006]
-    expected: "allSourcesAttached must precede streaming and may be called only once; the first call returns true, a second returns false"
-    case: "L4PipelineTransportDataPathTests.AllSourcesAttachedIsLegalOnlyOnce"
+    expected: "allSourcesAttached must precede streaming and may be called only once; the first call returns true, a second returns false; one call gates the whole attached set"
+    case: "L2PipelineLifecycleTests.AllSourcesAttachedIsLegalOnlyOnce (+ .MultiSourceAttachComposition gating the multi-source set)"
     status: covered
 
   - op: play
@@ -589,21 +602,23 @@ operations:
     case: "L4DataProtocolTests.CleanRunNetworkStateVocabulary"
     status: covered
 
-  - op: "notifyBufferUnderflow / notifyFirstFrameReceived / notifyQos"
+  - op: "notifyBufferUnderflow / notifyFirstFrameReceived / notifyQos / notifyPosition"
     interface: IMediaPipelineClient
     tier: core
     path: native
     req: [RC-CORE-DATA-012]
-    expected: "A starved source never fails the pipeline; underflow/first-frame/QoS delivery observed (vendor-element-dependent)"
+    expected: "A starved source never fails the pipeline; underflow/first-frame/QoS/position delivery is recorded and observed (a delivered position is non-negative)"
     case: "L4DataProtocolTests.StarvationIsToleratedAndEventsObserved"
     status: covered
     # notifyBufferUnderflow rides the vendor buffer-underflow-callback GSignal —
     # the server connects to it where a decoder/sink exposes it (Rialto's own
     # UnderflowTest mocks the signal into existence), so delivery is structurally
-    # unavailable on the software elements. First-frame is sink-dependent and QoS
-    # needs real frame drops. The platform-independent starvation-robustness
-    # clause is asserted; the notifications are recorded and logged, firming up
-    # into asserts on a vendor target.
+    # unavailable on the software elements. First-frame is sink-dependent, QoS
+    # needs real frame drops, and position is a best-effort push. The harness
+    # records all four (QoS and position callback bodies capture count + last
+    # value); the platform-independent starvation-robustness clause is asserted and
+    # a delivered position is asserted non-negative, firming into hard delivery
+    # asserts on a vendor target that guarantees them.
 
   - op: addSegment
     interface: IMediaPipeline
@@ -647,7 +662,7 @@ operations:
     path: native
     req: [RC-CORE-DATA-011]
     expected: "notifyDuration uses the kDurationUnknown / kDurationUnending sentinels for unknown/live media"
-    case: "(the server never calls notifyDuration in v0.22.3 — see interface-definition-gaps.md IDG-002; awaiting the upstream verdict: by-design (row becomes n/a) or gap)"
+    case: "(the server never calls notifyDuration in v0.24.0 — see interface-definition-gaps.md IDG-002; awaiting the upstream verdict: by-design (row becomes n/a) or gap)"
     status: planned
 
   - op: "setBufferingLimit / getBufferingLimit"
@@ -812,7 +827,7 @@ operations:
     case: "(needs a SUBTITLE source — same dependency as PIPE-020)"
     status: planned
 
-  # --- IWebAudioPlayer (Surface B native) ------------------------------------
+  # --- IWebAudioPlayer (Firebolt interface native) ------------------------------------
   - op: createWebAudioPlayer
     interface: IWebAudioPlayerFactory
     tier: core
@@ -880,6 +895,15 @@ operations:
     case: "L1WebAudioTests.HighPriorityPlayerAppearsToFunction"
     status: covered
 
+  - op: getClient
+    interface: IWebAudioPlayer
+    tier: core
+    path: native
+    req: [RC-CORE-WEBAUDIO-008]
+    expected: "getClient returns the client the player was created with (held weakly)"
+    case: "L1WebAudioTests.GetClientReturnsSuppliedClient"
+    status: covered
+
 # --- Properties (sink/decoder properties) × path ------------------------------
 properties:
   - prop: element-registration
@@ -920,7 +944,7 @@ properties:
     tier: core
     path: mse
     req: [RC-CORE-MSEPROP-002]
-    expected: "base sink exposes buffer-underflow-callback and first-video-frame-callback GSignals"
+    expected: "buffer-underflow-callback on the base sink (every sink); first-video-frame-callback on the video sink"
     case: "L1PropertyTests.BaseSinkSignals"
     status: covered
 
@@ -974,8 +998,17 @@ properties:
     tier: core
     path: mse
     req: [RC-CORE-MSEPROP-008]
-    expected: "video server-conditional props (immediate-output, syncmode-streaming, show-video-window) conform when installed"
+    expected: "video server-conditional props (immediate-output, syncmode-streaming) conform when installed"
     case: "L1PropertyTests.VideoSinkConditionalProperties"
+    status: covered
+
+  - prop: video-sink-visibility-decode
+    interface: rialtomsevideosink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSEPROP-011]
+    expected: "show-video-window(T,WO), report-decode-errors(F,WO), queued-frames(0,RO) are installed unconditionally and conform; absence is a FAILURE"
+    case: "L1PropertyTests.VideoSinkVisibilityAndDecodeProperties"
     status: covered
 
   - prop: subtitle-sink-properties
@@ -1273,7 +1306,7 @@ consistency:
   - req: [RC-CORE-CONSIST-001, RC-CORE-CAPS-001]
     tier: core
     path: both
-    expected: "Each codec in native getSupportedMimeTypes with a documented Surface A translation is advertised by the matching sink's pad template"
+    expected: "Each codec in native getSupportedMimeTypes with a documented mseSink interface translation is advertised by the matching sink's pad template"
     case: "L2CapabilityConsistencyTests.SupportedMimesMatchSinkCaps"
     status: covered
 
@@ -1294,6 +1327,27 @@ consistency:
     # own), so consistency is asserted for the session-independent contract —
     # range + default — not per-session state.
 
+  - req: [RC-CORE-CONSIST-004, RC-CORE-PIPE-019]
+    tier: core
+    path: both
+    expected: "The mute contract agrees across surfaces: the audio and subtitle sinks' mute is boolean, default false, matching the native mute default (native per-source round-trip covered by PIPE-019)"
+    case: "L2CapabilityConsistencyTests.MuteContractAgreesAcrossSurfaces"
+    status: covered
+    # Session-independent contract only (type + default), same rationale as
+    # CONSIST-003; per-session mute state is not shareable across two clients.
+
+  - req: [RC-CORE-CONSIST-005, RC-CORE-CAPS-003]
+    tier: core
+    path: both
+    expected: "every vendor-gated optional property a sink installs is reported supported by native getSupportedProperties (audio: low-latency, sync, sync-off, stream-sync-mode, limit-buffering-ms, audio-fade, fade-volume; video: immediate-output, syncmode-streaming, show-video-window) — a sink must not expose a knob the platform disowns"
+    case: "L2CapabilityConsistencyTests.InstalledOptionalPropertiesAreNativeSupported"
+    status: covered
+    # Subset, not equality: native getSupportedProperties is a live registry scan
+    # (superset — it also reports properties like `sync` owned only by other
+    # platform elements, and its answer grows over the process lifetime), so
+    # native-only names are expected. See IDG-008. Per-surface property conformance
+    # is MSEPROP-005/008.
+
 # --- Known coverage gaps (surfacing unmet requirements is a primary point, §5)-
 gaps:
   - req: [RC-EXT-DRM-FPS-001]
@@ -1306,4 +1360,28 @@ gaps:
       PlayReady (com.widevine.alpha, com.microsoft.playready) but not
       com.apple.fps. FPS is a flagged coverage gap and a backlog item (add the
       FPS key system to Rialto/OCDM).
+    status: gap
+
+  - req: [RC-CORE-CONSIST-005, RC-CORE-CAPS-003]
+    tier: core
+    path: [native, mse]
+    surface: "IMediaPipelineCapabilities <-> rialtomse{audio,video}sink"
+    detail: >
+      The common-vs-platform-specific property boundary is undefined, so the
+      optional-property interface is not a stable, surface-accurate contract.
+      getSupportedProperties is a live registry scan
+      (GstCapabilities::getSupportedProperties): its answer depends on which
+      element factories are registered at call time and reflects any platform
+      element, not the rialto surface. Observed reproducibly on every gate run:
+      native getSupportedProperties(AUDIO) reports `sync`, yet rialtomseaudiosink
+      exposes no `sync` property (the backend supports it — server SetupElement
+      sets it), so the two surfaces disagree about whether `sync` is part of the
+      interface. Because a sink queries once at class-init and installs the
+      returned subset permanently, a property registering later is reported
+      supported natively but is absent from the sink forever. CONSIST-005
+      therefore asserts only the subset guard (a sink must not over-expose); the
+      equality/stability the common interface needs is not met. See IDG-008.
+      Backlog: define the common property set (tested unconditionally) vs
+      platform extensions, and make getSupportedProperties deterministic /
+      surface-accurate. Filed upstream against rdkcentral/rialto.
     status: gap

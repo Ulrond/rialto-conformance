@@ -27,10 +27,10 @@ provenance of those ids is kept out of this repo (see
 
 It tests two surfaces, and only these — never internal wiring:
 
-- **Surface A — MSE GStreamer sink** — the `rialtomse{audio,video}sink` and
+- **mseSink interface — MSE GStreamer sink** — the `rialtomse{audio,video}sink` and
   text-track sink elements (`rialto-gstreamer`): element names, properties, and
   caps negotiation.
-- **Surface B — Native client API** — the published C++ interfaces in
+- **Firebolt interface — Native client API** — the published C++ interfaces in
   `media/public/include/*` and their client/event callbacks.
 
 The suite is a standalone **installable package**. It links **only** Rialto's
@@ -64,8 +64,8 @@ which builds the software Rialto + the suite, brings up a **RialtoServer** via t
 ServerManagerSim (so the IPC-based native client API connects), and runs the gate.
 
 On the Linux software platform the CORE gate runs end-to-end: the MSE sinks
-(Surface A) and the native capabilities — codec/mime reporting, baseline H.264,
-video-master (Surface B) — pass against the live software Rialto. Two DRM-
+(mseSink interface) and the native capabilities — codec/mime reporting, baseline H.264,
+video-master (Firebolt interface) — pass against the live software Rialto. Two DRM-
 capability cases (`RC-CORE-KEYSCAP-002/003`) **fail by design**: the
 `NATIVE_BUILD` stubs OCDM, so it accepts any key system and reports no version —
 i.e. the gate correctly flags the stub as a non-conformant DRM backend. That is a
@@ -87,7 +87,7 @@ verdict is conformance to the published requirements, not an internal contract.
 All of the above are **installed at fixed versions by [install.sh](install.sh)**
 into the gitignored `framework/` area — never committed. The pins live in
 [framework.lock](framework.lock): ut-core **5.1.0**, python_raft **1.8.2**,
-ut-raft **2.1.2**, rialto **v0.22.3**, rialto-gstreamer **v0.20.1**; ut-control
+ut-raft **2.1.2**, rialto **v0.24.0**, rialto-gstreamer **v0.22.0**; ut-control
 **2.1.0** + GoogleTest **1.15.2** are pulled by ut-core's `build.sh`.
 
 ## Install + build
@@ -114,11 +114,42 @@ is the opt-in Linux software platform — `build-rialto.sh` produces a local
 ## Run (standalone, on a target with Rialto installed)
 
 ```bash
-./rialto_conformance -a -p deviceConfig.yaml     # automated xUnit + capability profile
-./rialto_conformance -b -p deviceConfig.yaml     # basic stdout
+./rialto_conformance -a -p hfp.yaml     # automated xUnit + HFP capability profile
+./rialto_conformance -b -p hfp.yaml     # basic stdout
 ```
 
-In practice ut-raft installs the package and runs it — see [raft/](raft/).
+`-p` loads the platform's HFP (Hardware Feature Profile) — the capability gate.
+In practice ut-raft fetches the HFP host-side and installs + runs the package —
+see [raft/](raft/).
+
+## Run on a Linux box via raft (one command)
+
+For a **render-capable Linux box** — an x86 VM whose video sink actually renders
+(unlike the headless software platform) or a local software Rialto — the box is
+just another raft **slot**. [run-linux.sh](run-linux.sh) is the friendly entry:
+
+```bash
+./run-linux.sh                              # rack1 / linux-native (default)
+./run-linux.sh --slotName lab-linux-2       # a different Linux slot
+```
+
+python_raft then runs the standard flow: build the suite if it is not already
+built ([packaging/package.sh](packaging/package.sh) → `build.sh`), connect to the
+box, copy the binary across, and run the cases from the host — exec'ing the binary
+on the target and adjudicating the xUnit it returns. Same binary, same cases as
+every other target; only the backend underneath differs.
+
+Point it at your box by editing the slot's console `ip`/`username` in
+[raft/rack_config.linux.yml](raft/rack_config.linux.yml) — the render VM's address,
+or `localhost` for a box on this host. The `linux-native` platform's capability
+gate + orchestration inputs come from the included
+[profiles/deviceConfig.linux.yaml](profiles/deviceConfig.linux.yaml) (which points
+its HFP at [profiles/hfp.linux.yaml](profiles/hfp.linux.yaml)). The box must be
+running a Rialto server the deployed binary connects to; swapping the box is a
+config edit, never a test change.
+
+The equivalent hardware-target flow is the same command with the target's slot
+(see [raft/rack_config.yml](raft/rack_config.yml)).
 
 ## Test levels (scope of test, not platform)
 
@@ -149,9 +180,9 @@ the capability/release gates), and the active selection is read from the
 `RIALTO_CONFORMANCE_TIER` environment variable:
 
 ```bash
-RIALTO_CONFORMANCE_TIER=core     ./rialto_conformance -a -p deviceConfig.yaml  # the gate
-RIALTO_CONFORMANCE_TIER=extended ./rialto_conformance -a -p deviceConfig.yaml
-./rialto_conformance -a -p deviceConfig.yaml                                   # both (default)
+RIALTO_CONFORMANCE_TIER=core     ./rialto_conformance -a -p hfp.yaml  # the gate
+RIALTO_CONFORMANCE_TIER=extended ./rialto_conformance -a -p hfp.yaml
+./rialto_conformance -a -p hfp.yaml                                   # both (default)
 ```
 
 Because tier gating is an in-test skip, it composes with the ut-core level filter
@@ -179,16 +210,21 @@ conformance **failure**, not a skip.
 
 - **End state** — the platform API reports the requirements it exposes; the suite
   reads them at runtime and self-selects its applicable cases.
-- **Interim / fallback** — the per-target `deviceConfig` (python_raft shape,
-  `deviceConfig: → cpe1: → platform:`; see
-  [profiles/deviceConfig.example.yaml](profiles/deviceConfig.example.yaml))
-  carries the per-platform feature toggles under `rialto:`. Cases read them with
-  `UT_KVP_PROFILE_GET_BOOL("deviceConfig/cpe1/rialto/<key>")` and self-skip via
-  `UT_IGNORE_TEST()` when a feature is off. Retired per backend as each gains
-  dynamic capability reporting.
+- **Interim / fallback** — the platform's **HFP** (Hardware Feature Profile; see
+  [profiles/hfp.example.yaml](profiles/hfp.example.yaml)) carries the per-platform
+  feature toggles under `hfp:`. Cases read them with
+  `UT_KVP_PROFILE_GET_BOOL("hfp/<key>")` and self-skip via `UT_IGNORE_TEST()` when
+  a feature is off. Retired per backend as each gains dynamic capability
+  reporting.
 
-Adding a target adds one `deviceConfig` (named by config) and a `raft/` entry —
-**no new test code**.
+The HFP is platform-specific and platform-owned. The host-only `deviceConfig`
+(python_raft shape; see
+[profiles/deviceConfig.example.yaml](profiles/deviceConfig.example.yaml)) names it
+by URL (`conformance.hfp`); the host fetches it and loads it into the on-target
+binary with `-p`, and the target never reads deviceConfig.
+
+Adding a target adds one host-only `deviceConfig` (named by config) pointing at
+that platform's HFP, and a `raft/` entry — **no new test code**.
 
 ## Layout
 
@@ -209,7 +245,7 @@ framework/            install.sh target — ut-core/ut-control/ut-raft/rialto (N
 ## Certification model
 
 The suite targets a specific **Rialto release** — the [framework.lock](framework.lock)
-pin (`targetRialtoRelease`, currently **v0.22.3**) — and passing it certifies a
+pin (`targetRialtoRelease`, currently **v0.24.0**) — and passing it certifies a
 backend at that release. A requirement may declare a `since:` release; on a target
 running an older Rialto it self-skips (`CONFORMANCE_REQUIRE_SINCE`), so a backend
 is never failed by a requirement for an interface it predates. (This is release

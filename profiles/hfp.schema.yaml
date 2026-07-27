@@ -1,0 +1,77 @@
+# Copyright 2026 RDK Management
+# SPDX-License-Identifier: Apache-2.0
+#
+# Hardware Feature Profile (HFP) schema (§3 req 2).
+#
+# The HFP declares the VARIABLE platform features the conformance capability gate
+# reads. It is platform-specific and platform-owned: a platform hosts its own HFP
+# and names it by URL from the host-side deviceConfig `conformance.hfp` field. The
+# host fetches the HFP and loads it into the on-target binary as the ut-core KVP
+# profile (`rialto_conformance -a -p <hfp>`); the target consumes it and never
+# sees deviceConfig. Cases read it with UT_KVP_PROFILE_GET_BOOL("hfp/<key>") and
+# self-skip via UT_IGNORE_TEST() when a feature is off (see
+# include/conformance/CapabilityGate.h).
+#
+# ONLY VARIABLE features are gated here. The standard required surface — the MSE
+# audio/video/text sinks, the core native interfaces (IControl, IMediaPipeline,
+# IMediaKeys, IWebAudioPlayer), and the baseline H.264 + AAC codecs — is
+# MANDATORY and tested UNCONDITIONALLY: its absence is a FAILURE, not a skip. Do
+# not add toggles for required features; a toggle means "this genuinely varies
+# between platforms".
+#
+# The gate is on PLATFORM-SUPPORTED features, not SoC capability — a SoC may be
+# capable of more than its platform supports, and two platforms on one SoC can
+# differ. There are no per-SoC profiles; one HFP describes one platform. The file
+# form is the interim bridge, retired per backend as each reports its
+# capabilities dynamically.
+#
+# Keys use dot or slash notation (ut-control normalises). Value types noted.
+
+hfp:
+  schemaVersion: int          # HFP schema version (currently 1)
+  platform: string            # descriptive label only — the suite never branches on it
+
+  # (The Rialto release the suite targets is the framework.lock pin, not an HFP
+  # field — see include/conformance/RialtoRelease.h.)
+
+  # Harness-driven server application-state transitions. True only where the gate
+  # runs against a ServerManagerSim it can drive (the software platform), letting
+  # a case provoke an INACTIVE<->ACTIVE edge after connecting to assert the
+  # IControl notify-on-transition callback (RC-CORE-CONTROL-002). Absent on real
+  # hardware — there is no sim, and the case self-skips.
+  control:
+    stateToggle: bool
+
+  # Optional/advanced codecs (H.264 + AAC are baseline-required, not listed).
+  codecs:
+    video:
+      hevc: bool              # H.265
+      vp9: bool
+      av1: bool
+      dolbyvision: bool       # MSECAPS-006 dovi-stream/dv_profile field group
+    audio:
+      eac3: bool
+      ac4: bool
+      opus: bool
+      rawLayout: bool         # MSECAPS-006 raw-audio layout/format field group
+
+  # Web-audio (IWebAudioPlayer PCM mixing) play-out. The create + query surface is
+  # required; only the play-out state machine gates on this.
+  webaudio:
+    playout: bool             # platform renders web-audio to an audio device
+
+  # DRM key systems the platform provisions (varies per target).
+  drm:
+    clearkey: bool            # org.w3.clearkey
+    widevine: bool            # com.widevine.alpha
+    playready: bool           # com.microsoft.playready
+    fairplay: bool            # com.apple.fps — unmet by Rialto today (coverage/matrix.yaml gap)
+    secureVideoPath: bool     # SVP
+
+  # Render/passthrough capabilities (HDR / HFR / 4K-8K / Atmos).
+  passthrough:
+    hdr: bool
+    hfr: bool
+    uhd4k: bool
+    uhd8k: bool
+    atmos: bool

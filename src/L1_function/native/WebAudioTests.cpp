@@ -19,7 +19,7 @@
 /**
  * @file WebAudioTests.cpp
  *
- * L1 — function testing for Surface B: IWebAudioPlayer (§6 L1).
+ * L1 — function testing for Firebolt interface: IWebAudioPlayer (§6 L1).
  *
  * IWebAudioPlayer is the native client API for mixing PCM audio with the current
  * audio output. An external app creates a player through the published factory,
@@ -320,4 +320,22 @@ UT_ADD_TEST(L1WebAudioTests, HighPriorityPlayerAppearsToFunction)
     bool supportDeferredPlay = false;
     UT_ASSERT_TRUE(player->getDeviceInfo(preferredFrames, maximumFrames, supportDeferredPlay));
     UT_ASSERT_FALSE(client->saw(WebAudioPlayerState::FAILURE));
+}
+
+/**
+ * RC-CORE-WEBAUDIO-008 — getClient returns the client the player was created with.
+ * The web-audio player holds its client weakly (the mirror of the pipeline's
+ * getClient contract), so a client the caller still owns is retrievable through
+ * the player.
+ */
+UT_ADD_TEST(L1WebAudioTests, GetClientReturnsSuppliedClient)
+{
+    CONFORMANCE_CORE_TEST();
+
+    auto client = std::make_shared<RecordingWebAudioClient>();
+    auto player = makePlayer(client, kTopPriority);
+    UT_ASSERT_NOT_NULL_FATAL(player.get());
+
+    auto returned = player->getClient().lock();
+    UT_ASSERT_TRUE(returned.get() == client.get());
 }

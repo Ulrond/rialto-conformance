@@ -1,19 +1,18 @@
 # Copyright 2026 RDK Management
 # SPDX-License-Identifier: Apache-2.0
 #
-# EXAMPLE deviceConfig (python_raft device-config shape) — the on-target ut-core
-# KVP profile, loaded with `rialto_conformance -a -p <deviceConfig>` (§3 req 2).
+# EXAMPLE deviceConfig (python_raft device-config shape) — HOST-ONLY.
 #
 # This is the template a deployment copies to raft/device_config.yml and edits
-# per target. The `rialto:` block is the capability gate: it lists only the
-# VARIABLE platform features. The standard required surface (MSE audio/video/text
-# sinks, the core native interfaces, baseline H.264 + AAC) is mandatory and
-# tested unconditionally — absence is a FAILURE, never a skip — so it is not
-# listed here.
+# per target. It carries python_raft's orchestration inputs (connection, install
+# location) and NAMES the platform's Hardware Feature Profile (HFP) by URL. It is
+# read on the host only.
 #
-# The gate is platform-supported features, NOT SoC capability; there are no
-# per-SoC profiles. Schema + key docs: deviceConfig.schema.yaml. The values below
-# enable a full feature set so every gated case is exercised.
+# deviceConfig does NOT carry the capability gate. The gate lives in the HFP — a
+# separate, platform-specific, platform-owned file named by `conformance.hfp`.
+# The host fetches the HFP from that URL and hands the resolved file to the
+# on-target binary with `-p`; the target consumes the HFP and never reads this
+# deviceConfig. HFP schema + template: hfp.schema.yaml / hfp.example.yaml.
 
 deviceConfig:
   cpe1:
@@ -21,36 +20,11 @@ deviceConfig:
     model: "reference"
     prompt: "root@target:~#"
 
-    rialto:
-
-      control:
-        stateToggle: false     # real hardware: no ServerManagerSim to drive, so
-                               # the notify-on-transition case (CONTROL-002)
-                               # self-skips here
-
-      codecs:
-        video:
-          hevc: true
-          vp9: true
-          av1: true
-        audio:
-          eac3: true
-          ac4: true
-          opus: true
-
-      webaudio:
-        playout: true          # platform can render web-audio (PCM mixing)
-
-      drm:
-        clearkey: true         # org.w3.clearkey
-        widevine: true
-        playready: true
-        fairplay: false        # com.apple.fps — unmet by Rialto (coverage/matrix.yaml gap)
-        secureVideoPath: true
-
-      passthrough:
-        hdr: true
-        hfr: true
-        uhd4k: true
-        uhd8k: false
-        atmos: true
+    # Host orchestration + the pointer to this platform's HFP. The host fetches
+    # the HFP from `hfp` and ships the resolved file to `installDir`; nothing on
+    # the target reads this deviceConfig.
+    conformance:
+      installDir: "/opt/rialto-conformance"       # where the package is installed
+      binary:     "rialto_conformance"
+      resultsDir: "/opt/rialto-conformance/results"
+      hfp: "https://<platform-owner>/hfp/reference.yaml"   # URL of THIS platform's HFP

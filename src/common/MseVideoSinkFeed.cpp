@@ -19,7 +19,7 @@
 /**
  * @file MseVideoSinkFeed.cpp
  *
- * Implementation of the Surface A MSE video-sink data-path feed harness
+ * Implementation of the mseSink interface MSE video-sink data-path feed harness
  * (MseVideoSinkFeed.h): a real `appsrc ! rialtomsevideosink` pipeline that feeds a
  * synthesised AVC-form H.264 stream through the Rialto MSE video sink to the live
  * RialtoServer. The appsrc caps carry the codec_data / stream-format / alignment

@@ -1,19 +1,20 @@
 # Copyright 2026 RDK Management
 # SPDX-License-Identifier: Apache-2.0
 #
-# deviceConfig for the LINUX software platform (python_raft device-config shape).
+# deviceConfig for the LINUX software platform (python_raft device-config shape)
+# — HOST-ONLY.
 #
 # Linux is treated as just another platform: the backend underneath is the
-# software Rialto built by ../build-rialto.sh (NATIVE_BUILD), not a SoC. This is
-# the profile to load when running the suite against that local software stack:
-#   RIALTO_CONFORMANCE_TIER=core ./build/bin/rialto_conformance -a \
-#       -p profiles/deviceConfig.linux.yaml
+# software Rialto built by ../build-rialto.sh (NATIVE_BUILD), not a SoC. This
+# deviceConfig carries python_raft's orchestration inputs and points at the Linux
+# software platform's HFP (profiles/hfp.linux.yaml) via a file:// URL.
 #
-# The capability gate under `rialto:` records what the software platform exposes.
-# The standard required surface (MSE audio/video/text sinks, the core native
-# interfaces, baseline H.264 + AAC) is mandatory and tested unconditionally; only
-# variable features are toggled here. Set a toggle false if the local software
-# build does not provide that feature.
+# deviceConfig does NOT carry the capability gate — that is the HFP. The host
+# fetches the HFP named by `conformance.hfp` and loads it into the on-target
+# binary with `-p`. For a direct local run against the software stack, load the
+# HFP itself:
+#   RIALTO_CONFORMANCE_TIER=core ./build/bin/rialto_conformance -a \
+#       -p profiles/hfp.linux.yaml
 
 deviceConfig:
   cpe1:
@@ -21,43 +22,8 @@ deviceConfig:
     model: "native-software"
     prompt: "$ "
 
-    rialto:
-
-      control:
-        stateToggle: true           # the gate runs against a ServerManagerSim it
-                                    # controls, so a case can drive an
-                                    # INACTIVE<->ACTIVE transition after connecting
-                                    # (RC-CORE-CONTROL-002 notify-on-transition).
-                                    # Off / absent on real hardware — no sim to drive.
-
-      codecs:
-        video:
-          hevc: false               # software backend: enable per what NATIVE_BUILD provides
-          vp9: false
-          av1: false
-        audio:
-          eac3: false
-          ac4: false
-          opus: false
-
-      webaudio:
-        playout: false              # headless software build has no audio-render
-                                    # device; the create + query surface is tested
-                                    # unconditionally, only the play-out state
-                                    # machine (WEBAUDIO-002) gates on this
-
-      drm:
-        clearkey: true              # W3C org.w3.clearkey — the software build's
-                                    # OpenCDM backend (backends/opencdm/clearkey,
-                                    # RIALTO_OCDM_BACKEND=clearkey)
-        widevine: false             # no real vendor CDM in the software build
-        playready: false
-        fairplay: false             # com.apple.fps — unmet by Rialto (coverage/matrix.yaml gap)
-        secureVideoPath: false
-
-      passthrough:
-        hdr: false
-        hfr: false
-        uhd4k: false
-        uhd8k: false
-        atmos: false
+    conformance:
+      installDir: "/opt/rialto-conformance"
+      binary:     "rialto_conformance"
+      resultsDir: "/opt/rialto-conformance/results"
+      hfp: "file://profiles/hfp.linux.yaml"        # the Linux software platform's HFP

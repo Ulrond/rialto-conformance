@@ -22,7 +22,7 @@
 /**
  * @file MediaFeed.h
  *
- * Data-path feed harness for the Surface B (native IMediaPipeline) conformance
+ * Data-path feed harness for the Firebolt interface (native IMediaPipeline) conformance
  * cases (§7.1). These cases must drive *real* elementary-stream buffers through
  * a live RialtoServer — attach a source, answer the server's need-data requests
  * with decodable samples, and reach PLAYING — rather than merely introspecting
@@ -211,6 +211,17 @@ public:
     /// True if notifyFirstFrameReceived(@p sourceId) has been observed.
     bool sawFirstFrame(int32_t sourceId);
 
+    /// Number of notifyPosition callbacks observed, and the last reported
+    /// position (ns). Position is a best-effort push notification during
+    /// playback; a case observes delivery rather than requiring it.
+    size_t positionUpdateCount();
+    int64_t lastPosition();
+
+    /// Number of notifyQos callbacks observed, and the last QosInfo (processed /
+    /// dropped) reported. QoS delivery is vendor-element-dependent; observed.
+    size_t qosCount();
+    firebolt::rialto::QosInfo lastQos();
+
     // --- IMediaPipelineClient ------------------------------------------------
     void notifyDuration(int64_t duration) override;
     void notifyPosition(int64_t position) override;
@@ -253,6 +264,10 @@ private:
     bool m_starve = false;
     std::set<int32_t> m_underflowSources;
     std::set<int32_t> m_firstFrameSources;
+    size_t m_positionUpdates = 0;
+    int64_t m_lastPosition = -1;
+    size_t m_qosCount = 0;
+    firebolt::rialto::QosInfo m_lastQos{0, 0};
 };
 
 } // namespace rialto::conformance

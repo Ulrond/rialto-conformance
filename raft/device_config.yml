@@ -5,16 +5,16 @@
 # --deviceConfig) — the canonical python_raft shape:
 #     deviceConfig: > cpe1: > platform: / model: / prompt:
 #
-# This single file does double duty (the raft convention):
-#   * python_raft reads platform/model/prompt to drive the target;
-#   * it IS the on-target ut-core KVP profile — ut-raft ships it and the binary
-#     loads it with `-p`, reading the capability gate under `rialto:`.
+# HOST-ONLY. python_raft reads platform/model/prompt to drive the target and the
+# `conformance` block to install + collect results. The capability gate is NOT
+# here — it is the platform's HFP, named by `conformance.hfp` (a URL). The host
+# fetches the HFP and ships the resolved file to the target, which loads it with
+# `-p`. Nothing on the target reads this deviceConfig.
 #
 # raft is GIVEN the target by config and has NO concept of the platform; the
-# suite never branches on platform identity. The `rialto:` block gates only
-# VARIABLE features (the standard required surface is tested unconditionally).
-# Swapping the backend = editing this config, never the tests. Schema +
-# full-feature template: ../profiles/deviceConfig.example.yaml.
+# suite never branches on platform identity. Swapping the backend = editing this
+# config (and pointing `hfp` at that platform's HFP), never the tests. Schema:
+# ../profiles/deviceConfig.schema.yaml. HFP schema: ../profiles/hfp.schema.yaml.
 
 deviceConfig:
   cpe1:
@@ -22,32 +22,11 @@ deviceConfig:
     model: "reference"
     prompt: "root@target:~#"
 
-    # Where ut-raft installs the package + collects results on this target.
+    # Host orchestration + the pointer to this platform's HFP. ut-raft installs
+    # the package + collects results here, fetches the HFP from `hfp`, and ships
+    # the resolved file to the target.
     conformance:
       installDir: "/opt/rialto-conformance"
       binary: "rialto_conformance"
       resultsDir: "/opt/rialto-conformance/results"
-
-    # Capability gate (platform-supported variable features only) — read on the
-    # target via UT_KVP_PROFILE_GET_BOOL("deviceConfig/cpe1/rialto/<key>").
-    rialto:
-      codecs:
-        video:
-          hevc: true
-          vp9: true
-          av1: false
-        audio:
-          eac3: true
-          ac4: false
-          opus: true
-      drm:
-        widevine: true
-        playready: true
-        fairplay: false
-        secureVideoPath: false
-      passthrough:
-        hdr: false
-        hfr: false
-        uhd4k: false
-        uhd8k: false
-        atmos: false
+      hfp: "https://<platform-owner>/hfp/reference-target.yaml"   # URL of this platform's HFP

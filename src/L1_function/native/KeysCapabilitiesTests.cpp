@@ -19,7 +19,7 @@
 /**
  * @file KeysCapabilitiesTests.cpp
  *
- * L1 — function testing for Surface B: IMediaKeysCapabilities.
+ * L1 — function testing for Firebolt interface: IMediaKeysCapabilities.
  *
  * CORE interface-conformance: the key-system capabilities query API must be
  * obtainable and internally consistent regardless of which DRM systems a given

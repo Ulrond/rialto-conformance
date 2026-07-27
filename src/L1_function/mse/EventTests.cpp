@@ -19,12 +19,12 @@
 /**
  * @file EventTests.cpp
  *
- * L1 — function testing for Surface A: the GStreamer query/event surface of
+ * L1 — function testing for mseSink interface: the GStreamer query/event surface of
  * RialtoMSEBaseSink. An external media app queries these sinks (seeking,
  * position, duration, segment) and sends them events (seeks, custom events)
  * through the standard GstElement API, so the suite drives the same surface via
  * gst_element_query / gst_element_send_event and asserts the documented answer.
- * No Rialto internal headers are involved (§2 Surface A); the base-sink behaviour
+ * No Rialto internal headers are involved (§2 mseSink interface); the base-sink behaviour
  * is exercised on the audio sink as a representative concrete instance.
  *
  * This is the introspection-reachable subset — the answers a sink gives before a
@@ -73,7 +73,7 @@ void teardown(GstElement *sink)
 
 UT_ADD_TEST_TO_GROUP(L1EventTests, UT_TESTS_L1);
 
-// The MSE sink query/event surface is part of the required Surface A, tested
+// The MSE sink query/event surface is part of the required mseSink interface, tested
 // unconditionally against the running server the gate provides.
 
 /**

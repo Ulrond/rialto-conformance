@@ -44,7 +44,7 @@ INC_DIRS := $(ROOT_DIR)/include
 # INC_DIRS and their libraries to YLDFLAGS, and otherwise leave ut-core's build
 # alone (g++ defaults to gnu++17, which the suite is written against).
 
-# --- Surface B: Rialto's PUBLIC client library + headers ----------------------
+# --- Firebolt interface: Rialto's PUBLIC client library + headers ----------------------
 # Headers (the API reference the cases are written against) come from the pinned
 # rialto checkout that install.sh placed under framework/rialto, with pkg-config
 # as a fallback. The runtime library (libRialtoClient) is resolved via pkg-config
@@ -73,7 +73,7 @@ ifeq ($(strip $(RIALTO_LIBS)),)
 RIALTO_LIBS := -lRialtoClient
 endif
 
-# --- Surface A: GStreamer core/base, to introspect rialtomse*sink elements ----
+# --- mseSink interface: GStreamer core/base, to introspect rialtomse*sink elements ----
 # gstreamer-audio provides the GstStreamVolume interface the audio sink implements
 # (RC-CORE-MSE-003), so it joins core/base/app in the introspection link surface.
 GST_PKGS := gstreamer-1.0 gstreamer-app-1.0 gstreamer-audio-1.0

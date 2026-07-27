@@ -33,7 +33,7 @@ namespace rialto::conformance
 void MseSinkSurface::SetUp()
 {
     // Initialise GStreamer once per process; the app owns the pipeline and
-    // plugs the rialtomse*sink elements in by registry name (Surface A).
+    // plugs the rialtomse*sink elements in by registry name (mseSink interface).
     if (!gst_is_initialized())
     {
         gst_init(nullptr, nullptr);

@@ -19,12 +19,12 @@
 /**
  * @file StateTests.cpp
  *
- * L1 — function testing for Surface A: the GstElement state-change semantics of
+ * L1 — function testing for mseSink interface: the GstElement state-change semantics of
  * RialtoMSEBaseSink. An external media app drives these sinks purely through the
  * GStreamer state machine (gst_element_set_state / the element's change_state
  * vfunc), so the suite exercises the same surface and asserts the documented
  * GstStateChangeReturn for each transition. No Rialto internal headers are
- * involved (§2 Surface A); the base-sink behaviour is exercised on the audio sink
+ * involved (§2 mseSink interface); the base-sink behaviour is exercised on the audio sink
  * as a representative concrete instance (as the base-sink property cases are).
  *
  * These cases run against the live RialtoServer the gate stands up (the sink
@@ -61,7 +61,7 @@ GstElement *makeAudioSink()
 
 UT_ADD_TEST_TO_GROUP(L1StateTests, UT_TESTS_L1);
 
-// The MSE sink state machine is part of the required Surface A, so these cases
+// The MSE sink state machine is part of the required mseSink interface, so these cases
 // are tested unconditionally against the running server the gate provides.
 
 /**

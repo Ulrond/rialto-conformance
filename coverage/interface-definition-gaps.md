@@ -36,7 +36,7 @@ sentinels.)
 
 ### IDG-002 — `notifyDuration` is never emitted
 The server contains no caller of `notifyDuration`, and Rialto's own component
-tests never exercise it (v0.22.3). Duration is instead owned by the app.
+tests never exercise it (v0.24.0). Duration is instead owned by the app.
 Affects **RC-CORE-DATA-011**.
 **Question:** is the duration-push callback intentionally reserved / app-owned
 (so its absence is by design), or is this an unimplemented path?
@@ -109,3 +109,90 @@ app / compositor / server responsibility), or are they gaps that surface as
 players migrate onto the Rialto sinks?
 **Impact:** determines whether these become covered rows (if in-contract) or are
 documented as deliberate non-goals; today they are neither tested nor promised.
+
+### IDG-008 — the common-vs-platform-specific property boundary is undefined (`getSupportedProperties` is registry-dependent)
+The value of migrating an application onto Rialto is a **common, platform-
+independent external interface**: the app stops driving its own (often platform-
+specific) sink properties and relies on the property set Rialto guarantees on
+every target. That guarantee requires a **defined common property set** — the
+properties present on every Rialto target, testable unconditionally (absence is a
+failure). Everything else is a **platform-specific extension**, present only where
+the backend supports it and never something a portable app may depend on. The
+boundary between the two is the portability contract.
+
+Today that boundary is not defined, because the query meant to describe it is
+registry-dependent. `getSupportedProperties(mediaType, names)` returns a name if
+**any** GStreamer element factory of that media type registered *at call time*
+installs a property of that name (`GstCapabilities::getSupportedProperties` scans
+the live factory list). Two consequences, observed cross-surface
+(RC-CORE-CONSIST-005), reproducibly on every gate run:
+
+1. **Not surface-accurate.** It reports a property the `rialtomse*sink` does not
+   expose — `native getSupportedProperties(AUDIO)` returns `sync`, yet
+   `rialtomseaudiosink` has no `sync` `GParamSpec` (the sink derives from
+   `GST_TYPE_ELEMENT`; `sync` is carried by other platform audio elements the scan
+   also sees). The backend nonetheless honours `sync` (server `SetupElement` sets
+   it), so this is not "sync is unsupported" — it is the interface disagreeing with
+   itself about whether `sync` is part of the contract.
+2. **Not deterministic.** The answer depends on registry state at call time. A sink
+   queries once at class-init and installs the returned subset permanently; a
+   property registering later (as plugins load over the process lifetime) is then
+   reported supported by a native query but is absent from the sink forever.
+   `audio-fade` is stable only because it has a dedicated always-on fallback in
+   the scan.
+
+So the native answer is a **superset** of, and can drift from, what any sink
+actually exposes. The assertable cross-surface invariant is therefore only that a
+sink's installed optional set is a **subset** of the native answer (a sink must
+not expose a knob the platform disowns), not equality — RC-CORE-CONSIST-005.
+**Decision (this suite):** a platform-independent conformance interface must be
+stable and surface-accurate, so the undefined boundary is recorded as a **gap**
+(matrix `gaps:`), not left as an open style choice.
+**Question (upstream):** (a) which optional properties are part of the **common**
+Rialto interface (guaranteed on every target) versus platform-specific extensions
+— i.e. is `sync` common or an extension? (b) Is `getSupportedProperties` intended
+as a stable per-source contract, or a "does any element currently support this"
+probe? If a contract, the scan must be pinned to a defined element set (or the
+common set specified directly) so every caller — the sink at class-init and an app
+later — gets the same answer.
+**Impact:** settling (a) defines the portable property surface the suite tests
+unconditionally; settling (b) makes native/sink set-**equality** testable instead
+of only the subset guard. Filed upstream against rdkcentral/rialto.
+
+**Data points** (from [common-interface-review.md](common-interface-review.md),
+which reads the boundary off the pinned sink source):
+
+- **The boundary moves across releases** — observed, not projected.
+  `show-video-window` sits *inside* the `getSupportedProperties` guard at
+  rialto-gstreamer v0.20.1 and *outside* it, installed unconditionally, at v0.22.0.
+  A property has crossed the common↔extension boundary between two consecutive
+  targeted releases, so "common" is defined only relative to a release pin. Direct
+  evidence for question (a): the common set is not stable across releases unless
+  specified authoritatively rather than derived from the element's install-time
+  decision. The suite tracks the pin — at v0.22.0 the property is asserted
+  unconditionally (RC-CORE-MSEPROP-008) and dropped from the gated set the subset
+  guard checks (RC-CORE-CONSIST-005) — but a suite is a poor place to discover a
+  contract change that a specified common set would have made explicit.
+
+- **Unconditional install ≠ portable behaviour.** `frame-step-on-preroll` and
+  `max-video-width`/`-height` are installed unconditionally (so their `GParamSpec`
+  presence is common by construction), yet each maps to a platform-variable
+  *capability*: the step-while-paused backend support is present on some targets
+  and absent on at least one other, and the decode-resolution ceiling is bounded
+  by what a platform can decode (installed with the same UHD default everywhere).
+  The suite over-asserts nothing — it asserts only existence/type/default (L1) —
+  but this shows the sink's unconditional-install decision is not a reliable
+  definition of the common *behavioural* contract. Standing rule for the suite:
+  any future **behavioural** (L4) assertion on these properties MUST be
+  when-present, never unconditional.
+
+- **Signal scope moves too — the pattern is not confined to properties.**
+  `first-video-frame-callback` is registered on `RialtoMSEBaseSink` at
+  rialto-gstreamer v0.20.1 (so the audio and subtitle sinks carry a video-only
+  signal that can never fire there) and on `RialtoGStreamerMSEVideoSink` at
+  v0.22.0. The narrowing is right on the merits, and it is a **breaking change**
+  for a client connected to that signal on a non-video sink. Affects
+  **RC-CORE-MSEPROP-002**, which now asserts each signal at its own scope.
+  Together with `show-video-window`, two independent pieces of the mseSink surface
+  moved across a single release step — so "which release" is part of the interface
+  identity, not a footnote to it.

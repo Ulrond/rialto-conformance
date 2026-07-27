@@ -19,7 +19,7 @@
 /**
  * @file SinkEventDataPathTests.cpp
  *
- * L4 — end-to-end data-path cases for Surface A (the RialtoMSEBaseSink GStreamer
+ * L4 — end-to-end data-path cases for mseSink interface (the RialtoMSEBaseSink GStreamer
  * event surface), the counterpart to the introspection-reachable L1 EventTests.
  *
  * The MSEEVENT-006..011 contracts are transforms a sink applies to the *server
@@ -103,7 +103,7 @@ GstPadProbeReturn upstreamEventProbe(GstPad * /*pad*/, GstPadProbeInfo *info, gp
 
 UT_ADD_TEST_TO_GROUP(L4SinkEventDataPathTests, UT_TESTS_L4);
 
-// The MSE sink event surface is part of the required Surface A, tested
+// The MSE sink event surface is part of the required mseSink interface, tested
 // unconditionally against the running server the gate provides.
 
 /**
