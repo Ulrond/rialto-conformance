@@ -122,6 +122,35 @@ is the opt-in Linux software platform — `build-rialto.sh` produces a local
 In practice ut-raft fetches the HFP host-side and installs + runs the package —
 see [raft/](raft/).
 
+## Run on a Linux box via raft (one command)
+
+For a **render-capable Linux box** — an x86 VM whose video sink actually renders
+(unlike the headless software platform) or a local software Rialto — the box is
+just another raft **slot**. [run-linux.sh](run-linux.sh) is the friendly entry:
+
+```bash
+./run-linux.sh                              # rack1 / linux-native (default)
+./run-linux.sh --slotName lab-linux-2       # a different Linux slot
+```
+
+python_raft then runs the standard flow: build the suite if it is not already
+built ([packaging/package.sh](packaging/package.sh) → `build.sh`), connect to the
+box, copy the binary across, and run the cases from the host — exec'ing the binary
+on the target and adjudicating the xUnit it returns. Same binary, same cases as
+every other target; only the backend underneath differs.
+
+Point it at your box by editing the slot's console `ip`/`username` in
+[raft/rack_config.linux.yml](raft/rack_config.linux.yml) — the render VM's address,
+or `localhost` for a box on this host. The `linux-native` platform's capability
+gate + orchestration inputs come from the included
+[profiles/deviceConfig.linux.yaml](profiles/deviceConfig.linux.yaml) (which points
+its HFP at [profiles/hfp.linux.yaml](profiles/hfp.linux.yaml)). The box must be
+running a Rialto server the deployed binary connects to; swapping the box is a
+config edit, never a test change.
+
+The equivalent hardware-target flow is the same command with the target's slot
+(see [raft/rack_config.yml](raft/rack_config.yml)).
+
 ## Test levels (scope of test, not platform)
 
 | Level | Group ID | Scope |
