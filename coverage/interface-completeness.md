@@ -66,13 +66,15 @@ enumeration. **34 properties, 0 untested.**
 |---|---|---|---|
 | `rectangle`, `max-video-width`, `max-video-height`, `frame-step-on-preroll`, `is-master`, `video_pts` | COVERED | VideoSinkProperties — MSEPROP-006 | mandatory |
 | `maxVideoWidth`, `maxVideoHeight` (deprecated aliases) | COVERED (functional round-trip) | VideoSinkDeprecatedAliases — MSEPROP-007 | mandatory |
-| `immediate-output`, `syncmode-streaming`, `show-video-window` | GATED | VideoSinkConditionalProperties — MSEPROP-008 | vendor-gated |
+| `show-video-window`, `report-decode-errors`, `queued-frames` | COVERED | VideoSinkVisibilityAndDecodeProperties — MSEPROP-011 | mandatory; installed outside the guard |
+| `immediate-output`, `syncmode-streaming` | GATED | VideoSinkConditionalProperties — MSEPROP-008 | vendor-gated |
 | Sink-pad caps (x-h264, x-h265, x-av1, x-vp9) | COVERED | VideoMimeToCapsMappingCorrect + subset — MSECAPS-002/004 | must advertise x-h264 |
 
-**11 properties: 8 mandatory COVERED, 3 vendor-GATED, 0 UNTESTED.** MSEPROP-008
+**13 properties: 11 mandatory COVERED, 2 vendor-GATED, 0 UNTESTED.** MSEPROP-008
 asserts the source-installed defaults for the gated leg: `immediate-output` (R/W,
-default TRUE), `syncmode-streaming` (W-only, default FALSE), `show-video-window`
-(W-only, default TRUE).
+default TRUE) and `syncmode-streaming` (W-only, default FALSE). MSEPROP-011 covers
+the unconditional leg: `show-video-window` (W-only, TRUE), `report-decode-errors`
+(W-only, FALSE) and `queued-frames` (R-only, 0).
 
 ### rialtomsesubtitlesink (own properties)
 
@@ -179,7 +181,7 @@ COVERED: `getClient` (PIPELINE-002); `load`/`attachSource`/`removeSource`/`allSo
 | notifyBufferUnderflow, notifyFirstFrameReceived | GATED | DATA-012 / StarvationIsToleratedAndEventsObserved — best-effort vendor signals |
 | notifyQos, notifyPosition | GATED | DATA-012 / StarvationIsToleratedAndEventsObserved — harness records both; delivery observed, a delivered position asserted non-negative |
 | notifyNativeSize, notifyVideoData, notifyAudioData, notifyPlaybackInfo | UNTESTED | empty harness body |
-| notifyDuration | UNTESTED (planned) | server never emits it in v0.22.3 (IDG-002) |
+| notifyDuration | UNTESTED (planned) | server never emits it in v0.24.0 (IDG-002) |
 | notifyCancelNeedMediaData | UNTESTED (planned) | server-initiated, not provokable from the client API |
 | notifyPlaybackError | UNTESTED (planned) | needs non-fatal error injection |
 

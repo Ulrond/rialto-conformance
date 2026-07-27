@@ -132,7 +132,9 @@ cross-surface. The gated names:
 
 - **Audio:** `low-latency`, `sync`, `sync-off`, `stream-sync-mode`,
   `limit-buffering-ms`, `audio-fade`, `fade-volume`.
-- **Video:** `immediate-output`, `syncmode-streaming`, `show-video-window`.
+- **Video:** `immediate-output`, `syncmode-streaming`. (`show-video-window` is
+  installed unconditionally at the targeted release, so it is not gated and is not
+  part of this subset guard — see IDG-008.)
 
 The relationship is **subset, not equality**. Native `getSupportedProperties`
 is a live registry scan across *all* platform elements of the media type

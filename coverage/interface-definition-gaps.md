@@ -36,7 +36,7 @@ sentinels.)
 
 ### IDG-002 — `notifyDuration` is never emitted
 The server contains no caller of `notifyDuration`, and Rialto's own component
-tests never exercise it (v0.22.3). Duration is instead owned by the app.
+tests never exercise it (v0.24.0). Duration is instead owned by the app.
 Affects **RC-CORE-DATA-011**.
 **Question:** is the duration-push callback intentionally reserved / app-owned
 (so its absence is by design), or is this an unimplemented path?
@@ -162,14 +162,17 @@ of only the subset guard. Filed upstream against rdkcentral/rialto.
 **Data points** (from [common-interface-review.md](common-interface-review.md),
 which reads the boundary off the pinned sink source):
 
-- **The boundary moves across releases.** `show-video-window` sits *inside* the
-  `getSupportedProperties` guard at the v0.20.1 pin, so the suite tests it as a
-  when-present extension (RC-CORE-MSEPROP-008). In another rialto-gstreamer
-  revision the same property is installed **unconditionally** — i.e. as a common
-  member. A property has crossed the common↔extension boundary between releases,
-  so "common" is defined only relative to a release pin. Direct evidence for
-  question (a): the common set is not stable across releases unless specified
-  authoritatively rather than derived from the element's install-time decision.
+- **The boundary moves across releases** — observed, not projected.
+  `show-video-window` sits *inside* the `getSupportedProperties` guard at
+  rialto-gstreamer v0.20.1 and *outside* it, installed unconditionally, at v0.22.0.
+  A property has crossed the common↔extension boundary between two consecutive
+  targeted releases, so "common" is defined only relative to a release pin. Direct
+  evidence for question (a): the common set is not stable across releases unless
+  specified authoritatively rather than derived from the element's install-time
+  decision. The suite tracks the pin — at v0.22.0 the property is asserted
+  unconditionally (RC-CORE-MSEPROP-008) and dropped from the gated set the subset
+  guard checks (RC-CORE-CONSIST-005) — but a suite is a poor place to discover a
+  contract change that a specified common set would have made explicit.
 
 - **Unconditional install ≠ portable behaviour.** `frame-step-on-preroll` and
   `max-video-width`/`-height` are installed unconditionally (so their `GParamSpec`
@@ -182,3 +185,14 @@ which reads the boundary off the pinned sink source):
   definition of the common *behavioural* contract. Standing rule for the suite:
   any future **behavioural** (L4) assertion on these properties MUST be
   when-present, never unconditional.
+
+- **Signal scope moves too — the pattern is not confined to properties.**
+  `first-video-frame-callback` is registered on `RialtoMSEBaseSink` at
+  rialto-gstreamer v0.20.1 (so the audio and subtitle sinks carry a video-only
+  signal that can never fire there) and on `RialtoGStreamerMSEVideoSink` at
+  v0.22.0. The narrowing is right on the merits, and it is a **breaking change**
+  for a client connected to that signal on a non-video sink. Affects
+  **RC-CORE-MSEPROP-002**, which now asserts each signal at its own scope.
+  Together with `show-video-window`, two independent pieces of the mseSink surface
+  moved across a single release step — so "which release" is part of the interface
+  identity, not a footnote to it.

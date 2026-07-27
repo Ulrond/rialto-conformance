@@ -37,7 +37,7 @@ suite: rialto-conformance
 tier: core
 # The Rialto release the suite is written and validated against (framework.lock
 # pin). Requirements apply at this release unless they carry a newer `since:`.
-targetRialtoRelease: "v0.22.3"
+targetRialtoRelease: "v0.24.0"
 
 requirements:
 
@@ -525,7 +525,7 @@ requirements:
     path: mse
     kind: property
   - id: RC-CORE-MSEPROP-002
-    title: "Base sink exposes the buffer-underflow-callback and first-video-frame-callback GSignals"
+    title: "Underflow/first-frame GSignals are registered at their documented scope: buffer-underflow-callback on the base sink (every sink), first-video-frame-callback on the video sink"
     interface: RialtoMSEBaseSink
     path: mse
     kind: event
@@ -555,7 +555,7 @@ requirements:
     path: mse
     kind: negative
   - id: RC-CORE-MSEPROP-008
-    title: "Video-sink server-conditional properties are installed iff supported: immediate-output, syncmode-streaming, show-video-window"
+    title: "Video-sink server-conditional properties are installed iff supported: immediate-output, syncmode-streaming"
     interface: rialtomsevideosink
     path: mse
     kind: property
@@ -569,6 +569,12 @@ requirements:
     interface: RialtoMSEBaseSink
     path: mse
     kind: property
+  - id: RC-CORE-MSEPROP-011
+    title: "Video-sink unconditional visibility/decode properties exist with documented defaults: show-video-window(T,WO), report-decode-errors(F,WO), queued-frames(0,[0..G_MAXUINT],RO)"
+    interface: rialtomsevideosink
+    path: mse
+    kind: property
+    since: "v0.24.0"
 
   # === mseSink interface (mse) — pad templates / caps ===============================
   - id: RC-CORE-MSECAPS-001

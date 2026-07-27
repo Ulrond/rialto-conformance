@@ -39,6 +39,7 @@
 
 #include <ut.h>
 
+#include "conformance/CapabilityGate.h"
 #include "conformance/Surfaces.h"
 #include "conformance/TierGate.h"
 
@@ -195,19 +196,33 @@ UT_ADD_TEST(L1PropertyTests, BaseSinkProperties)
 }
 
 /**
- * RC-CORE-MSEPROP-002 — the base sink exposes the buffer-underflow-callback and
- * first-video-frame-callback GSignals on its class.
+ * RC-CORE-MSEPROP-002 — the underflow/first-frame GSignals are registered at their
+ * documented scope: buffer-underflow-callback on the base sink (so every sink
+ * carries it), first-video-frame-callback on the video sink only.
+ *
+ * The two scopes are asserted separately because they differ. Registering
+ * first-video-frame-callback on the base sink would put a "first *video* frame"
+ * signal on the audio and subtitle sinks, where it can never fire; asserting it on
+ * the audio sink would therefore pass on a sink that cannot honour it.
  */
 UT_ADD_TEST(L1PropertyTests, BaseSinkSignals)
 {
     CONFORMANCE_CORE_TEST();
-    GstElement *sink = gst_element_factory_make(kAudioSink, nullptr);
-    UT_ASSERT_NOT_NULL_FATAL(sink);
+    GstElement *audioSink = gst_element_factory_make(kAudioSink, nullptr);
+    UT_ASSERT_NOT_NULL_FATAL(audioSink);
 
-    UT_ASSERT_TRUE(g_signal_lookup("buffer-underflow-callback", G_OBJECT_TYPE(sink)) != 0);
-    UT_ASSERT_TRUE(g_signal_lookup("first-video-frame-callback", G_OBJECT_TYPE(sink)) != 0);
+    // Base-sink scope: underflow is meaningful for every media type.
+    UT_ASSERT_TRUE(g_signal_lookup("buffer-underflow-callback", G_OBJECT_TYPE(audioSink)) != 0);
+    gst_object_unref(audioSink);
 
-    gst_object_unref(sink);
+    GstElement *videoSink = gst_element_factory_make(kVideoSink, nullptr);
+    UT_ASSERT_NOT_NULL_FATAL(videoSink);
+
+    // The video sink inherits the base-sink signal and adds the video-only one.
+    UT_ASSERT_TRUE(g_signal_lookup("buffer-underflow-callback", G_OBJECT_TYPE(videoSink)) != 0);
+    UT_ASSERT_TRUE(g_signal_lookup("first-video-frame-callback", G_OBJECT_TYPE(videoSink)) != 0);
+
+    gst_object_unref(videoSink);
 }
 
 /**
@@ -350,6 +365,12 @@ UT_ADD_TEST(L1PropertyTests, VideoSinkDeprecatedAliases)
 /**
  * RC-CORE-MSEPROP-008 — video-sink server-conditional properties: installed iff
  * supported. Each is asserted only when installed.
+ *
+ * show-video-window is NOT in this set at the targeted release: it is installed
+ * unconditionally, outside the sink's getSupportedProperties guard, so it is
+ * asserted as a required property by VideoSinkVisibilityAndDecodeProperties.
+ * It sat inside the guard at rialto-gstreamer v0.20.1 — the property crossed the
+ * common/extension boundary between releases (IDG-008 Finding A).
  */
 UT_ADD_TEST(L1PropertyTests, VideoSinkConditionalProperties)
 {
@@ -357,13 +378,40 @@ UT_ADD_TEST(L1PropertyTests, VideoSinkConditionalProperties)
     GstElement *sink = gst_element_factory_make(kVideoSink, nullptr);
     UT_ASSERT_NOT_NULL_FATAL(sink);
 
-    // immediate-output and show-video-window install with default TRUE; the
+    // immediate-output installs with default TRUE and is read/write; the
     // write-only syncmode-streaming installs FALSE (see rialto-gstreamer
-    // RialtoGStreamerMSEVideoSink property registration). immediate-output is
-    // read/write; the other two are write-only.
+    // RialtoGStreamerMSEVideoSink property registration).
     assertBoolIfPresent(sink, "immediate-output", TRUE, /*R*/ true, /*W*/ true);
     assertBoolIfPresent(sink, "syncmode-streaming", FALSE, /*R*/ false, /*W*/ true);
-    assertBoolIfPresent(sink, "show-video-window", TRUE, /*R*/ false, /*W*/ true);
+
+    gst_object_unref(sink);
+}
+
+/**
+ * RC-CORE-MSEPROP-011 — the video sink's unconditionally-installed visibility and
+ * decode-reporting properties exist with the documented types/defaults/flags:
+ * show-video-window, report-decode-errors, queued-frames.
+ *
+ * These are required, not gated — absence is a FAILURE. All three are installed
+ * outside the getSupportedProperties guard, and the latter two are backed by
+ * public API (IMediaPipeline::setReportDecodeErrors / getQueuedFrames), so they
+ * are interface surface rather than vendor extensions.
+ */
+UT_ADD_TEST(L1PropertyTests, VideoSinkVisibilityAndDecodeProperties)
+{
+    CONFORMANCE_CORE_TEST();
+    // report-decode-errors / queued-frames arrived with the setReportDecodeErrors /
+    // getQueuedFrames public API; an older target is not failed for lacking them.
+    CONFORMANCE_REQUIRE_SINCE("v0.24.0");
+    GstElement *sink = gst_element_factory_make(kVideoSink, nullptr);
+    UT_ASSERT_NOT_NULL_FATAL(sink);
+
+    // Video mute: write-only, visible by default.
+    assertBool(sink, "show-video-window", TRUE, /*R*/ false, /*W*/ true);
+    // Decode-error reporting: write-only, off by default.
+    assertBool(sink, "report-decode-errors", FALSE, /*R*/ false, /*W*/ true);
+    // Decoder queue depth: read-only counter, no frames queued before playback.
+    assertUint(sink, "queued-frames", 0, G_MAXUINT, 0, /*R*/ true, /*W*/ false);
 
     gst_object_unref(sink);
 }

@@ -271,6 +271,29 @@ extern "C"
         return OpenCDMBool::OPENCDM_BOOL_FALSE;
     }
 
+    // Rialto v0.24.0 added IMediaKeysCapabilities::getSupportedRobustnessLevels,
+    // which reaches the backend through this entry point (declared by Rialto's own
+    // wrappers/source/OcdmSystem.cpp, not by the installed opencdm header).
+    //
+    // Ownership: the callee allocates the array and each string; the caller frees
+    // both. Reporting zero levels therefore allocates nothing.
+    OpenCDMError opencdm_system_supported_robustness(struct OpenCDMSystem *system, char ***robustness, uint16_t *count)
+    {
+        (void)system;
+        // W3C ClearKey defines no robustness levels — the empty string is the only
+        // value a key system without content-protection robustness may accept, so
+        // the supported-level list is empty rather than absent.
+        if (robustness != nullptr)
+        {
+            *robustness = nullptr;
+        }
+        if (count != nullptr)
+        {
+            *count = 0;
+        }
+        return ERROR_NONE;
+    }
+
     OpenCDMError opencdm_get_metric_system_data(struct OpenCDMSystem *system, uint32_t *bufferLength, uint8_t *buffer)
     {
         (void)system;

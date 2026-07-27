@@ -301,7 +301,11 @@ UT_ADD_TEST(L2CapabilityConsistencyTests, InstalledOptionalPropertiesAreNativeSu
         {MediaSourceType::AUDIO,
          kAudioSink,
          {"low-latency", "sync", "sync-off", "stream-sync-mode", "limit-buffering-ms", "audio-fade", "fade-volume"}},
-        {MediaSourceType::VIDEO, kVideoSink, {"immediate-output", "syncmode-streaming", "show-video-window"}},
+        // show-video-window is deliberately absent: at the targeted release the sink
+        // installs it unconditionally, so it is not a gated property and native is
+        // under no obligation to report it (IDG-008 Finding A). It is asserted as
+        // required by RC-CORE-MSEPROP-011.
+        {MediaSourceType::VIDEO, kVideoSink, {"immediate-output", "syncmode-streaming"}},
     };
 
     for (const auto &surface : kSurfaces)
