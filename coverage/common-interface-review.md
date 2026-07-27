@@ -18,7 +18,7 @@ Cited by `RC-` / `IDG-` ids only. Pairs with
 interface is what is tested") and [IDG-007](interface-definition-gaps.md) /
 [IDG-008](interface-definition-gaps.md).
 
-## The de-facto boundary the suite tests (target: rialto-gstreamer v0.20.1)
+## The de-facto boundary the suite tests (target: rialto-gstreamer v0.22.0)
 
 Each `rialtomse*sink` installs some `GParamSpec`s **unconditionally** and installs
 the rest only when a class-init `getSupportedProperties(mediaType, names)` query
@@ -35,6 +35,7 @@ it was verified line-for-line against the pinned sink source
 | Base sink (signals) | `buffer-underflow-callback`, `first-video-frame-callback` | RC-CORE-MSEPROP-002 |
 | Audio sink | `volume`, `mute`, `gap`, `use-buffering`, `async`, `web-audio` | RC-CORE-MSEPROP-003 |
 | Video sink | `rectangle`, `max-video-width`, `max-video-height`, `frame-step-on-preroll`, `is-master`, `video_pts` | RC-CORE-MSEPROP-006 |
+| Video sink | `show-video-window`, `report-decode-errors`, `queued-frames` | RC-CORE-MSEPROP-008 / RC-CORE-MSEPROP-011 |
 | Subtitle sink | `mute`, `text-track-identifier`, `window-id`, `async` | RC-CORE-MSEPROP-009 |
 
 ### Platform-specific extensions — tested when-present (never required)
@@ -42,7 +43,7 @@ it was verified line-for-line against the pinned sink source
 | Interface | Properties | Case |
 |---|---|---|
 | Audio sink | `low-latency`, `sync`, `sync-off`, `stream-sync-mode`, `audio-fade`, `fade-volume`, `limit-buffering-ms` | RC-CORE-MSEPROP-005 |
-| Video sink | `immediate-output`, `syncmode-streaming`, `show-video-window` | RC-CORE-MSEPROP-008 |
+| Video sink | `immediate-output`, `syncmode-streaming` | RC-CORE-MSEPROP-008 |
 
 The cross-surface subset guard (RC-CORE-CONSIST-005) holds the invariant that a
 sink's installed extension set is a subset of the native `getSupportedProperties`
@@ -68,17 +69,29 @@ it is in two places the existence-level split cannot see.
 
 ### Finding A — the boundary is release-unstable (`show-video-window`)
 
-`show-video-window` sits **inside** the `getSupportedProperties` guard at the
-v0.20.1 pin — so the suite correctly tests it as a when-present extension
-(RC-CORE-MSEPROP-008). In a *different* rialto-gstreamer revision the same property
-is installed **unconditionally**, i.e. as a common member. A property has therefore
-**crossed the common↔extension boundary between releases**.
+`show-video-window` has **crossed the common↔extension boundary between releases**,
+in the targeted direction, within the surface this suite gates:
 
-The suite is correct for its pin (release-targeted; targets one Rialto release).
-The point is what it demonstrates: **"common" is defined only relative to a release
-pin — the boundary is not stable across releases.** This is direct evidence for
-[IDG-008](interface-definition-gaps.md) (the boundary is registry-dependent and
-undefined). No suite change; recorded as an IDG-008 data point.
+| Release | Installation | Classification |
+|---|---|---|
+| v0.20.1 | inside the `getSupportedProperties` guard | when-present extension |
+| v0.22.0 | unconditional, outside the guard | common member |
+
+At v0.22.0 the guard covers only `immediate-output` and `syncmode-streaming`;
+`show-video-window` is installed alongside `rectangle` and `frame-step-on-preroll`
+in the unconditional block of `RialtoGStreamerMSEVideoSink` class-init.
+
+This is no longer a projection from a divergent revision — it is the observed
+behaviour of two consecutive targeted releases. **"Common" is defined only relative
+to a release pin.** Direct evidence for [IDG-008](interface-definition-gaps.md)
+(the boundary is registry-dependent and undefined).
+
+Consequence for the suite, discharged at the v0.22.0 pin: RC-CORE-MSEPROP-008
+asserts `show-video-window` **unconditionally** (absence is a FAILURE, per the
+"only variable features are gated" invariant) and it is removed from the gated set
+RC-CORE-CONSIST-005 checks against native `getSupportedProperties`. A when-present
+assertion would have silently under-tested it — passing whether or not the platform
+installed a property the release now requires.
 
 ### Finding B — unconditional `GParamSpec` ≠ portable behaviour
 
@@ -106,7 +119,7 @@ contract.
 ## Disposition
 
 No property currently tested as common is removed from the unconditional existence
-assertions — those are correct for the v0.20.1 pin and safe, because `GParamSpec`
+assertions — those are correct for the v0.22.0 pin and safe, because `GParamSpec`
 presence is uniform by construction.
 
 What is **invalid** is the implicit assumption that *"the sink installs it
@@ -114,7 +127,7 @@ unconditionally"* defines the common (portable) contract. Concretely:
 
 | Property | Common at | Platform-specific at | Action |
 |---|---|---|---|
-| `show-video-window` | (extension at v0.20.1) | membership moves across releases | IDG-008 evidence; test unchanged (correct for pin) |
+| `show-video-window` | unconditional at v0.22.0 | membership moved across releases | IDG-008 evidence; MSEPROP-008 asserts it unconditionally, CONSIST-005 no longer gates it |
 | `frame-step-on-preroll` | property presence | honoured behaviour | any future *behavioural* (L4) assertion MUST be when-present, not unconditional |
 | `max-video-width` / `-height` | property presence | honoured ceiling | as above; existence/default assertion unchanged |
 

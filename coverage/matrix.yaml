@@ -37,7 +37,7 @@
 schemaVersion: 2
 # The Rialto release this record targets (framework.lock pin). NOT Rialto's binary
 # ABI (fixed per release) — it is the release the suite is validated against.
-targetRialtoRelease: "v0.22.3"
+targetRialtoRelease: "v0.24.0"
 
 # --- Operations (the IMediaPipeline / IMediaKeys / IWebAudioPlayer functions) -
 operations:
@@ -662,7 +662,7 @@ operations:
     path: native
     req: [RC-CORE-DATA-011]
     expected: "notifyDuration uses the kDurationUnknown / kDurationUnending sentinels for unknown/live media"
-    case: "(the server never calls notifyDuration in v0.22.3 — see interface-definition-gaps.md IDG-002; awaiting the upstream verdict: by-design (row becomes n/a) or gap)"
+    case: "(the server never calls notifyDuration in v0.24.0 — see interface-definition-gaps.md IDG-002; awaiting the upstream verdict: by-design (row becomes n/a) or gap)"
     status: planned
 
   - op: "setBufferingLimit / getBufferingLimit"
@@ -944,7 +944,7 @@ properties:
     tier: core
     path: mse
     req: [RC-CORE-MSEPROP-002]
-    expected: "base sink exposes buffer-underflow-callback and first-video-frame-callback GSignals"
+    expected: "buffer-underflow-callback on the base sink (every sink); first-video-frame-callback on the video sink"
     case: "L1PropertyTests.BaseSinkSignals"
     status: covered
 
@@ -998,8 +998,17 @@ properties:
     tier: core
     path: mse
     req: [RC-CORE-MSEPROP-008]
-    expected: "video server-conditional props (immediate-output, syncmode-streaming, show-video-window) conform when installed"
+    expected: "video server-conditional props (immediate-output, syncmode-streaming) conform when installed"
     case: "L1PropertyTests.VideoSinkConditionalProperties"
+    status: covered
+
+  - prop: video-sink-visibility-decode
+    interface: rialtomsevideosink
+    tier: core
+    path: mse
+    req: [RC-CORE-MSEPROP-011]
+    expected: "show-video-window(T,WO), report-decode-errors(F,WO), queued-frames(0,RO) are installed unconditionally and conform; absence is a FAILURE"
+    case: "L1PropertyTests.VideoSinkVisibilityAndDecodeProperties"
     status: covered
 
   - prop: subtitle-sink-properties
