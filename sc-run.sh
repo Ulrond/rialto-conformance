@@ -29,9 +29,14 @@
 # Idempotent: a second run finds sc + the image already present and goes straight
 # to step 4.
 #
+# This is the ENGINEER'S DEV LOOP on the software platform: build, launch the
+# emulator, run. For a formal run against a slot — emulator, VM or real box — use
+# ./test.sh, which goes through raft and never builds (issue #104).
+#
 # Usage:
 #   ./sc-run.sh                       # build + run the CORE gate (default)
 #   RIALTO_CONFORMANCE_TIER=all ./sc-run.sh
+#   RIALTO_CONFORMANCE_SCOPE=L1 ./sc-run.sh    # one level (full | L1 | L2 | L3 | L4)
 #   ./sc-run.sh -- "<custom command to run inside the container>"
 
 set -euo pipefail
@@ -39,10 +44,11 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IMAGE="${RIALTO_CONFORMANCE_IMAGE:-rialto-conformance-env}"
 TIER="${RIALTO_CONFORMANCE_TIER:-core}"
+SCOPE="${RIALTO_CONFORMANCE_SCOPE:-full}"
 
 # Default in-container command: build the software Rialto + suite, bring up a
 # RialtoServer, and run the gate — all in docker/run-in-container.sh.
-DEFAULT_CMD="RIALTO_CONFORMANCE_TIER=${TIER} ./docker/run-in-container.sh"
+DEFAULT_CMD="RIALTO_CONFORMANCE_TIER=${TIER} RIALTO_CONFORMANCE_SCOPE=${SCOPE} ./docker/run-in-container.sh"
 
 RUN_CMD="${DEFAULT_CMD}"
 if [ "${1:-}" = "--" ]; then shift; RUN_CMD="$*"; fi

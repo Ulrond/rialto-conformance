@@ -1,20 +1,26 @@
 # Copyright 2026 RDK Management
 # SPDX-License-Identifier: Apache-2.0
 #
-# python_raft rack config (the --config argument). Defines the physical
-# infrastructure: the target inventory and how to reach each console. raft is
-# GIVEN the target by this config (rack + slot) and has NO concept of the
-# platform — the backend is swapped by config/build, never by editing tests.
+# python_raft rack config — the ONE place a target is named.
 #
-# Run (via the isolated host venv that install.sh creates):
-#   python_venv/bin/python raft/suites/test_rialto_conformance.py \
-#       --config raft/rack_config.yml --rack rack1 --slotName reference-target
+# Every target the suite runs against is a slot here: the in-container software
+# emulator, a render-capable Linux VM, or a real box. They all run the same
+# binary and the same cases through the same flow; the only thing that changes is
+# which slot ./test.sh selects.
 #
-# The `platform` field in each slot's device entry links to device_config.yml,
-# which names that platform's HFP (Hardware Feature Profile) by URL. The host
-# fetches the HFP and ships the resolved file to the target. Slot names are
-# config-named target instances — NOT SoC families; the suite never branches on
-# platform identity.
+#   ./test.sh --slot linux-emulator                  # software Rialto, SC container
+#   ./test.sh --slot linux-native                    # a Linux VM / box
+#   ./test.sh --slot reference-target                # a real target
+#   ./test.sh --slot linux-native --scope L1 --tier core
+#
+# A slot's `platform` selects its entry in the included device_config.yml
+# (python_raft matches cpe*.platform), which carries the orchestration inputs:
+# deploy mode, package location, target launch command and the HFP URL. The host
+# fetches the HFP and ships the resolved file to the target.
+#
+# Slot names are config-named target instances — NOT SoC families; the suite
+# never branches on platform identity. Adding a box = adding a slot here plus a
+# cpe entry in device_config.yml. Never edit the tests to suit a target.
 
 globalConfig:
   includes:
@@ -25,9 +31,38 @@ globalConfig:
 
 rackConfig:
   rack1:
-    # One slot per available target. Selected by --slotName. The platform is not
-    # relevant to the suite — only the console reaches the box and the device
-    # entry names which platform HFP to fetch and ship.
+    # The software Rialto emulator, brought up inside the SC container by
+    # packaging/launch-target.sh. Reached over ssh to itself, because python_raft
+    # has no `local` console type. Default slot for ./test.sh.
+    linux-emulator:
+      devices:
+        - dut:
+            platform: "linux-emulator"
+            consoles:
+              - default:
+                  type: "ssh"
+                  enabled: true
+                  ip: "127.0.0.1"
+                  port: 22
+                  username: "rialto"
+                  prompt: "$ "
+
+    # A render-capable Linux VM or box that already has Rialto running.
+    # EDIT the console `ip`/`username` to point at yours.
+    linux-native:
+      devices:
+        - dut:
+            platform: "linux-native"
+            consoles:
+              - default:
+                  type: "ssh"
+                  enabled: true
+                  ip: "127.0.0.1"        # EDIT: the render-capable Linux VM
+                  port: 22
+                  username: "rialto"     # EDIT: the box's login user
+                  prompt: "$ "
+
+    # Real targets.
     reference-target:
       devices:
         - dut:
