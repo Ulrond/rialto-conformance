@@ -46,6 +46,7 @@
 
 #include <ut.h>
 
+#include "conformance/AsyncApply.h"
 #include "conformance/CapabilityGate.h"
 #include "conformance/Surfaces.h"
 #include "conformance/TierGate.h"
@@ -279,6 +280,11 @@ UT_ADD_TEST(L1WebAudioTests, GetDeviceInfoReportsBufferSizing)
  * RC-CORE-WEBAUDIO-006 — setVolume / getVolume round-trip a level in [0.0, 1.0].
  * The volume is a pipeline property serviced without play-out, so this runs on
  * the software platform.
+ *
+ * setVolume enqueues the write to the server's worker thread and returns, so the
+ * read-back is polled: an immediate getVolume races the worker and reports the
+ * previous level. What conformance requires is that the written level becomes
+ * observable, not that it is observable on the very next call.
  */
 UT_ADD_TEST(L1WebAudioTests, VolumeRoundTrips)
 {
@@ -291,8 +297,15 @@ UT_ADD_TEST(L1WebAudioTests, VolumeRoundTrips)
     for (double target : {0.0, 0.5, 1.0})
     {
         UT_ASSERT_TRUE(player->setVolume(target));
+
         double reported = -1.0;
-        UT_ASSERT_TRUE(player->getVolume(reported));
+        const bool applied = ::rialto::conformance::pollUntilApplied(
+            [&]
+            {
+                return player->getVolume(reported) && std::fabs(reported - target) <= 0.01;
+            });
+
+        UT_ASSERT_TRUE(applied);
         UT_ASSERT_DOUBLE_EQUAL(reported, target, 0.01);
     }
 }
