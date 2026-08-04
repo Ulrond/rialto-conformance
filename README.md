@@ -122,34 +122,66 @@ is the opt-in Linux software platform — `build-rialto.sh` produces a local
 In practice ut-raft fetches the HFP host-side and installs + runs the package —
 see [raft/](raft/).
 
-## Run on a Linux box via raft (one command)
+## Building and testing are separate
 
-For a **render-capable Linux box** — an x86 VM whose video sink actually renders
-(unlike the headless software platform) or a local software Rialto — the box is
-just another raft **slot**. [run-linux.sh](run-linux.sh) is the friendly entry:
+Two commands, two jobs. [build.sh](build.sh) compiles and packages;
+[test.sh](test.sh) runs. Nothing in the test path ever compiles.
 
 ```bash
-./run-linux.sh                              # rack1 / linux-native (default)
-./run-linux.sh --slotName lab-linux-2       # a different Linux slot
+./build.sh                 # compile + leave the deployable tarball in build/dist
+./test.sh                  # run it against a target
 ```
 
-python_raft then runs the standard flow: build the suite if it is not already
-built ([packaging/package.sh](packaging/package.sh) → `build.sh`), connect to the
-box, copy the binary across, and run the cases from the host — exec'ing the binary
-on the target and adjudicating the xUnit it returns. Same binary, same cases as
-every other target; only the backend underneath differs.
+`build.sh` is the engineer's loop: write code, build, debug against the emulator.
+`test.sh` is the gate: it ships the prebuilt tarball to a target, runs the cases
+there and adjudicates the returned xUnit. If no package exists it stops and tells
+you to build — it will not quietly compile one.
 
-Point it at your box by editing the slot's console `ip`/`username` in
-[raft/rack_config.linux.yml](raft/rack_config.linux.yml) — the render VM's address,
-or `localhost` for a box on this host. The `linux-native` platform's capability
-gate + orchestration inputs come from the included
-[profiles/deviceConfig.linux.yaml](profiles/deviceConfig.linux.yaml) (which points
-its HFP at [profiles/hfp.linux.yaml](profiles/hfp.linux.yaml)). The box must be
-running a Rialto server the deployed binary connects to; swapping the box is a
-config edit, never a test change.
+## Run against a target
 
-The equivalent hardware-target flow is the same command with the target's slot
-(see [raft/rack_config.yml](raft/rack_config.yml)).
+The target is only ever a raft **slot**. The emulator, a render-capable Linux VM
+and a real box all run the same binary and the same cases through the same
+python_raft flow; the only thing that changes is which slot you name.
+
+```bash
+./test.sh --slot linux-emulator             # software Rialto
+./test.sh --slot linux-native               # a Linux VM / box
+./test.sh --slot reference-target           # a real target
+./test.sh --slot linux-native --scope L1    # one level: full | L1 | L2 | L3 | L4
+./test.sh --slot linux-native --tier all    # core | extended | all
+```
+
+Point it at your box by editing that slot's console `ip`/`username` in
+[raft/rack_config.yml](raft/rack_config.yml) — every slot lives in that one file.
+The slot's `platform` selects its entry in [raft/device_config.yml](raft/device_config.yml),
+which carries the orchestration inputs: how to deploy, where the prebuilt package
+is, what to run to bring the target up, and the HFP URL naming that platform's
+capability gate. Swapping the box is a config edit, never a test change.
+
+Deployment has two modes, per slot. `deploy: fetch` ships the tarball from
+`conformance.package`; `deploy: none` says you installed it on the box yourself
+and raft should just run. A target that needs bringing up first names a
+`conformance.launch` command — the software platform uses
+[packaging/launch-target.sh](packaging/launch-target.sh), which starts the
+ServerManagerSim, waits for the session-server socket and hands the resolved
+environment to the run via `target-env.sh`. A box already running Rialto leaves
+`launch` empty.
+
+## Dev loop on the software platform
+
+The reproducible, root-clean way to build and debug locally is the SC docker flow
+— one command that bootstraps anything missing (the `sc` tool, the build-env
+image) and runs build → launch → gate inside the container as you:
+
+```bash
+./sc-run.sh                                 # CORE gate on the Linux software platform
+RIALTO_CONFORMANCE_TIER=all ./sc-run.sh
+RIALTO_CONFORMANCE_SCOPE=L1 ./sc-run.sh     # one level
+```
+
+This is the *dev loop*, not a second test path: it uses the same `build.sh`, the
+same `launch-target.sh` and the same packaged binary that raft uses, without the
+ssh hop.
 
 ## Test levels (scope of test, not platform)
 
@@ -160,9 +192,21 @@ The equivalent hardware-target flow is the same command with the target's slot
 | **L3** | `UT_TESTS_L3` | group — subsystems together so a fault is localisable (SVP, playback, DRM group) |
 | **L4** | `UT_TESTS_L4` | full-stream E2E — real elementary streams + real DRM; the §5 coverage matrix is the pass/fail |
 
-Group IDs are **selective-run filters only** (`-e`/`-d`); ut-core runs every
-registered suite by default. The same cases run identically on every platform —
-only the cross-compiler differs.
+Run one level with `./test.sh --scope L1` (or `RIALTO_CONFORMANCE_SCOPE=L1` for
+the dev loop); `full` is the default. Out-of-scope cases **self-skip and are
+reported as skipped**, so a scoped run still shows what it did not exercise —
+the same property that makes the capability gate honest. The same cases run
+identically on every platform; only the cross-compiler differs.
+
+ut-core's own `-e`/`-d` group flags are **not** the mechanism. ut-core 5.1.0
+parses them and `UT_get_test_filter()` builds a correct include list, but in
+automated mode the filter is never applied — `runTests()` is a bare
+`RUN_ALL_TESTS()` and the filter only marks suites active for the interactive
+menu. The `UTTestRunner` constructor then overwrites `GTEST_FLAG(filter)` with
+`"-"` unconditionally, so a filter set by `main()` is clobbered too. Scope is
+therefore a per-case self-skip in
+[include/conformance/ScopeGate.h](include/conformance/ScopeGate.h), invoked from
+the tier macros every case already declares.
 
 ## Test tiers (what is being conformed to)
 

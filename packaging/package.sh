@@ -61,6 +61,13 @@ cp -a "${ROOT_DIR}/assets/manifest.yaml" "${STAGE_DIR}/assets/"
 # raft orchestration scripts so the package is self-describing on the target.
 cp -a "${ROOT_DIR}/raft/." "${STAGE_DIR}/raft/"
 
+# Target-side bring-up, named by the slot's conformance.launch/teardown. A target
+# that is already running Rialto (a real box) leaves those keys empty and these go
+# unused; the software platform needs them to start the session server.
+cp -a "${ROOT_DIR}/packaging/launch-target.sh" "${STAGE_DIR}/"
+cp -a "${ROOT_DIR}/packaging/teardown-target.sh" "${STAGE_DIR}/"
+chmod +x "${STAGE_DIR}/launch-target.sh" "${STAGE_DIR}/teardown-target.sh"
+
 # A run helper that sets LD_LIBRARY_PATH so the binary finds its co-located libs.
 cat > "${STAGE_DIR}/run.sh" <<'EOF'
 #!/usr/bin/env bash

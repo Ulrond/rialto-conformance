@@ -29,8 +29,14 @@
 # To run on a Linux host with no hardware Rialto, build the software stack first
 # with ./build-rialto.sh; the Makefile then auto-discovers it. See build-rialto.sh.
 #
+# Building and testing are separate (issue #104): this script builds and packages,
+# ./test.sh runs. A successful build leaves the deployable tarball in build/dist,
+# which is exactly what test.sh ships to the target — nothing in the test path
+# ever compiles.
+#
 # Usage:
-#   ./build.sh                 # linux target, VARIANT=CPP
+#   ./build.sh                 # linux target, VARIANT=CPP, then package
+#   ./build.sh --no-package    # compile only, skip the tarball
 #   ./build.sh TARGET=arm      # arm cross-compile (toolchain sourced from env)
 #   ./build.sh clean | cleanall
 
@@ -45,12 +51,29 @@ if [ ! -f "${UT_CORE_DIR}/Makefile" ]; then
     "${ROOT_DIR}/install.sh"
 fi
 
-# Pass-through make args (e.g. TARGET=arm) and clean verbs.
-MAKE_ARGS=("$@")
+# Pass-through make args (e.g. TARGET=arm) and clean verbs. --no-package is ours.
+PACKAGE=1
+MAKE_ARGS=()
+for arg in "$@"; do
+    case "${arg}" in
+        --no-package) PACKAGE=0 ;;
+        *)            MAKE_ARGS+=("${arg}") ;;
+    esac
+done
 
-echo "[build.sh] building (VARIANT=CPP) ${MAKE_ARGS[*]}"
+echo "[build.sh] building (VARIANT=CPP) ${MAKE_ARGS[*]-}"
 # Safe expansion: pass MAKE_ARGS only when non-empty (an empty "${a[@]:-}" expands
 # to a single empty argument, which make rejects as an invalid file name).
 make -C "${ROOT_DIR}" VARIANT=CPP ${MAKE_ARGS[@]+"${MAKE_ARGS[@]}"}
 
 echo "[build.sh] done -> ${ROOT_DIR}/build/bin/rialto_conformance"
+
+# Package unless told not to, and never for a clean verb — test.sh consumes this.
+case " ${MAKE_ARGS[*]-} " in
+    *" clean "*|*" cleanall "*) PACKAGE=0 ;;
+esac
+if [ "${PACKAGE}" -eq 1 ]; then
+    echo "[build.sh] packaging"
+    ARTIFACT="$("${ROOT_DIR}/packaging/package.sh")"
+    echo "[build.sh] package -> ${ARTIFACT}"
+fi

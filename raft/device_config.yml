@@ -5,11 +5,18 @@
 # --deviceConfig) — the canonical python_raft shape:
 #     deviceConfig: > cpe1: > platform: / model: / prompt:
 #
-# HOST-ONLY. python_raft reads platform/model/prompt to drive the target and the
-# `conformance` block to install + collect results. The capability gate is NOT
-# here — it is the platform's HFP, named by `conformance.hfp` (a URL). The host
-# fetches the HFP and ships the resolved file to the target, which loads it with
-# `-p`. Nothing on the target reads this deviceConfig.
+# One cpe entry per platform named by a rack_config slot; python_raft matches on
+# `platform`. HOST-ONLY: python_raft reads platform/model/prompt to drive the
+# target and the `conformance` block to deploy, launch and collect results.
+# Nothing on the target reads this file.
+#
+# The capability gate is NOT here — it is the platform's HFP, named by
+# `conformance.hfp` (a URL). The host fetches the HFP and ships the resolved file
+# to the target, which loads it with `-p`.
+#
+# Testing NEVER builds (issue #104). `conformance.package` names a PREBUILT
+# tarball produced by ./build.sh. `deploy: none` says the engineer installed it
+# on the target themselves and raft should just run.
 #
 # raft is GIVEN the target by config and has NO concept of the platform; the
 # suite never branches on platform identity. Swapping the backend = editing this
@@ -17,16 +24,84 @@
 # ../profiles/deviceConfig.schema.yaml. HFP schema: ../profiles/hfp.schema.yaml.
 
 deviceConfig:
+  # --- the software Rialto emulator, inside the SC container -----------------
+  # The backend underneath is the software Rialto built by ../build-rialto.sh
+  # (NATIVE_BUILD), not a SoC. It has to be brought up before the suite can talk
+  # to it: launch-target.sh starts RialtoServerManagerSim, activates the app and
+  # waits for the session-server socket, then writes the resolved environment
+  # (socket path, plugin paths, sim host/port) to target-env.sh for the run.
   cpe1:
+    platform: "linux-emulator"
+    model: "native-software"
+    prompt: "$ "
+
+    conformance:
+      installDir: "/opt/rialto-conformance"
+      binary:     "rialto_conformance"
+      resultsDir: "/opt/rialto-conformance/results"
+      hfp: "file://profiles/hfp.linux.yaml"        # the Linux software platform's HFP
+
+      deploy:  "fetch"
+      package: "build/dist/rialto-conformance-*.tar.gz"
+
+      launch:   "./launch-target.sh"
+      teardown: "./teardown-target.sh"
+      envFile:  "target-env.sh"
+
+  # --- a render-capable Linux VM / box ---------------------------------------
+  # Rialto is expected to be installed and running already, so nothing is
+  # launched. If yours needs bringing up, point `launch` at a script for it.
+  cpe2:
+    platform: "linux-native"
+    model: "linux-box"
+    prompt: "$ "
+
+    conformance:
+      installDir: "/opt/rialto-conformance"
+      binary:     "rialto_conformance"
+      resultsDir: "/opt/rialto-conformance/results"
+      hfp: "file://profiles/hfp.linux.yaml"
+
+      deploy:  "fetch"
+      package: "build/dist/rialto-conformance-*.tar.gz"
+
+      launch:   ""
+      teardown: ""
+      envFile:  ""
+
+  # --- real targets -----------------------------------------------------------
+  cpe3:
     platform: "reference-target"   # config-named target instance — not a SoC family
     model: "reference"
     prompt: "root@target:~#"
 
-    # Host orchestration + the pointer to this platform's HFP. ut-raft installs
-    # the package + collects results here, fetches the HFP from `hfp`, and ships
-    # the resolved file to the target.
     conformance:
       installDir: "/opt/rialto-conformance"
       binary: "rialto_conformance"
       resultsDir: "/opt/rialto-conformance/results"
       hfp: "https://<platform-owner>/hfp/reference-target.yaml"   # URL of this platform's HFP
+
+      deploy:  "fetch"
+      package: "build/dist/rialto-conformance-*.tar.gz"
+
+      launch:   ""
+      teardown: ""
+      envFile:  ""
+
+  cpe4:
+    platform: "lab-target-1"
+    model: "lab"
+    prompt: "root@target:~#"
+
+    conformance:
+      installDir: "/opt/rialto-conformance"
+      binary: "rialto_conformance"
+      resultsDir: "/opt/rialto-conformance/results"
+      hfp: "https://<platform-owner>/hfp/lab-target-1.yaml"
+
+      deploy:  "fetch"
+      package: "build/dist/rialto-conformance-*.tar.gz"
+
+      launch:   ""
+      teardown: ""
+      envFile:  ""
