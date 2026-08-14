@@ -151,6 +151,21 @@ python_raft flow; the only thing that changes is which slot you name.
 ./test.sh --slot linux-native --tier all    # core | extended | all
 ```
 
+The emulator slot is a target you can stand up here and now — no hardware, no VM.
+[emulator.sh](emulator.sh) puts an sshd and the software Rialto in the SC
+container, so raft reaches it over the same ssh hop it uses for a real box:
+
+```bash
+./sc-build.sh                               # software Rialto + suite + package
+./emulator.sh up                            # the container becomes a target
+./test.sh --slot linux-emulator             # a normal raft run against it
+./emulator.sh down
+```
+
+It runs with host networking, so its sshd is on **127.0.0.1:2222** — loopback
+only, and port 22 stays yours. The login user, its key and its password are made
+by the bring-up, which is why that slot needs no per-engineer editing.
+
 Point it at your box by editing that slot's console `ip`/`username` in
 [raft/rack_config.yml](raft/rack_config.yml) — every slot lives in that one file.
 The slot's `platform` selects its entry in [raft/device_config.yml](raft/device_config.yml),
@@ -177,11 +192,20 @@ image) and runs build → launch → gate inside the container as you:
 ./sc-run.sh                                 # CORE gate on the Linux software platform
 RIALTO_CONFORMANCE_TIER=all ./sc-run.sh
 RIALTO_CONFORMANCE_SCOPE=L1 ./sc-run.sh     # one level
+./sc-build.sh                               # build only, for a raft run afterwards
 ```
 
 This is the *dev loop*, not a second test path: it uses the same `build.sh`, the
 same `launch-target.sh` and the same packaged binary that raft uses, without the
-ssh hop.
+ssh hop. For the gate, use `./emulator.sh up` and `./test.sh --slot
+linux-emulator` above — same container, reached as a target.
+
+An installed Rialto has to resolve its own libraries from the system loader
+path: the server manager spawns the session server with `execve` and an
+environment of its own, so nothing the launch exports reaches it, and its stderr
+goes to `/dev/null`. Put the prefix's `lib` in `/etc/ld.so.conf.d` and run
+`ldconfig` when standing Rialto up on a box, or the server exits without a word
+and every native-surface case fails.
 
 ## Test levels (scope of test, not platform)
 

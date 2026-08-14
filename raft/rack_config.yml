@@ -9,6 +9,7 @@
 # which slot ./test.sh selects.
 #
 #   ./test.sh --slot linux-emulator                  # software Rialto, SC container
+#                                                    # (./emulator.sh up first)
 #   ./test.sh --slot linux-native                    # a Linux VM / box
 #   ./test.sh --slot reference-target                # a real target
 #   ./test.sh --slot linux-native --scope L1 --tier core
@@ -24,17 +25,33 @@
 
 globalConfig:
   includes:
-    deviceConfig: "device_config.yml"
+    # Resolved by python_raft against the CWD, and only made absolute when it
+    # starts with a dot — so this is written relative to the repo root, which is
+    # where ./test.sh runs from.
+    deviceConfig: "./raft/device_config.yml"
   local:
     log:
       directory: "./logs"
+      delimiter: "/"
 
 rackConfig:
   rack1:
-    # The software Rialto emulator, brought up inside the SC container by
-    # packaging/launch-target.sh. Reached over ssh to itself, because python_raft
-    # has no `local` console type. Default slot for ./test.sh.
-    linux-emulator:
+    # python_raft matches --rack and --slotName against these `name` values, not
+    # against the YAML keys: a slot without one cannot be selected.
+    name: "rack1"
+    description: "rialto-conformance targets"
+
+    # The software Rialto emulator: the SC container, stood up as a target by
+    # ./emulator.sh up (issue #107). The container runs with --net=host, so its
+    # sshd is on a LOOPBACK-ONLY port of this box; the login user, its password
+    # and its key are all created by the bring-up, which is why this slot needs
+    # no per-engineer editing.
+    #
+    # `password` is what python_raft's console uses (its deviceManager configures
+    # ssh with a password only); `key` is what this suite's adjudicator hands to
+    # scp. Both are fixed lab values, reachable from 127.0.0.1 alone.
+    slot1:
+      name: "linux-emulator"
       devices:
         - dut:
             platform: "linux-emulator"
@@ -43,13 +60,16 @@ rackConfig:
                   type: "ssh"
                   enabled: true
                   ip: "127.0.0.1"
-                  port: 22
+                  port: 2222
                   username: "rialto"
+                  password: "rialto"
+                  key: "build/emulator/id_ed25519"
                   prompt: "$ "
 
     # A render-capable Linux VM or box that already has Rialto running.
     # EDIT the console `ip`/`username` to point at yours.
-    linux-native:
+    slot2:
+      name: "linux-native"
       devices:
         - dut:
             platform: "linux-native"
@@ -63,7 +83,8 @@ rackConfig:
                   prompt: "$ "
 
     # Real targets.
-    reference-target:
+    slot3:
+      name: "reference-target"
       devices:
         - dut:
             platform: "reference-target"
@@ -76,7 +97,8 @@ rackConfig:
                   username: "root"
                   prompt: "root@target:~#"
 
-    lab-target-1:
+    slot4:
+      name: "lab-target-1"
       devices:
         - dut:
             platform: "lab-target-1"

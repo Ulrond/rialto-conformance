@@ -28,8 +28,15 @@ set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SIM_PORT="${SIM_PORT:-9008}"
+APP="${APP:-conformance}"
+SOCK="/tmp/rialto-${APP}"
 PID_FILE="${HERE}/.sim.pid"
 
+# Deactivate the app first: the session server is the sim's child, and quitting
+# the sim does not stop it. A server left running keeps ${SOCK} bound, and the
+# next launch's server then cannot bind — so skipping this quietly breaks the
+# NEXT run rather than this one.
+curl -s -X POST -d "" "localhost:${SIM_PORT}/SetState/${APP}/NotRunning" >/dev/null 2>&1 || true
 curl -s -X POST -d "" "localhost:${SIM_PORT}/Quit" >/dev/null 2>&1 || true
 
 if [ -f "${PID_FILE}" ]; then
@@ -40,6 +47,12 @@ if [ -f "${PID_FILE}" ]; then
     fi
     rm -f "${PID_FILE}"
 fi
+
+# Whatever the orderly path missed. Our own processes only — a target running
+# someone else's Rialto is not ours to stop.
+pkill -u "$(id -u)" -x RialtoServer 2>/dev/null || true
+for _ in $(seq 1 30); do pgrep -u "$(id -u)" -x RialtoServer >/dev/null 2>&1 || break; sleep 0.1; done
+rm -f "${SOCK}"
 
 rm -f "${HERE}/target-env.sh"
 echo "[teardown] done"

@@ -54,14 +54,21 @@ import glob
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 
-from raft import RAFTUnitTestCase, RAFTUnitTestMain  # provided by python_raft / ut-raft
-
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+# python_raft is installed as a source tree by install.sh (framework.lock), not
+# as a distribution — only its requirements are pip-installed. Its own examples
+# put the checkout on sys.path and import through it, so this does the same.
+sys.path.insert(0, os.path.join(REPO_ROOT, "framework", "python_raft"))
+sys.path.insert(0, os.path.join(REPO_ROOT, "framework", "ut-raft"))
+
+from framework.core.raftUnittest import RAFTUnitTestCase, RAFTUnitTestMain  # noqa: E402
 
 # Scope is passed to the binary as RIALTO_CONFORMANCE_SCOPE, not as ut-core's
 # -e/-d. ut-core 5.1.0 parses those and computes a filter, but never applies it in
@@ -75,10 +82,20 @@ class RialtoConformance(RAFTUnitTestCase):
 
     def setUp(self):
         self.dut.session.open()
+        # Each phase gets its own interactive channel: tearDown closes the client,
+        # and the console reuses whatever channel it holds rather than noticing
+        # that one died with it — the next write would go to a closed socket.
+        self.dut.session.open_interactive_shell()
         # Per-target conformance params come from device_config.yml — never code.
-        # self.dut.config is the cpe entry (deviceConfig/cpe1); the host-only
-        # `conformance` block carries the orchestration inputs + the HFP URL.
-        self.conf = self.dut.config.get("conformance", {})
+        # self.cpe is the deviceConfig entry raft matched to this slot's platform
+        # (deviceConfig/cpe1 for linux-emulator); the host-only `conformance`
+        # block on it carries the orchestration inputs + the HFP URL.
+        self.assertIsNotNone(
+            self.cpe,
+            "no deviceConfig cpe entry matches this slot's platform — check that "
+            "the slot's `platform` in rack_config.yml names one in device_config.yml",
+        )
+        self.conf = self.cpe.get("conformance", {})
         self.install_dir = self.conf.get("installDir", "/opt/rialto-conformance")
         self.binary = self.conf.get("binary", "rialto_conformance")
         self.results_dir = self.conf.get("resultsDir", f"{self.install_dir}/results")
@@ -127,14 +144,15 @@ class RialtoConformance(RAFTUnitTestCase):
             self.log.step(f"deploy: fetch — shipping {os.path.basename(package)}")
             remote_pkg = f"/tmp/{os.path.basename(package)}"
             self._copy_to_target(package, remote_pkg)
-            self.dut.session.write(f"mkdir -p {self.install_dir} && tar -xzf {remote_pkg} -C {self.install_dir}")
-            self.dut.session.read_until(self.dut.session.prompt, timeout=60)
+            self._on_target(
+                f"mkdir -p {self.install_dir} && tar -xzf {remote_pkg} -C {self.install_dir}",
+                "UNPACK_DONE_", timeout=60,
+            )
 
         # Either way, the binary must be there and executable before we go on.
-        self.dut.session.write(f"test -x {self.install_dir}/{self.binary} && echo DEPLOY_OK")
-        out = self.dut.session.read_until(self.dut.session.prompt, timeout=30)
+        out = self._on_target(f"test -x {self.install_dir}/{self.binary}", "DEPLOY_DONE_", timeout=30)
         self.assertIn(
-            "DEPLOY_OK", out,
+            "DEPLOY_DONE_0", out,
             f"conformance binary not present/executable at {self.install_dir}/{self.binary}",
         )
 
@@ -145,19 +163,20 @@ class RialtoConformance(RAFTUnitTestCase):
             self.log.step("launch: none configured — assuming the target is already up")
             return
         self.log.step(f"launch: {self.launch_cmd}")
-        self.dut.session.write(f"cd {self.install_dir} && {self.launch_cmd} ; echo LAUNCH_DONE_$?")
-        out = self.dut.session.read_until("LAUNCH_DONE_", timeout=300)
+        out = self._on_target(
+            f"cd {self.install_dir} && {self.launch_cmd}", "LAUNCH_DONE_", timeout=300,
+        )
+        self.log.debug(f"launch output:\n{out}")
         self.assertIn(
             "LAUNCH_DONE_0", out,
-            f"target launch command failed: {self.launch_cmd}",
+            f"target launch command failed: {self.launch_cmd}\n--- target output ---\n{out}",
         )
 
     # --- run + adjudicate ---------------------------------------------------
     def test_10_run_conformance(self):
         """Run the selected scope against the launched target and parse xUnit."""
         remote_xml = f"{self.results_dir}/rialto_conformance.xml"
-        self.dut.session.write(f"mkdir -p {self.results_dir}")
-        self.dut.session.read_until(self.dut.session.prompt, timeout=15)
+        self._on_target(f"mkdir -p {self.results_dir}", "RESULTS_DIR_DONE_", timeout=15)
 
         # Host fetches the platform HFP from its URL, then ships the resolved file
         # to the target. deviceConfig is never shipped; the target sees only the HFP.
@@ -169,13 +188,27 @@ class RialtoConformance(RAFTUnitTestCase):
             # binary self-selects the cases this target's platform exposes. -e
             # narrows to one level when a scope was asked for.
             self.log.step(f"run: scope={self.scope} tier={self.tier}")
-            self.dut.session.write(
+            self._on_target(
                 f"cd {self.install_dir} && {self._env_prefix()}RIALTO_CONFORMANCE_TIER={self.tier} "
                 f"RIALTO_CONFORMANCE_SCOPE={self.scope} "
                 f"./{self.binary} -a -p {self.remote_hfp} "
-                f"-l {self.results_dir}/ ; echo RUN_DONE_$?"
+                f"-l {self.results_dir}/",
+                "RUN_DONE_", timeout=900,
             )
-            self.dut.session.read_until("RUN_DONE_", timeout=900)
+
+            # ut-core names its report after the run's timestamp
+            # (ut-log_<date>_<time>-report.xml), so the newest one in the results
+            # directory is this run's. Collect it to a stable name on the target
+            # rather than guessing the name from the host.
+            collected = self._on_target(
+                f"cp \"$(ls -1t {self.results_dir}/*-report.xml | head -1)\" {remote_xml}",
+                "COLLECT_DONE_", timeout=30,
+            )
+            self.assertIn(
+                "COLLECT_DONE_0", collected,
+                f"the run produced no xUnit report in {self.results_dir} — "
+                f"the binary did not complete\n--- target output ---\n{collected}",
+            )
 
             local_xml = os.path.join(self.local_results, "rialto_conformance.xml")
             self._copy_from_target(remote_xml, local_xml)
@@ -188,6 +221,22 @@ class RialtoConformance(RAFTUnitTestCase):
         self.dut.session.close()
 
     # --- helpers ------------------------------------------------------------
+    def _on_target(self, command, marker, timeout):
+        """Run one command on the target and wait for it to finish.
+
+        The console is an interactive shell, so it echoes back what it is sent
+        before running it. A completion marker written plainly is therefore
+        present the instant the command is typed — waiting for it returns while
+        the command is still running, and every later read is out of step with
+        the shell. Sending the marker as two shell literals keeps it out of the
+        echoed line, so the first occurrence read back is the real one.
+
+        Returns the console output, ending `<marker><exit status>`.
+        """
+        emit = f'echo "{marker[:3]}""{marker[3:]}"$?'
+        self.dut.session.write(f"{command} ; {emit}")
+        return self.dut.session.read_until(marker, timeout=timeout)
+
     def _env_prefix(self):
         """Shell prefix that sources the launch-written env file, if configured."""
         return f". ./{self.env_file} && " if self.env_file else ""
@@ -197,8 +246,7 @@ class RialtoConformance(RAFTUnitTestCase):
         if not self.teardown_cmd:
             return
         try:
-            self.dut.session.write(f"cd {self.install_dir} && {self.teardown_cmd} ; echo TEARDOWN_DONE_$?")
-            self.dut.session.read_until("TEARDOWN_DONE_", timeout=120)
+            self._on_target(f"cd {self.install_dir} && {self.teardown_cmd}", "TEARDOWN_DONE_", timeout=120)
         except Exception as exc:                                  # noqa: BLE001
             self.log.step(f"teardown command raised (ignored): {exc}")
 
@@ -271,15 +319,45 @@ class RialtoConformance(RAFTUnitTestCase):
             return
         self._scp(f"{self._ssh_target()}:{remote}", local)
 
+    def _console(self):
+        """The slot's ssh console entry from rack_config.yml.
+
+        rawConfig is the slot's device dict as raft decoded it; the console it
+        actually opened is the first enabled one, which is what `default` names.
+        """
+        dut = self.dut.rawConfig.get("dut", {})
+        for entry in dut.get("consoles", []):
+            for console in entry.values():
+                return console
+        return {}
+
     def _ssh_target(self):
-        console = self.dut.config.get("consoles", [{}])[0].get("default", {})
+        console = self._console()
         user = console.get("username", "root")
-        ip = console.get("ip") or self.dut.config.get("ip")
+        ip = console.get("ip") or self.dut.rawConfig.get("dut", {}).get("ip")
         return f"{user}@{ip}"
 
-    @staticmethod
-    def _scp(src, dst):
-        subprocess.run(["scp", "-q", src, dst], check=True)
+    def _scp(self, src, dst):
+        """Copy a file to or from the target over scp.
+
+        The slot's console is the authority on how the target is reached, so the
+        port comes from it — a slot on any other port than 22 would otherwise be
+        copied to whatever answers on 22. An optional `key` is used when the slot
+        names one; batch mode keeps a missing credential a failure rather than an
+        interactive prompt that never returns.
+        """
+        console = self._console()
+        cmd = ["scp", "-q", "-B",
+               "-o", "StrictHostKeyChecking=no",
+               "-o", "UserKnownHostsFile=/dev/null",
+               "-o", "LogLevel=ERROR",
+               "-P", str(console.get("port", 22))]
+        key = console.get("key")
+        if key:
+            if not os.path.isabs(key):
+                key = os.path.join(REPO_ROOT, key)
+            cmd += ["-i", key]
+        subprocess.run(cmd + [src, dst], check=True)
 
     def _adjudicate(self, xml_path):
         """xUnit verdict: the conformance gate fails on any failure or error."""
