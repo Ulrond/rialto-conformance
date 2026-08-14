@@ -66,8 +66,13 @@ rackConfig:
                   key: "build/emulator/id_ed25519"
                   prompt: "$ "
 
-    # A render-capable Linux VM or box that already has Rialto running.
-    # EDIT the console `ip`/`username` to point at yours.
+    # A render-capable Linux VM or box with Rialto installed on it.
+    # EDIT the four marked fields; nothing else changes to point the gate at one.
+    #
+    # `password` is not optional: python_raft's deviceManager configures its ssh
+    # console with a password and never a key, so the console cannot log in
+    # without one. `key` is separate — it is what the adjudicator hands to scp,
+    # which is how the package, the HFP and the results move.
     slot2:
       name: "linux-native"
       devices:
@@ -77,9 +82,11 @@ rackConfig:
               - default:
                   type: "ssh"
                   enabled: true
-                  ip: "127.0.0.1"        # EDIT: the render-capable Linux VM
+                  ip: "127.0.0.1"        # EDIT: the box's address
                   port: 22
                   username: "rialto"     # EDIT: the box's login user
+                  password: ""           # EDIT: that user's password (the console logs in with it)
+                  key: ""                # EDIT: path to a private key that user accepts (scp uses it)
                   prompt: "$ "
 
     # Real targets.

@@ -58,7 +58,16 @@ deviceConfig:
 
   # --- a render-capable Linux VM / box ---------------------------------------
   # Rialto is expected to be installed and running already, so nothing is
-  # launched. If yours needs bringing up, point `launch` at a script for it.
+  # launched. A box where the software Rialto was stood up with build-rialto.sh
+  # instead brings its session server up per run, the way the emulator does:
+  #
+  #   launch:   "RIALTO_PREFIX=/opt/rialto ./launch-target.sh"
+  #   teardown: "./teardown-target.sh"
+  #   envFile:  "target-env.sh"
+  #
+  # That prefix has to be on the system loader path (/etc/ld.so.conf.d + ldconfig)
+  # — the server manager spawns the session server with an environment of its own,
+  # so an LD_LIBRARY_PATH set here never reaches it.
   cpe2:
     platform: "linux-native"
     model: "linux-box"
