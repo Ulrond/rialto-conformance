@@ -26,10 +26,18 @@
 deviceConfig:
   # --- the software Rialto emulator, inside the SC container -----------------
   # The backend underneath is the software Rialto built by ../build-rialto.sh
-  # (NATIVE_BUILD), not a SoC. It has to be brought up before the suite can talk
-  # to it: launch-target.sh starts RialtoServerManagerSim, activates the app and
-  # waits for the session-server socket, then writes the resolved environment
-  # (socket path, plugin paths, sim host/port) to target-env.sh for the run.
+  # (NATIVE_BUILD), not a SoC. ../emulator.sh installs it as /opt/rialto in the
+  # container and puts an sshd in front, so this slot is reached over ssh like
+  # any other. It has to be brought up before the suite can talk to it:
+  # launch-target.sh starts RialtoServerManagerSim, activates the app and waits
+  # for the session-server socket, then writes the resolved environment (socket
+  # path, plugin paths, sim host/port) to target-env.sh for the run.
+  #
+  # The container is headless, so the platform ranks the fake sinks to MAX: the
+  # RialtoServer's playbin leaves audio-sink/video-sink unset and autodetect has
+  # no display or audio device to find. That is a property of THIS platform, so
+  # it rides on its launch command — the launch hands it to the run via
+  # target-env.sh, and no other slot sees it.
   cpe1:
     platform: "linux-emulator"
     model: "native-software"
@@ -44,7 +52,7 @@ deviceConfig:
       deploy:  "fetch"
       package: "build/dist/rialto-conformance-*.tar.gz"
 
-      launch:   "./launch-target.sh"
+      launch:   "GST_PLUGIN_FEATURE_RANK=fakevideosink:MAX,fakeaudiosink:MAX ./launch-target.sh"
       teardown: "./teardown-target.sh"
       envFile:  "target-env.sh"
 

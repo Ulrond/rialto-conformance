@@ -98,5 +98,7 @@ PY="${ROOT_DIR}/python_venv/bin/python"
 echo "[test] target: ${RACK}/${SLOT}  scope: ${SCOPE}  tier: ${TIER}"
 export RIALTO_CONFORMANCE_SCOPE="${SCOPE}"
 export RIALTO_CONFORMANCE_TIER="${TIER}"
-exec "${PY}" raft/suites/test_rialto_conformance.py \
+# -u: python_raft reports a bad config with a print followed by os._exit(), which
+# skips the flush — buffered, that diagnosis is lost and the run just exits 1.
+exec "${PY}" -u raft/suites/test_rialto_conformance.py \
     --config "${CONFIG}" --rack "${RACK}" --slotName "${SLOT}" ${PASS[@]+"${PASS[@]}"}
