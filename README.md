@@ -166,8 +166,11 @@ It runs with host networking, so its sshd is on **127.0.0.1:2222** — loopback
 only, and port 22 stays yours. The login user, its key and its password are made
 by the bring-up, which is why that slot needs no per-engineer editing.
 
-Point it at your box by editing that slot's console `ip`/`username` in
+Point it at your box by editing that slot's four marked console fields in
 [raft/rack_config.yml](raft/rack_config.yml) — every slot lives in that one file.
+A slot needs both a `password` and a `key`: python_raft's console logs in with
+the password, and the adjudicator hands the key to scp, which is how the package,
+the HFP and the results move.
 The slot's `platform` selects its entry in [raft/device_config.yml](raft/device_config.yml),
 which carries the orchestration inputs: how to deploy, where the prebuilt package
 is, what to run to bring the target up, and the HFP URL naming that platform's
@@ -181,6 +184,34 @@ and raft should just run. A target that needs bringing up first names a
 ServerManagerSim, waits for the session-server socket and hands the resolved
 environment to the run via `target-env.sh`. A box already running Rialto leaves
 `launch` empty.
+
+### Standing the software Rialto up on a box
+
+Any Linux box can host the emulator — the sources are public and the build deps
+are stock packages:
+
+```bash
+./install.sh                                  # clone rialto + rialto-gstreamer at framework.lock
+RIALTO_PREFIX=/opt/rialto ./build-rialto.sh   # build + install the software stack
+echo /opt/rialto/lib | sudo tee /etc/ld.so.conf.d/rialto.conf && sudo ldconfig
+```
+
+The `ldconfig` line is load-bearing. The server manager spawns the session server
+with `execve` and an environment of its own, and sends its stderr to `/dev/null`
+— so a prefix reachable only through `LD_LIBRARY_PATH` leaves the server exiting
+without a word, the app never reaching Active, and every native-surface case
+failing for a reason nothing logged.
+
+Then give the box's slot the launch command for it:
+
+```yaml
+launch:   "RIALTO_PREFIX=/opt/rialto ./launch-target.sh"
+teardown: "./teardown-target.sh"
+envFile:  "target-env.sh"
+```
+
+Which rows a target promotes, and what to record when one fails, is
+[coverage/on-target-promotion-plan.md](coverage/on-target-promotion-plan.md).
 
 ## Dev loop on the software platform
 
