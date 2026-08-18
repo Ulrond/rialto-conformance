@@ -29,10 +29,11 @@
  * synchronous getters. This header provides the two pieces every such case
  * needs:
  *
- *   1. A real elementary stream to feed. Until the curated corpus (issue #22)
- *      lands, streams are synthesised in-process with GStreamer's own encoders
- *      (the software image ships libav/ugly), so a case is hermetic and needs no
- *      network asset. The bytes are genuine AAC the server's decoder consumes.
+ *   1. A real elementary stream to feed, synthesised in-process with GStreamer's
+ *      own encoders (the software image ships libav/ugly). The bytes are genuine
+ *      ADTS AAC and H.264 that the server's decoder consumes, so a case drives
+ *      the real data path while staying hermetic — no network, no asset corpus,
+ *      and the same stream on every target.
  *
  *   2. An active IMediaPipelineClient that answers notifyNeedMediaData by adding
  *      the stream's segments and calling haveData, and records the playback-state

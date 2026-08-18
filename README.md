@@ -410,12 +410,11 @@ sc-build.sh           build in the SC container · sc-run.sh  dev loop in the SC
 emulator.sh           the SC container as the linux-emulator target (up/down/status/logs)
 docker/               Dockerfile helpers: sc-exec.sh (enter the container) + bring-up scripts
 framework.lock        pinned versions of ut-core / ut-raft / rialto API reference
-include/conformance/  CapabilityGate.h · RialtoRelease.h · TierGate.h · ContentLoader.h · Surfaces.h
+include/conformance/  CapabilityGate.h · RialtoRelease.h · TierGate.h · MediaFeed.h · Surfaces.h
 src/                  main.cpp + L1_function/ L2_module/ L3_group/ L4_e2e/ (native/ + mse/)
 coverage/             matrix.yaml + requirements/ (gitignored private-feed mount)
 profiles/             deviceConfig.schema.yaml + deviceConfig.example.yaml  (capability gate)
 raft/                 rack_config.yml · device_config.yml · suites/  (deploy/run/adjudicate)
-assets/               manifest.yaml — real streams fetched at run start, never committed
 packaging/            package.sh — bundle binary + profiles + raft scripts
 framework/            install.sh target — ut-core/ut-control/ut-raft/rialto (NOT committed)
 ```

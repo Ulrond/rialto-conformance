@@ -38,9 +38,8 @@
  *
  * The Dolby-Vision (dovi-stream/dv_profile) and raw-audio-layout field groups of
  * RC-CORE-MSECAPS-006 are platform/content-variable: DV parsing routes through the
- * H.265 source branch and needs real DV content (issue #22) on a DV-capable
- * platform, so it is capability-gated (codecs.video.dolbyVision) rather than
- * synthesised here.
+ * H.265 source branch, which the software encoders here have no path to, so it is
+ * capability-gated (codecs.video.dolbyVision) and rides with a DV-capable target.
  *
  * Coverage trace: coverage/rc-core-catalog.yaml / matrix.yaml — RC-CORE-MSECAPS-006.
  */

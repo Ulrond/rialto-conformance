@@ -47,7 +47,11 @@ cd "${ROOT_DIR}"
 
 RACK="rack1"
 SLOT="${RIALTO_CONFORMANCE_SLOT:-linux-native}"
+# A local rack config wins when present. Real targets have real addresses and
+# real credentials, and those belong on the engineer's box rather than in the
+# repo — raft/*.local.yml is gitignored for exactly this. Override with --config.
 CONFIG="raft/rack_config.yml"
+[ -f "raft/rack_config.local.yml" ] && CONFIG="raft/rack_config.local.yml"
 SCOPE="${RIALTO_CONFORMANCE_SCOPE:-full}"
 TIER="${RIALTO_CONFORMANCE_TIER:-core}"
 PASS=()
@@ -95,7 +99,7 @@ fi
 PY="${ROOT_DIR}/python_venv/bin/python"
 [ -x "${PY}" ] || PY="python3"
 
-echo "[test] target: ${RACK}/${SLOT}  scope: ${SCOPE}  tier: ${TIER}"
+echo "[test] target: ${RACK}/${SLOT}  scope: ${SCOPE}  tier: ${TIER}  config: ${CONFIG}"
 export RIALTO_CONFORMANCE_SCOPE="${SCOPE}"
 export RIALTO_CONFORMANCE_TIER="${TIER}"
 # -u: python_raft reports a bad config with a print followed by os._exit(), which
