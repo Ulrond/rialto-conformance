@@ -48,15 +48,12 @@ UT_CORE_TAG="$(git -C "${ROOT_DIR}/framework/ut-core" describe --tags 2>/dev/nul
 ARTIFACT="${DIST_DIR}/rialto-conformance-${UT_CORE_TAG}.tar.gz"
 
 rm -rf "${STAGE_DIR}"
-mkdir -p "${STAGE_DIR}/raft" "${STAGE_DIR}/assets" "${DIST_DIR}"
+mkdir -p "${STAGE_DIR}/raft" "${DIST_DIR}"
 
 # Binary + the ut-control runtime libs it loads (copied next to the binary by the
 # ut-core build into build/bin).
 cp "${BIN}" "${STAGE_DIR}/"
 find "${ROOT_DIR}/build/bin" -maxdepth 1 -name '*.so*' -exec cp -a {} "${STAGE_DIR}/" \; 2>/dev/null || true
-
-# Asset registry (real streams are fetched at run start, never bundled — §7.1).
-cp -a "${ROOT_DIR}/assets/manifest.yaml" "${STAGE_DIR}/assets/"
 
 # raft orchestration scripts so the package is self-describing on the target.
 cp -a "${ROOT_DIR}/raft/." "${STAGE_DIR}/raft/"

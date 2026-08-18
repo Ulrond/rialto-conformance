@@ -14,8 +14,6 @@
 *.so
 *.so.*
 
-# Real elementary streams — downloaded at run start, never committed (§7.1)
-/assets/cache/
 
 # Private requirements feed — mounted from the access-gated requirements repo,
 # never committed here. Only the mount-point README is tracked. Partner
@@ -27,6 +25,11 @@
 # Each keeps its own history and remote; none is part of the published suite.
 # Not framework/ — that is install.sh territory and `make cleanall` removes it.
 /external/
+
+# Local rack configs — a real target's address and credentials belong on the
+# engineer's box, not in the repo. test.sh prefers raft/rack_config.local.yml
+# over the committed one when it exists.
+/raft/*.local.yml
 
 # Local session marker — not part of the suite
 .lastlogin
