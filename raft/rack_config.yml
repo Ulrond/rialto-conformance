@@ -66,7 +66,10 @@ rackConfig:
                   key: "build/emulator/id_ed25519"
                   prompt: "$ "
 
-    # A render-capable Linux VM or box with Rialto installed on it.
+    # A render-capable Linux VM or box with Rialto installed on it — which can be
+    # THIS machine: leave the ip at 127.0.0.1, put your own username in, and make
+    # sure you can ssh to yourself. That is a real ssh hop to a real box, and the
+    # run is identical to the one a VM or a target takes.
     # EDIT the four marked fields; nothing else changes to point the gate at one.
     #
     # `password` is not optional: python_raft's deviceManager configures its ssh
