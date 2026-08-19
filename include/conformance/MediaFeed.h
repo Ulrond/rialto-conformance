@@ -81,6 +81,10 @@ struct AacElementaryStream
 
     /// Total presentation duration of the stream in nanoseconds.
     int64_t totalDurationNs() const;
+
+    /// Total encoded size of the stream in bytes — what a round that offers every
+    /// frame at once asks the server's shared buffer to hold.
+    size_t totalBytes() const;
 };
 
 /**
@@ -223,6 +227,51 @@ public:
     size_t qosCount();
     firebolt::rialto::QosInfo lastQos();
 
+    // --- Fault feeding (RC-CORE-DATA-004/005/007/010) ------------------------
+    // The conditions these rows describe live inside the server, but the client
+    // decides what it offers and when — so a feed that deliberately misbehaves
+    // reaches them from the public API alone. Each mode changes only what the
+    // feed offers; the protocol it speaks stays the documented one.
+
+    /// Oversupply: offer @p multiple times the requested frame count on every
+    /// need-data, asking the shared buffer for more than a round can hold. A
+    /// segment the server rejects is retained — the cursor does not advance — and
+    /// re-offered on the next request, which is the documented NO_SPACE contract.
+    /// @p multiple of 1 restores normal feeding.
+    void setOversupply(size_t multiple);
+
+    /// Withhold: record need-data requests and never answer them, leaving a
+    /// request outstanding for the server to cancel.
+    void setWithhold(bool withhold);
+
+    /// Corrupt every @p nth segment offered, replacing its payload with bytes
+    /// that are not a decodable access unit while the stream keeps flowing.
+    /// 0 restores clean feeding.
+    void setCorruptEvery(size_t nth);
+
+    /// How many times each AddSegmentStatus came back from addSegment.
+    size_t addSegmentOkCount();
+    size_t addSegmentNoSpaceCount();
+    size_t addSegmentErrorCount();
+
+    /// True once a segment the server rejected with NO_SPACE was accepted on a
+    /// later request — the retain-and-resend half of RC-CORE-DATA-004.
+    bool sawNoSpaceSegmentAccepted();
+
+    /// notifyCancelNeedMediaData observation.
+    size_t cancelCount();
+    bool sawCancel(int32_t sourceId);
+
+    /// notifyPlaybackError observation: how many arrived, the last one, and the
+    /// playback state in force when it did (RC-CORE-DATA-010 asserts that state
+    /// is the one playback was already in).
+    size_t playbackErrorCount();
+    firebolt::rialto::PlaybackError lastPlaybackError();
+    firebolt::rialto::PlaybackState stateAtLastPlaybackError();
+
+    /// The most recently notified playback state.
+    firebolt::rialto::PlaybackState lastPlaybackState();
+
     // --- IMediaPipelineClient ------------------------------------------------
     void notifyDuration(int64_t duration) override;
     void notifyPosition(int64_t position) override;
@@ -269,6 +318,24 @@ private:
     int64_t m_lastPosition = -1;
     size_t m_qosCount = 0;
     firebolt::rialto::QosInfo m_lastQos{0, 0};
+
+    // Fault feeding.
+    size_t m_oversupply = 1;
+    bool m_withhold = false;
+    size_t m_corruptEvery = 0;
+    size_t m_segmentsOffered = 0;
+    size_t m_addOk = 0;
+    size_t m_addNoSpace = 0;
+    size_t m_addError = 0;
+    /// Absolute frame index rejected with NO_SPACE, per source, awaiting a retry.
+    std::map<int32_t, size_t> m_noSpaceFrame;
+    bool m_noSpaceSegmentAccepted = false;
+    size_t m_cancelCount = 0;
+    std::set<int32_t> m_cancelledSources;
+    size_t m_playbackErrorCount = 0;
+    firebolt::rialto::PlaybackError m_lastPlaybackError = firebolt::rialto::PlaybackError::UNKNOWN;
+    firebolt::rialto::PlaybackState m_lastState = firebolt::rialto::PlaybackState::UNKNOWN;
+    firebolt::rialto::PlaybackState m_stateAtLastError = firebolt::rialto::PlaybackState::UNKNOWN;
 };
 
 } // namespace rialto::conformance

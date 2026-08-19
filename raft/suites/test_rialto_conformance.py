@@ -55,6 +55,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 import tempfile
 import urllib.parse
 import urllib.request
@@ -188,13 +189,16 @@ class RialtoConformance(RAFTUnitTestCase):
             # binary self-selects the cases this target's platform exposes. -e
             # narrows to one level when a scope was asked for.
             self.log.step(f"run: scope={self.scope} tier={self.tier}")
-            self._on_target(
+            run_out = self._on_target(
                 f"cd {self.install_dir} && {self._env_prefix()}RIALTO_CONFORMANCE_TIER={self.tier} "
                 f"RIALTO_CONFORMANCE_SCOPE={self.scope} "
                 f"./{self.binary} -a -p {self.remote_hfp} "
                 f"-l {self.results_dir}/",
                 "RUN_DONE_", timeout=900,
             )
+            # The tail of the run says how the binary ended, which is the first
+            # thing wanted when no report turns up.
+            self.log.step(f"run ended: ...{run_out[-400:]}")
 
             # ut-core names its report after the run's timestamp
             # (ut-log_<date>_<time>-report.xml), so the newest one in the results
@@ -235,7 +239,20 @@ class RialtoConformance(RAFTUnitTestCase):
         """
         emit = f'echo "{marker[:3]}""{marker[3:]}"$?'
         self.dut.session.write(f"{command} ; {emit}")
-        return self.dut.session.read_until(marker, timeout=timeout)
+
+        # Read until the marker arrives or the deadline passes, rather than in one
+        # call: a single read_until has been observed returning mid-command on a
+        # long run, and taking that at face value means acting on a command that
+        # has not finished — collecting a report the binary has not written yet.
+        # Re-reading costs nothing when the marker is already there.
+        deadline = time.monotonic() + timeout
+        out = ""
+        while marker not in out:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            out += self.dut.session.read_until(marker, timeout=min(30.0, remaining))
+        return out
 
     def _env_prefix(self):
         """Shell prefix that sources the launch-written env file, if configured."""
