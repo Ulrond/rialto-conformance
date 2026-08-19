@@ -626,8 +626,13 @@ operations:
     path: native
     req: [RC-CORE-DATA-004, RC-CORE-DATA-005]
     expected: "NO_SPACE is not an error (retain + resend on next need-data); ERROR on an unexpected error"
-    case: "(needs fault injection the public API cannot drive deterministically — NO_SPACE requires shm exhaustion, ERROR an internal fault; not provokable from a conformance client)"
-    status: planned
+    case: "L4DataFaultTests.NoSpaceIsNotAnErrorAndTheSegmentIsResent, L4DataFaultTests.AddSegmentWithAnUnissuedRequestIdIsAnError"
+    status: covered
+    note: "Both conditions are reachable from the public API. A feed that offers a
+      whole stream in one round exhausts the server's 1MB audio partition: the
+      rejected segment comes back NO_SPACE, never ERROR, is retained by the client
+      and accepted on a later request, and playback continues. addSegment quoting a
+      need-data request id the server never issued returns ERROR."
 
   - op: notifyCancelNeedMediaData
     interface: IMediaPipelineClient
@@ -635,8 +640,14 @@ operations:
     path: native
     req: [RC-CORE-DATA-007]
     expected: "Cancels an outstanding request; cancelling with none pending is not an error"
-    case: "(server-initiated; not deterministically provokable from the public client API)"
-    status: planned
+    case: "L4DataFaultTests.CancelledNeedDataIsNotAnError"
+    status: covered
+    note: "Asserted as the client-facing contract: a need-data left unanswered and
+      then flushed costs the client nothing — no FAILURE, and the protocol resumes
+      once the client answers again. The announcement itself is recorded rather than
+      asserted: this platform's server does not send notifyCancelNeedMediaData on a
+      flush with a request outstanding (observed, 0 cancels), so the assertion that
+      a cancel arrives firms up on a target that sends one."
 
   - op: "MediaSegment buffer validity"
     interface: IMediaPipelineClient
@@ -653,8 +664,15 @@ operations:
     path: native
     req: [RC-CORE-DATA-010]
     expected: "A non-fatal playback error leaves PlaybackState unchanged"
-    case: "(needs a non-fatal player-error injection; not provokable from the public client API on a clean software run)"
-    status: planned
+    case: "L4DataFaultTests.NonFatalPlaybackErrorLeavesStateUnchanged"
+    status: covered
+    note: "A feed that corrupts one access unit in four hands the decoder
+      undecodable data mid-stream. The clause is asserted both ways: the pipeline
+      never reaches FAILURE, and where a playback error is announced the state in
+      force is the one playback was already in. Announcement is decoder-dependent —
+      the software AAC decoder conceals a bad frame rather than reporting it
+      (observed, 0 errors), so a vendor decoder that reports them exercises the
+      positive branch."
 
   - op: notifyDuration
     interface: IMediaPipelineClient

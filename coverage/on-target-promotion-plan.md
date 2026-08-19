@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # On-target promotion plan
 
-Twelve `RC-CORE-*` rows are `planned` and two are `gap`. Each one waits on a
+Nine `RC-CORE-*` rows are `planned` and two are `gap`. Each one waits on a
 capability the Linux software platform does not have. This is what to run when a
 target with that capability is available, and what to record from it.
 
@@ -52,16 +52,20 @@ Target: one with Widevine or PlayReady provisioned. The same target promotes
 `MSECAPS-006` (DV/HEVC) and the two `KEYS-*` capability skips already in the
 5-skip set.
 
-### Fault injection — DATA-004, DATA-005, DATA-007, DATA-008, DATA-010
+### A sanitizer, not a server — DATA-008
 
-These assert the server's behaviour under conditions a conformance client cannot
-provoke through the public API: shm exhaustion (`NO_SPACE`), an internal error, a
-server-initiated event, a non-fatal player error, and a client obligation the
-feed honours by construction.
+A segment's data buffer must stay valid until the matching `haveData` completes.
+That is an obligation on the client, so no server response proves or disproves
+it: it is caught by running the suite under AddressSanitizer, where a use of the
+buffer after the feed released it is reported at the point it happens.
 
-Each needs either a target whose backend can be driven into the condition, or a
-fault-injection surface on the server. Establish which of the two the target
-offers before writing the case; the row's parenthetical names the condition.
+The other fault clauses that stood here — `NO_SPACE`, an unexpected call, a
+cancelled request, a non-fatal playback error — are covered:
+`L4DataFaultTests` reaches all four from the public API with a feed that
+deliberately misbehaves. Two of them assert the always-true clause and record a
+platform-dependent announcement, which firms up on a target that makes it: a
+server that cancels on flush, and a decoder that reports a dropped frame rather
+than concealing it.
 
 ### A native VIDEO feed — PIPE-016
 

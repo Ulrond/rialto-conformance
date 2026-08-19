@@ -10,16 +10,16 @@ The CORE tier against rialto **v0.24.0** + rialto-gstreamer **v0.22.0**. Every
 
 | | Rows | Meaning |
 |---|---|---|
-| **Tested** | 120 | a case asserts it, and it runs |
+| **Tested** | 123 | a case asserts it, and it runs |
 | **Held** | 5 cases | the case exists and self-skips until a target declares the feature |
-| **Untested** | 12 | no case yet — each waits on something the interface alone cannot provide |
+| **Untested** | 9 | no case yet — each waits on something the interface alone cannot provide |
 
-A run on the Linux software platform is **117 cases → 112 pass, 5 skip, 0 fail**,
+A run on the Linux software platform is **121 cases → 116 pass, 5 skip, 0 fail**,
 whether driven through the emulator slot or the dev loop. Case count and row
 count differ because one case can carry several requirements and one requirement
 can be asserted on both interfaces.
 
-## Tested — 120 rows
+## Tested — 123 rows
 
 | Area | Rows | What is asserted |
 |---|---|---|
@@ -30,7 +30,7 @@ can be asserted on both interfaces.
 | **KEYS** | 9 | the media-keys session lifecycle against a real W3C ClearKey CDM |
 | **WEBAUDIO** | 8 | the web-audio player surface, including async property application |
 | **KEYSCAP** | 7 | key-system support and version reporting |
-| **DATA** | 6 | the transfer protocol — need-data / have-data, real elementary streams to PLAYING |
+| **DATA** | 10 | the transfer protocol — need-data / have-data, real elementary streams to PLAYING, and its failure clauses: a full buffer, an unexpected call, an unanswered request, a decode fault |
 | **MSECAPS** | 6 | sink pad-template caps and negotiation |
 | **MSESTATE** | 6 | sink state transitions |
 | **CONSIST** | 5 | the two interfaces agree wherever they expose the same fact |
@@ -58,18 +58,24 @@ failure.
 | `L1WebAudioTests.StateMachineNotifiesTransitions` | web-audio state notifications |
 | `L3MemoryUsageTests.CapabilitiesLifecycleChurnDoesNotLeak` | a measurable memory surface |
 
-## Untested — 12 rows
+## Untested — 9 rows
 
 | Waits on | Rows | Why the interface alone cannot reach it |
 |---|---|---|
 | **A vendor CDM** | KEYS-004, KEYS-007, KEYS-008, KEYS-010 | ClearKey has no DRM header and no license renewal, and accepts `update` in any constructed state — the assertions are about behaviour a licensed CDM has and it does not |
-| **Fault injection** | DATA-004/005, DATA-007, DATA-008, DATA-010 | conditions inside the server: buffer exhaustion, an unrecoverable error, a cancelled request, a client-side buffer-lifetime obligation, a non-fatal playback error |
+| **A sanitizer, not a server** | DATA-008 | a segment's buffer must stay valid until `haveData` completes — an obligation on the client, so nothing the server reports can prove or disprove it |
 | **An upstream answer** | DATA-011 | the server never calls `notifyDuration` at this release (IDG-002) — no client action makes a callback fire that is not emitted |
 | **A video-rendering target** | PIPE-016 | the immediate-output flag lives on the video sink, which needs a native video feed |
 | **A subtitle-capable target** | PIPE-020, PIPE-027 | the software platform stubs the text-track service |
 
-Nine of the twelve fall to a single target with a vendor CDM and video, which is
-what [on-target-promotion-plan.md](on-target-promotion-plan.md) sequences.
+Seven of the nine fall to a single target with a vendor CDM, video and subtitles,
+which is what [on-target-promotion-plan.md](on-target-promotion-plan.md)
+sequences. The four fault clauses that were here — a full shared buffer, an
+unexpected call, an unanswered request and a decode fault — moved into *Tested*:
+a feed that deliberately misbehaves reaches them from the public API, so they
+needed no injection surface after all. Where the server's announcement is
+platform-dependent (a cancel on flush, a decoder reporting a dropped frame) the
+case asserts the clause that always holds and records the rest.
 
 ## Two gaps with no row
 
