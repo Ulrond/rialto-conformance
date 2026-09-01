@@ -117,18 +117,21 @@ image, the pinned checkouts).
 
 ```bash
 ./sc-build.sh                        # 1. build the software Rialto + the suite + the package
-./emulator.sh up                     # 2. turn the container into a target
-./test.sh --slot linux-emulator      # 3. run the gate against it
-./emulator.sh down                   # 4. stop it
+./test.sh --slot linux-emulator      # 2. run the gate against it
 ```
 
 Expect `117 cases, 0 failed, 0 errored, 5 skipped`.
 
+Two commands, because bringing the target up and taking it down is part of
+running against it: the run raises the container, deploys to it, runs, and drops
+it again — as the run's first and last cases, reported like any other. Add
+`--keep-slot` to leave it up afterwards.
+
 | Script | What it does |
 |---|---|
 | [sc-build.sh](sc-build.sh) | builds inside the container: Rialto (software), the suite, the deployable tarball |
-| [emulator.sh](emulator.sh) | `up` \| `down` \| `status` \| `logs` — the container as an ssh-reachable target |
-| [test.sh](test.sh) | runs the suite against a target. Never builds |
+| [test.sh](test.sh) | runs the suite against a target, slot lifecycle included. Never builds |
+| [emulator.sh](emulator.sh) | `up` \| `down` \| `status` \| `logs` — the container as an ssh-reachable target, by hand |
 | [sc-run.sh](sc-run.sh) | the tight dev loop: build + launch + run in one container, no ssh hop |
 | [build.sh](build.sh) | builds on this host (needs the toolchain and Rialto's deps present) |
 | [build-rialto.sh](build-rialto.sh) | builds the software Rialto itself into a prefix |
@@ -138,14 +141,17 @@ Scope and tier narrow a run: `--scope L1|L2|L3|L4` and `--tier core|extended|all
 
 ## How a run works
 
-`test.sh` never compiles. It ships a prebuilt package to a target, brings the
-target up, runs the binary there, and adjudicates the xUnit that comes back.
+`test.sh` never compiles. It raises the slot, ships a prebuilt package to it,
+brings the target environment up, runs the binary there, adjudicates the xUnit
+that comes back, and drops the slot again.
 
 ```mermaid
 sequenceDiagram
     participant H as host — test.sh + raft
     participant T as target — a slot
     H->>H: resolve the slot: rack_config.yml → device_config.yml
+    H->>H: slotUp — raise the slot (a container, a VM)
+    H->>T: open the console — the slot answers
     H->>T: scp the prebuilt package, unpack it
     H->>H: fetch the platform's HFP from its URL
     H->>T: scp the resolved HFP
@@ -155,6 +161,7 @@ sequenceDiagram
     T-->>H: xUnit report
     H->>T: teardown
     H->>H: adjudicate — any failure or error fails the gate
+    H->>H: slotDown — drop the slot again
 ```
 
 The target is only ever a **slot**. The emulator, a Linux box and a real target
@@ -176,9 +183,11 @@ in place and rebuild:
 ```bash
 $EDITOR framework/rialto/media/client/main/source/MediaPipeline.cpp
 ./sc-build.sh                       # rebuilds Rialto, then the suite against it
-./emulator.sh down && ./emulator.sh up   # reinstall it in the target container
 ./test.sh --slot linux-emulator     # does the change still conform?
 ```
+
+The run makes its own container, so the Rialto you just built is the one it
+installs — there is no stale target to remember to replace.
 
 Four things to know before you do:
 
@@ -216,6 +225,7 @@ The target is only ever a **slot**:
 ./test.sh --slot reference-target           # a real target
 ./test.sh --slot linux-native --scope L1    # one level: full | L1 | L2 | L3 | L4
 ./test.sh --slot linux-native --tier all    # core | extended | all
+./test.sh --slot linux-emulator --keep-slot # leave the slot up when the run ends
 ```
 
 ```mermaid
@@ -255,6 +265,20 @@ and raft should just run. A target that needs bringing up first names a
 ServerManagerSim, waits for the session-server socket and hands the resolved
 environment to the run via `target-env.sh`. A box already running Rialto leaves
 `launch` empty.
+
+A slot that has to be made to exist at all names `conformance.slotUp` and
+`conformance.slotDown` as well. Those run on the **host** — the target is not
+there yet when `slotUp` runs, and must not be once `slotDown` has — which is what
+separates them from `launch` and `teardown`, which run **on** the target. The
+emulator names `./emulator.sh up` and `./emulator.sh down`, so a run against it
+is a single command; a VM would name whatever boots and shuts it down. A target
+that is simply on leaves both empty and nothing about its run changes.
+
+Both are cases of the run, and adjudicated as such: a slot that will not come up
+is a failed case with the bring-up's own output attached, not a silent stall
+against an address that answers nothing. The slot goes down again whatever the
+verdict was — `--keep-slot` is how you stop it and look at what a failure left
+behind.
 
 ### Standing the software Rialto up on a box
 
@@ -309,8 +333,8 @@ RIALTO_CONFORMANCE_SCOPE=L1 ./sc-run.sh     # one level
 
 This is the *dev loop*, not a second test path: it uses the same `build.sh`, the
 same `launch-target.sh` and the same packaged binary that raft uses, without the
-ssh hop. For the gate, use `./emulator.sh up` and `./test.sh --slot
-linux-emulator` — same container, reached as a target.
+ssh hop. For the gate, use `./test.sh --slot linux-emulator` — the same
+container, reached as a target, and raised and dropped by the run itself.
 
 ## Test levels (scope of test, not platform)
 
@@ -407,7 +431,8 @@ build.sh · Makefile   build VARIANT=CPP; link only libRialtoClient + GStreamer
 test.sh               run against a slot — never builds
 build-rialto.sh       build the software Rialto into a prefix (opt-in)
 sc-build.sh           build in the SC container · sc-run.sh  dev loop in the SC container
-emulator.sh           the SC container as the linux-emulator target (up/down/status/logs)
+emulator.sh           the SC container as the linux-emulator target (up/down/status/logs);
+                      test.sh calls it as that slot's slotUp/slotDown
 docker/               Dockerfile helpers: sc-exec.sh (enter the container) + bring-up scripts
 framework.lock        pinned versions of ut-core / ut-raft / rialto API reference
 include/conformance/  CapabilityGate.h · RialtoRelease.h · TierGate.h · MediaFeed.h · Surfaces.h

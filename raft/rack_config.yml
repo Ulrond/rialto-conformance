@@ -9,7 +9,6 @@
 # which slot ./test.sh selects.
 #
 #   ./test.sh --slot linux-emulator                  # software Rialto, SC container
-#                                                    # (./emulator.sh up first)
 #   ./test.sh --slot linux-native                    # a Linux VM / box
 #   ./test.sh --slot reference-target                # a real target
 #   ./test.sh --slot linux-native --scope L1 --tier core
@@ -42,10 +41,11 @@ rackConfig:
     description: "rialto-conformance targets"
 
     # The software Rialto emulator: the SC container, stood up as a target by
-    # ./emulator.sh up (issue #107). The container runs with --net=host, so its
-    # sshd is on a LOOPBACK-ONLY port of this box; the login user, its password
-    # and its key are all created by the bring-up, which is why this slot needs
-    # no per-engineer editing.
+    # ./emulator.sh up — which the run does for itself, as this platform's
+    # `slotUp` in device_config.yml (issues #107, #116). The container runs with
+    # --net=host, so its sshd is on a LOOPBACK-ONLY port of this box; the login
+    # user, its password and its key are all created by the bring-up, which is
+    # why this slot needs no per-engineer editing.
     #
     # `password` is what python_raft's console uses (its deviceManager configures
     # ssh with a password only); `key` is what this suite's adjudicator hands to
