@@ -7,12 +7,8 @@
 #
 # One cpe entry per platform named by a rack_config slot; python_raft matches on
 # `platform`. HOST-ONLY: python_raft reads platform/model/prompt to drive the
-# target and the `conformance` block to raise the slot, deploy, launch, collect
-# results and drop the slot again. Nothing on the target reads this file.
-#
-# Two pairs of commands, and the difference between them is where they run.
-# `slotUp`/`slotDown` run on the HOST and make the target exist at all (start a
-# container, boot a VM); `launch`/`teardown` run ON the target, once it does.
+# target and the `conformance` block to deploy, launch and collect results.
+# Nothing on the target reads this file.
 #
 # The capability gate is NOT here — it is the platform's HFP, named by
 # `conformance.hfp` (a URL). The host fetches the HFP and ships the resolved file
@@ -32,13 +28,10 @@ deviceConfig:
   # The backend underneath is the software Rialto built by ../build-rialto.sh
   # (NATIVE_BUILD), not a SoC. ../emulator.sh installs it as /opt/rialto in the
   # container and puts an sshd in front, so this slot is reached over ssh like
-  # any other. Standing that container up IS this slot's `slotUp`, so a run
-  # against it is just ./test.sh — the caller never handles the container.
-  #
-  # Once it is up, launch-target.sh starts RialtoServerManagerSim, activates the
-  # app and waits for the session-server socket, then writes the resolved
-  # environment (socket path, plugin paths, sim host/port) to target-env.sh for
-  # the run.
+  # any other. It has to be brought up before the suite can talk to it:
+  # launch-target.sh starts RialtoServerManagerSim, activates the app and waits
+  # for the session-server socket, then writes the resolved environment (socket
+  # path, plugin paths, sim host/port) to target-env.sh for the run.
   #
   # The container is headless, so the platform ranks the fake sinks to MAX: the
   # RialtoServer's playbin leaves audio-sink/video-sink unset and autodetect has
@@ -58,13 +51,6 @@ deviceConfig:
 
       deploy:  "fetch"
       package: "build/dist/rialto-conformance-*.tar.gz"
-
-      # Slot lifecycle — run on the HOST, from the repo root. slotUp runs before
-      # anything connects (there is no target until it has), slotDown after the
-      # run ends, whatever the verdict. Both are cases in their own right.
-      # ./test.sh --keep-slot leaves the slot up for a debugging session.
-      slotUp:   "./emulator.sh up"
-      slotDown: "./emulator.sh down"
 
       launch:   "GST_PLUGIN_FEATURE_RANK=fakevideosink:MAX,fakeaudiosink:MAX ./launch-target.sh"
       teardown: "./teardown-target.sh"
@@ -96,12 +82,6 @@ deviceConfig:
       deploy:  "fetch"
       package: "build/dist/rialto-conformance-*.tar.gz"
 
-      # The box is already on, so the run neither raises it nor drops it. A box
-      # that does need waking (a VM to boot, a power switch to throw) names the
-      # host-side commands for it here and gets the same two cases.
-      slotUp:   ""
-      slotDown: ""
-
       launch:   ""
       teardown: ""
       envFile:  ""
@@ -121,9 +101,6 @@ deviceConfig:
       deploy:  "fetch"
       package: "build/dist/rialto-conformance-*.tar.gz"
 
-      slotUp:   ""
-      slotDown: ""
-
       launch:   ""
       teardown: ""
       envFile:  ""
@@ -141,9 +118,6 @@ deviceConfig:
 
       deploy:  "fetch"
       package: "build/dist/rialto-conformance-*.tar.gz"
-
-      slotUp:   ""
-      slotDown: ""
 
       launch:   ""
       teardown: ""

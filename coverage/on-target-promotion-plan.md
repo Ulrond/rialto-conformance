@@ -112,6 +112,6 @@ entry in [../raft/device_config.yml](../raft/device_config.yml), which names the
 deploy mode, the launch command and the URL of that platform's HFP — the
 capability profile deciding which of these rows the target even offers.
 
-Prove the path first with the emulator (`./test.sh --slot linux-emulator`): it is
-the same flow over the same ssh hop, so anything that breaks there is the harness
-rather than the target.
+Prove the path first with the emulator (`./emulator.sh up`, then
+`./test.sh --slot linux-emulator`): it is the same flow over the same ssh hop, so
+anything that breaks there is the harness rather than the target.

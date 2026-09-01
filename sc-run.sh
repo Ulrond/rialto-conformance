@@ -26,8 +26,7 @@
 #
 # For a formal run against a slot — emulator, VM or real box — use ./test.sh,
 # which goes through raft and never builds (issue #104). The emulator slot is a
-# container too, and the run raises and drops it: ./sc-build.sh, then
-# ./test.sh --slot linux-emulator.
+# container too: ./sc-build.sh, ./emulator.sh up, ./test.sh --slot linux-emulator.
 #
 # Usage:
 #   ./sc-run.sh                       # build + run the CORE gate (default)

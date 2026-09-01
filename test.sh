@@ -26,24 +26,16 @@
 # package is missing, it stops and tells you to build.
 #
 # The target is only ever a rack slot. Emulator, Linux VM or real box run the
-# same cases through the same python_raft flow — python_raft brings the slot up,
-# connects, deploys (or not), launches the target environment, runs the binary,
-# pulls the xUnit back, adjudicates it and takes the slot down again. Point it
-# somewhere else by changing --slotName, never by editing the tests.
-#
-# Bringing the slot up and down is part of running against it, so this does it
-# for you: a slot that names host-side `slotUp`/`slotDown` commands in
-# device_config.yml is raised before the run and dropped after it, as two cases
-# of the run like any other. The whole Linux flow is therefore:
-#
-#   ./sc-build.sh && ./test.sh --slot linux-emulator
+# same cases through the same python_raft flow — python_raft connects, deploys
+# (or not), launches the target environment, runs the binary, pulls the xUnit
+# back and adjudicates it. Point it somewhere else by changing --slotName, never
+# by editing the tests.
 #
 # Usage:
 #   ./test.sh                                   # default slot, full suite, core tier
 #   ./test.sh --slot linux-native               # a different target
 #   ./test.sh --scope L1                        # one level (L1|L2|L3|L4|full)
 #   ./test.sh --tier all                        # core | extended | all
-#   ./test.sh --keep-slot                       # leave the slot up afterwards
 #   ./test.sh --slot lab-box-2 --scope L4 --tier core
 #   ./test.sh --config raft/rack_config.yml --rack rack1 --slot reference-target
 #   ./test.sh -- --any-extra-raft-arg           # rest passes through to raft
@@ -62,10 +54,6 @@ CONFIG="raft/rack_config.yml"
 [ -f "raft/rack_config.local.yml" ] && CONFIG="raft/rack_config.local.yml"
 SCOPE="${RIALTO_CONFORMANCE_SCOPE:-full}"
 TIER="${RIALTO_CONFORMANCE_TIER:-core}"
-# Empty means the run takes the slot back down when it ends, which is what makes
-# ./test.sh the whole story. Keep it up to look at what a failure left behind, or
-# to iterate without paying the bring-up each time.
-KEEP_SLOT="${RIALTO_CONFORMANCE_KEEP_SLOT:-}"
 PASS=()
 
 usage() { awk '/^# test.sh —/,/^#   \.\/test\.sh -- /' "$0" | sed 's/^# \{0,1\}//'; }
@@ -77,7 +65,6 @@ while [ $# -gt 0 ]; do
         --config)            CONFIG="${2:?--config needs a file}"; shift 2 ;;
         --scope)             SCOPE="${2:?--scope needs a value}"; shift 2 ;;
         --tier)              TIER="${2:?--tier needs a value}"; shift 2 ;;
-        --keep-slot)         KEEP_SLOT=1; shift ;;
         --)                  shift; PASS+=("$@"); break ;;
         -h|--help)           usage; exit 0 ;;
         *)                   PASS+=("$1"); shift ;;
@@ -113,12 +100,8 @@ PY="${ROOT_DIR}/python_venv/bin/python"
 [ -x "${PY}" ] || PY="python3"
 
 echo "[test] target: ${RACK}/${SLOT}  scope: ${SCOPE}  tier: ${TIER}  config: ${CONFIG}"
-if [ -n "${KEEP_SLOT}" ]; then
-    echo "[test] --keep-slot: the slot is left up when the run ends"
-fi
 export RIALTO_CONFORMANCE_SCOPE="${SCOPE}"
 export RIALTO_CONFORMANCE_TIER="${TIER}"
-export RIALTO_CONFORMANCE_KEEP_SLOT="${KEEP_SLOT}"
 # -u: python_raft reports a bad config with a print followed by os._exit(), which
 # skips the flush — buffered, that diagnosis is lost and the run just exits 1.
 exec "${PY}" -u raft/suites/test_rialto_conformance.py \

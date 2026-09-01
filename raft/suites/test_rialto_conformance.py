@@ -19,26 +19,15 @@
 
 Host-side orchestration over a RAFT console session:
 
-  1. Bring the slot itself up with the per-platform `conformance.slotUp`
-     command, if it names one, and prove the console answers.
-  2. Deploy a **prebuilt** package to the target (`deploy: fetch`), or use what
+  1. Deploy a **prebuilt** package to the target (`deploy: fetch`), or use what
      the engineer already placed there (`deploy: none`).
-  3. Launch the target environment with the per-slot `conformance.launch`
+  2. Launch the target environment with the per-slot `conformance.launch`
      command, if the slot names one.
-  4. Fetch the platform's HFP (Hardware Feature Profile) from the URL named by
+  3. Fetch the platform's HFP (Hardware Feature Profile) from the URL named by
      device_config's `conformance.hfp`, ship the resolved file to the target, and
      run the on-target binary in automated mode with it:
          rialto_conformance -a -p <hfp>
-  5. Pull the produced xUnit/JUnit XML back to the host and adjudicate it.
-  6. Take the slot down again with `conformance.slotDown`, whatever the verdict.
-
-Bringing a slot up and taking it down is part of running against that slot, so it
-is run here rather than left to the caller — and it is a case in its own right
-(`test_00_slot_up` / `test_99_slot_down`), reported and adjudicated like any
-other. `slotUp` / `slotDown` run on the **host**, before any target exists; that
-is what separates them from `launch` / `teardown`, which run **on** the target
-once it does. A slot that is always up (a real box) names neither and nothing
-about its run changes.
+  4. Pull the produced xUnit/JUnit XML back to the host and adjudicate it.
 
 **This suite never builds.** Building is `build.sh` + `packaging/package.sh`;
 testing is this. The tarball arrives prebuilt from `conformance.package`, or is
@@ -55,8 +44,6 @@ every target — emulator, VM or real box. Only the slot changes.
 Scope and tier come from the environment (set by `test.sh`):
     RIALTO_CONFORMANCE_SCOPE   full | L1 | L2 | L3 | L4      (default: full)
     RIALTO_CONFORMANCE_TIER    core | extended | all         (default: core)
-    RIALTO_CONFORMANCE_KEEP_SLOT   set to leave the slot up at the end
-                                   (./test.sh --keep-slot)
 
 Run (via the isolated host venv that install.sh creates):
     python_venv/bin/python raft/suites/test_rialto_conformance.py \
@@ -90,55 +77,16 @@ from framework.core.raftUnittest import RAFTUnitTestCase, RAFTUnitTestMain  # no
 # src/main.cpp sets the GoogleTest filter from this variable instead.
 SCOPES = ["full", "L1", "L2", "L3", "L4"]
 
-# A slot bring-up may have real work to do the first time — the emulator builds
-# its container image — so it is given room. Taking one down is quick or wedged.
-SLOT_UP_TIMEOUT = 900
-SLOT_DOWN_TIMEOUT = 180
-
 
 class RialtoConformance(RAFTUnitTestCase):
-    """Bring a config-named slot up, run the conformance binary on it, take it down."""
-
-    # The slot's lifecycle spans the whole run, not one case, so what has already
-    # happened to it is held on the class. `_slot_up_attempted` also tells the
-    # per-case setUp whether there is a target to open a console to yet.
-    _slot_up_attempted = False
-    _slot_up_failed = False
-    _slot_down_done = False
-    _slot_down_cmd = None
-    _keep_slot = False
+    """Deploy, launch, run and adjudicate the conformance binary on a config-named target."""
 
     def setUp(self):
-        self._session_open = False
-        self._read_conformance_config()
-        # A slot with a bring-up command has no target to connect to until
-        # test_00_slot_up has run one. That case opens the console itself, once
-        # there is something to open it to.
-        if self.slot_up_cmd and not type(self)._slot_up_attempted:
-            return
-        # Dropping the slot is host-side work, and every other case has closed its
-        # console by the time it runs. Opening one here would only be a connection
-        # to something about to be taken away — and it must still run when the
-        # bring-up failed, because a slot that half came up is the one most worth
-        # dropping.
-        if self._testMethodName == "test_99_slot_down":
-            return
-        # If the slot never came up, nothing that talks to it can say anything
-        # about this platform. Skip those, so the bring-up failure stays the one
-        # thing the run reports.
-        if type(self)._slot_up_failed:
-            self.skipTest("the slot did not come up — see test_00_slot_up")
-        self._open_session()
-
-    def _open_session(self):
         self.dut.session.open()
         # Each phase gets its own interactive channel: tearDown closes the client,
         # and the console reuses whatever channel it holds rather than noticing
         # that one died with it — the next write would go to a closed socket.
         self.dut.session.open_interactive_shell()
-        self._session_open = True
-
-    def _read_conformance_config(self):
         # Per-target conformance params come from device_config.yml — never code.
         # self.cpe is the deviceConfig entry raft matched to this slot's platform
         # (deviceConfig/cpe1 for linux-emulator); the host-only `conformance`
@@ -161,16 +109,6 @@ class RialtoConformance(RAFTUnitTestCase):
         # the string; whatever it does is the platform's business.
         self.launch_cmd = self.conf.get("launch")
         self.teardown_cmd = self.conf.get("teardown")
-        # Optional slot lifecycle, run on the HOST: the target does not exist yet
-        # when slotUp runs, and must not when slotDown has. A slot that is always
-        # up (a VM left running, a real box) names neither.
-        self.slot_up_cmd = self.conf.get("slotUp")
-        self.slot_down_cmd = self.conf.get("slotDown")
-        self.keep_slot = bool(os.environ.get("RIALTO_CONFORMANCE_KEEP_SLOT"))
-        # tearDownClass is the safety net for a run that never reaches
-        # test_99_slot_down, and it has no instance to read these from.
-        type(self)._slot_down_cmd = self.slot_down_cmd
-        type(self)._keep_slot = self.keep_slot
         # Each console command is its own shell, so a launch script cannot export
         # into the run. A launch that needs to hand environment to the binary
         # (socket path, plugin paths, ...) writes this file; the run sources it.
@@ -193,35 +131,8 @@ class RialtoConformance(RAFTUnitTestCase):
         self.local_results = os.path.join(REPO_ROOT, "logs", "results")
         os.makedirs(self.local_results, exist_ok=True)
 
-    # --- slot up ------------------------------------------------------------
-    def test_00_slot_up(self):
-        """Bring the slot up on the host, and prove it accepts a login."""
-        try:
-            if not self.slot_up_cmd:
-                self.log.step("slot up: none configured — the slot is expected to be up already")
-            else:
-                # Marked before it runs: whatever happens now, the console is this
-                # case's business and the later cases must not open one blindly.
-                type(self)._slot_up_attempted = True
-                self.log.step(f"slot up: {self.slot_up_cmd}")
-                self._on_host(self.slot_up_cmd, "slot up", timeout=SLOT_UP_TIMEOUT)
-                self._open_session()
-
-            out = self._on_target("true", "SLOTUP_DONE_", timeout=60)
-            self.assertIn(
-                "SLOTUP_DONE_0", out,
-                "the slot did not answer over its console after bring-up — check the "
-                f"slot's ip/port/credentials in the rack config\n--- console ---\n{out}",
-            )
-        except Exception:                                        # noqa: BLE001
-            # No target means nothing downstream can report on this platform. Say
-            # so once, here, and let the rest skip rather than each finding its
-            # own way to fail against an address that answers nothing.
-            type(self)._slot_up_failed = True
-            raise
-
     # --- deploy -------------------------------------------------------------
-    def test_01_deploy_package(self):
+    def test_00_deploy_package(self):
         """Install a PREBUILT package onto the target (or accept a pre-placed one)."""
         if self.deploy_mode == "none":
             self.log.step("deploy: none — using the package already on the target")
@@ -310,69 +221,10 @@ class RialtoConformance(RAFTUnitTestCase):
 
         self._adjudicate(local_xml)
 
-    # --- slot down ----------------------------------------------------------
-    def test_99_slot_down(self):
-        """Take the slot down again — the run owns the slot it brought up."""
-        if not self.slot_down_cmd:
-            self.log.step("slot down: none configured — the slot is left as it was")
-            return
-        if self.keep_slot:
-            self.log.step("slot down: kept up on request (--keep-slot)")
-            return
-        self.log.step(f"slot down: {self.slot_down_cmd}")
-        type(self)._slot_down_done = True
-        self._on_host(self.slot_down_cmd, "slot down", timeout=SLOT_DOWN_TIMEOUT)
-
     def tearDown(self):
-        self._close_session()
-
-    @classmethod
-    def tearDownClass(cls):
-        """Last resort: never leave a slot this run brought up still running.
-
-        test_99_slot_down is the case that takes it down, and it runs whatever the
-        verdict was. This catches the paths where it did not run at all — a run
-        that stopped early — because a slot left up silently is a container that
-        holds its ports and outlives the run that made it.
-        """
-        if cls._slot_down_done or cls._keep_slot:
-            return
-        if not (cls._slot_up_attempted and cls._slot_down_cmd):
-            return
-        cls._slot_down_done = True
-        print(f"[raft] the run did not reach slot down — running: {cls._slot_down_cmd}")
-        subprocess.run(cls._slot_down_cmd, shell=True, cwd=REPO_ROOT, check=False,
-                       timeout=SLOT_DOWN_TIMEOUT)
+        self.dut.session.close()
 
     # --- helpers ------------------------------------------------------------
-    def _close_session(self):
-        if self._session_open:
-            self.dut.session.close()
-            self._session_open = False
-
-    def _on_host(self, command, what, timeout):
-        """Run one slot-lifecycle command HERE, on the host, and fail loudly.
-
-        The target does not exist on either side of this call — before slotUp
-        there is nothing to connect to, and after slotDown there is nothing left —
-        so these are the only commands in the run that do not go over the console.
-        """
-        try:
-            done = subprocess.run(
-                command, shell=True, cwd=REPO_ROOT, timeout=timeout,
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-            )
-        except subprocess.TimeoutExpired:
-            self.fail(f"{what} timed out after {timeout}s: {command}")
-        self.log.debug(f"{what} output:\n{done.stdout}")
-        self.assertEqual(
-            done.returncode, 0,
-            f"{what} failed (exit {done.returncode}): {command}\n"
-            f"--- host output ---\n{done.stdout}",
-        )
-        return done.stdout
-
-
     def _on_target(self, command, marker, timeout):
         """Run one command on the target and wait for it to finish.
 
