@@ -22,10 +22,13 @@
 # (issue #107). The target is the SC docker container running an sshd and the
 # software Rialto; raft then treats it exactly as it treats a VM or a real box.
 #
-#   ./sc-build.sh                        # software Rialto + suite + package
-#   ./emulator.sh up                     # the container becomes an ssh target
-#   ./test.sh --slot linux-emulator      # a normal raft run against it
-#   ./emulator.sh down
+# A run calls this itself: `up` and `down` are the linux-emulator platform's
+# `slotUp`/`slotDown` in raft/device_config.yml (issue #116), so the whole flow is
+#
+#   ./sc-build.sh && ./test.sh --slot linux-emulator
+#
+# Use the commands below to drive the container by hand instead — to keep it up
+# across runs (with ./test.sh --keep-slot), or to look inside one.
 #
 # Commands:
 #   up      bring the target up and wait until it accepts logins

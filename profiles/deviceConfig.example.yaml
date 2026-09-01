@@ -28,3 +28,17 @@ deviceConfig:
       binary:     "rialto_conformance"
       resultsDir: "/opt/rialto-conformance/results"
       hfp: "https://<platform-owner>/hfp/reference.yaml"   # URL of THIS platform's HFP
+
+      deploy:  "fetch"                            # ship the prebuilt package
+      package: "build/dist/rialto-conformance-*.tar.gz"
+
+      # Host-side slot lifecycle: what makes this target exist, and what stops it
+      # existing. A target that is always on leaves both empty; a container or a
+      # VM names the commands that raise and drop it, and the run does the rest.
+      slotUp:   ""
+      slotDown: ""
+
+      # Target-side environment: what brings this platform's Rialto up for a run.
+      launch:   ""
+      teardown: ""
+      envFile:  ""

@@ -22,9 +22,7 @@
 # docker, and stop there. The build half of the emulator flow:
 #
 #   ./sc-build.sh                        # software Rialto + suite + package
-#   ./emulator.sh up                     # the same container, now an ssh target
-#   ./test.sh --slot linux-emulator      # raft runs against it
-#   ./emulator.sh down
+#   ./test.sh --slot linux-emulator      # raft raises the target, runs, drops it
 #
 # It produces two things the emulator target needs:
 #   framework/.native-install   the software Rialto (emulator.sh installs it as

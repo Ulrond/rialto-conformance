@@ -31,3 +31,23 @@ deviceConfig:
       hfp: string             # URL of this platform's HFP (http(s):// or file://).
                               # The host fetches it and loads it with -p; the gate
                               # keys live in the HFP, not here.
+
+      deploy: string          # "fetch" ships `package`; "none" uses what is already
+                              # installed on the target. Testing never builds.
+      package: string         # a PREBUILT tarball: path (globs allowed, newest
+                              # wins), file:// or http(s)://
+
+      # The slot's lifecycle, run on the HOST from the repo root, as the run's
+      # first and last cases. They make the target exist and stop it existing —
+      # start and stop a container, boot and shut down a VM. A slot that is
+      # always up leaves both empty.
+      slotUp: string          # raise the slot; runs before anything connects
+      slotDown: string        # drop it again; runs when the run ends, whatever
+                              # the verdict (./test.sh --keep-slot skips it)
+
+      # The target environment, run ON the target once it is up.
+      launch: string          # bring the platform's Rialto up for this run
+      teardown: string        # stop it again after the run
+      envFile: string         # file the launch writes and the run sources, for
+                              # environment the launch alone can resolve (socket
+                              # path, plugin paths)
