@@ -37,6 +37,7 @@
 #include <ut.h>
 #include <ut_log.h>
 
+#include "conformance/AsyncApply.h"
 #include "conformance/MediaFeed.h"
 #include "conformance/Surfaces.h"
 #include "conformance/TierGate.h"
@@ -69,24 +70,10 @@ constexpr std::chrono::milliseconds kNotifyTimeout{5000};
 
 // The property setters (volume, mute, use-buffering) enqueue their write to the
 // server's worker thread and return; application is asynchronous. A read-back is
-// therefore polled until the value applies, up to this deadline.
-constexpr std::chrono::milliseconds kApplyDeadline{5000};
-constexpr std::chrono::milliseconds kApplyPoll{50};
-
-/// Poll @p read until it returns true and @p applied holds, up to kApplyDeadline.
-/// @retval true when the read-back reflected the written value in time.
-template <typename ReadFn>
-bool pollUntilApplied(ReadFn read)
-{
-    const auto deadline = std::chrono::steady_clock::now() + kApplyDeadline;
-    while (std::chrono::steady_clock::now() < deadline)
-    {
-        if (read())
-            return true;
-        std::this_thread::sleep_for(kApplyPoll);
-    }
-    return read();
-}
+// therefore polled until the value applies — see conformance/AsyncApply.h, which
+// owns the helper so a new case cannot reintroduce the race by not knowing a
+// local copy existed.
+using ::rialto::conformance::pollUntilApplied;
 
 /**
  * Bring up the full data path: create a pipeline bound to a fresh feed client,

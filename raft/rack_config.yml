@@ -1,34 +1,100 @@
 # Copyright 2026 RDK Management
 # SPDX-License-Identifier: Apache-2.0
 #
-# python_raft rack config (the --config argument). Defines the physical
-# infrastructure: the target inventory and how to reach each console. raft is
-# GIVEN the target by this config (rack + slot) and has NO concept of the
-# platform — the backend is swapped by config/build, never by editing tests.
+# python_raft rack config — the ONE place a target is named.
 #
-# Run (via the isolated host venv that install.sh creates):
-#   python_venv/bin/python raft/suites/test_rialto_conformance.py \
-#       --config raft/rack_config.yml --rack rack1 --slotName reference-target
+# Every target the suite runs against is a slot here: the in-container software
+# emulator, a render-capable Linux VM, or a real box. They all run the same
+# binary and the same cases through the same flow; the only thing that changes is
+# which slot ./test.sh selects.
 #
-# The `platform` field in each slot's device entry links to device_config.yml,
-# which names that platform's HFP (Hardware Feature Profile) by URL. The host
-# fetches the HFP and ships the resolved file to the target. Slot names are
-# config-named target instances — NOT SoC families; the suite never branches on
-# platform identity.
+#   ./test.sh --slot linux-emulator                  # software Rialto, SC container
+#                                                    # (./emulator.sh up first)
+#   ./test.sh --slot linux-native                    # a Linux VM / box
+#   ./test.sh --slot reference-target                # a real target
+#   ./test.sh --slot linux-native --scope L1 --tier core
+#
+# A slot's `platform` selects its entry in the included device_config.yml
+# (python_raft matches cpe*.platform), which carries the orchestration inputs:
+# deploy mode, package location, target launch command and the HFP URL. The host
+# fetches the HFP and ships the resolved file to the target.
+#
+# Slot names are config-named target instances — NOT SoC families; the suite
+# never branches on platform identity. Adding a box = adding a slot here plus a
+# cpe entry in device_config.yml. Never edit the tests to suit a target.
 
 globalConfig:
   includes:
-    deviceConfig: "device_config.yml"
+    # Resolved by python_raft against the CWD, and only made absolute when it
+    # starts with a dot — so this is written relative to the repo root, which is
+    # where ./test.sh runs from.
+    deviceConfig: "./raft/device_config.yml"
   local:
     log:
       directory: "./logs"
+      delimiter: "/"
 
 rackConfig:
   rack1:
-    # One slot per available target. Selected by --slotName. The platform is not
-    # relevant to the suite — only the console reaches the box and the device
-    # entry names which platform HFP to fetch and ship.
-    reference-target:
+    # python_raft matches --rack and --slotName against these `name` values, not
+    # against the YAML keys: a slot without one cannot be selected.
+    name: "rack1"
+    description: "rialto-conformance targets"
+
+    # The software Rialto emulator: the SC container, stood up as a target by
+    # ./emulator.sh up (issue #107). The container runs with --net=host, so its
+    # sshd is on a LOOPBACK-ONLY port of this box; the login user, its password
+    # and its key are all created by the bring-up, which is why this slot needs
+    # no per-engineer editing.
+    #
+    # `password` is what python_raft's console uses (its deviceManager configures
+    # ssh with a password only); `key` is what this suite's adjudicator hands to
+    # scp. Both are fixed lab values, reachable from 127.0.0.1 alone.
+    slot1:
+      name: "linux-emulator"
+      devices:
+        - dut:
+            platform: "linux-emulator"
+            consoles:
+              - default:
+                  type: "ssh"
+                  enabled: true
+                  ip: "127.0.0.1"
+                  port: 2222
+                  username: "rialto"
+                  password: "rialto"
+                  key: "build/emulator/id_ed25519"
+                  prompt: "$ "
+
+    # A render-capable Linux VM or box with Rialto installed on it — which can be
+    # THIS machine: leave the ip at 127.0.0.1, put your own username in, and make
+    # sure you can ssh to yourself. That is a real ssh hop to a real box, and the
+    # run is identical to the one a VM or a target takes.
+    # EDIT the four marked fields; nothing else changes to point the gate at one.
+    #
+    # `password` is not optional: python_raft's deviceManager configures its ssh
+    # console with a password and never a key, so the console cannot log in
+    # without one. `key` is separate — it is what the adjudicator hands to scp,
+    # which is how the package, the HFP and the results move.
+    slot2:
+      name: "linux-native"
+      devices:
+        - dut:
+            platform: "linux-native"
+            consoles:
+              - default:
+                  type: "ssh"
+                  enabled: true
+                  ip: "127.0.0.1"        # EDIT: the box's address
+                  port: 22
+                  username: "rialto"     # EDIT: the box's login user
+                  password: ""           # EDIT: that user's password (the console logs in with it)
+                  key: ""                # EDIT: path to a private key that user accepts (scp uses it)
+                  prompt: "$ "
+
+    # Real targets.
+    slot3:
+      name: "reference-target"
       devices:
         - dut:
             platform: "reference-target"
@@ -41,7 +107,8 @@ rackConfig:
                   username: "root"
                   prompt: "root@target:~#"
 
-    lab-target-1:
+    slot4:
+      name: "lab-target-1"
       devices:
         - dut:
             platform: "lab-target-1"

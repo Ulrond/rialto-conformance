@@ -49,6 +49,14 @@ constexpr uint32_t kChannels = 2;
 constexpr int64_t kAacSamplesPerFrame = 1024;
 } // namespace
 
+size_t AacElementaryStream::totalBytes() const
+{
+    size_t total = 0;
+    for (const auto &frame : frames)
+        total += frame.data.size();
+    return total;
+}
+
 int64_t AacElementaryStream::totalDurationNs() const
 {
     int64_t total = 0;
@@ -288,9 +296,17 @@ void FeedingMediaPipelineClient::notifyNeedMediaData(int32_t sourceId, size_t fr
     // Build the batch of segments to offer this round, without advancing the feed
     // cursor: the cursor only moves for segments the server actually accepts.
     std::vector<std::unique_ptr<IMediaPipeline::MediaSegment>> batch;
+    // A segment's data buffer must stay valid until the matching haveData()
+    // completes (RC-CORE-DATA-008), and setData keeps the pointer rather than
+    // copying — so corrupt payloads live here, alongside the batch they belong
+    // to. Growing this vector moves the inner ones, which preserves their heap
+    // buffers, so the pointers handed to setData stay good.
+    std::vector<std::vector<uint8_t>> corruptBuffers;
     uint32_t sampleRate = 0;
     uint32_t channels = 0;
     bool starve = false;
+    bool withhold = false;
+    size_t firstFrameOfBatch = 0;
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         // Protocol observation (RC-CORE-DATA-001/002): record the request shape
@@ -302,6 +318,7 @@ void FeedingMediaPipelineClient::notifyNeedMediaData(int32_t sourceId, size_t fr
         }
         m_pendingNeedData.insert(sourceId);
         starve = m_starve;
+        withhold = m_withhold;
         if (m_pipeline == nullptr)
             return;
         auto it = m_feeds.find(sourceId);
@@ -310,16 +327,38 @@ void FeedingMediaPipelineClient::notifyNeedMediaData(int32_t sourceId, size_t fr
         const SourceFeed &feed = it->second;
         sampleRate = feed.stream.sampleRate;
         channels = feed.stream.channels;
-        for (size_t idx = feed.nextFrame; idx < feed.stream.frames.size() && batch.size() < frameCount; ++idx)
+        firstFrameOfBatch = feed.nextFrame;
+        // Oversupply offers past the requested frame count on purpose: the
+        // shared buffer is what limits a round, and asking for more than it holds
+        // is how a client reaches NO_SPACE through the public API alone.
+        const size_t offerLimit = frameCount * (m_oversupply == 0 ? 1 : m_oversupply);
+        for (size_t idx = feed.nextFrame; idx < feed.stream.frames.size() && batch.size() < offerLimit; ++idx)
         {
             const EncodedFrame &frame = feed.stream.frames[idx];
             auto segment = std::make_unique<IMediaPipeline::MediaSegmentAudio>(
                 sourceId, frame.timeStamp, frame.duration, static_cast<int32_t>(sampleRate),
                 static_cast<int32_t>(channels));
-            segment->setData(static_cast<uint32_t>(frame.data.size()), frame.data.data());
+            ++m_segmentsOffered;
+            if (m_corruptEvery != 0 && (m_segmentsOffered % m_corruptEvery) == 0)
+            {
+                // Same length, undecodable content: the access unit reaches the
+                // decoder and fails there, rather than being rejected earlier as
+                // a malformed segment.
+                corruptBuffers.emplace_back(frame.data.size(), 0xA5);
+                segment->setData(static_cast<uint32_t>(corruptBuffers.back().size()), corruptBuffers.back().data());
+            }
+            else
+            {
+                segment->setData(static_cast<uint32_t>(frame.data.size()), frame.data.data());
+            }
             batch.push_back(std::move(segment));
         }
     }
+
+    // Withhold mode: the request is recorded and deliberately left unanswered, so
+    // the server has an outstanding need-data it can cancel.
+    if (withhold)
+        return;
 
     // Starve mode (data-protocol cases): answer the request with no segments so
     // the server's queue drains and it raises buffer underflow.
@@ -338,11 +377,35 @@ void FeedingMediaPipelineClient::notifyNeedMediaData(int32_t sourceId, size_t fr
     size_t accepted = 0;
     for (auto &segment : batch)
     {
-        if (m_pipeline->addSegment(needDataRequestId, segment) != AddSegmentStatus::OK)
+        const AddSegmentStatus status = m_pipeline->addSegment(needDataRequestId, segment);
+        if (status != AddSegmentStatus::OK)
         {
             std::lock_guard<std::mutex> lock(m_mutex);
             m_allSegmentsAccepted = false; // RC-CORE-DATA-003 observation
+            if (status == AddSegmentStatus::NO_SPACE)
+            {
+                ++m_addNoSpace;
+                // Retained, not dropped: the cursor stops here, so this frame is
+                // the first one offered on the next request (RC-CORE-DATA-004).
+                m_noSpaceFrame[sourceId] = firstFrameOfBatch + accepted;
+            }
+            else
+            {
+                ++m_addError;
+            }
             break;
+        }
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            ++m_addOk;
+            // A frame that a previous round rejected for want of space has now
+            // been accepted — the resend half of the contract.
+            auto retained = m_noSpaceFrame.find(sourceId);
+            if (retained != m_noSpaceFrame.end() && firstFrameOfBatch + accepted == retained->second)
+            {
+                m_noSpaceSegmentAccepted = true;
+                m_noSpaceFrame.erase(retained);
+            }
         }
         ++accepted;
     }
@@ -367,8 +430,89 @@ void FeedingMediaPipelineClient::notifyPlaybackState(PlaybackState state)
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_statesSeen.insert(state);
+        m_lastState = state;
     }
     m_cv.notify_all();
+}
+
+// --- Fault feeding ----------------------------------------------------------
+
+void FeedingMediaPipelineClient::setOversupply(size_t multiple)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_oversupply = multiple == 0 ? 1 : multiple;
+}
+
+void FeedingMediaPipelineClient::setWithhold(bool withhold)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_withhold = withhold;
+}
+
+void FeedingMediaPipelineClient::setCorruptEvery(size_t nth)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_corruptEvery = nth;
+}
+
+size_t FeedingMediaPipelineClient::addSegmentOkCount()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_addOk;
+}
+
+size_t FeedingMediaPipelineClient::addSegmentNoSpaceCount()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_addNoSpace;
+}
+
+size_t FeedingMediaPipelineClient::addSegmentErrorCount()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_addError;
+}
+
+bool FeedingMediaPipelineClient::sawNoSpaceSegmentAccepted()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_noSpaceSegmentAccepted;
+}
+
+size_t FeedingMediaPipelineClient::cancelCount()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_cancelCount;
+}
+
+bool FeedingMediaPipelineClient::sawCancel(int32_t sourceId)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_cancelledSources.count(sourceId) != 0;
+}
+
+size_t FeedingMediaPipelineClient::playbackErrorCount()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_playbackErrorCount;
+}
+
+PlaybackError FeedingMediaPipelineClient::lastPlaybackError()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_lastPlaybackError;
+}
+
+PlaybackState FeedingMediaPipelineClient::stateAtLastPlaybackError()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_stateAtLastError;
+}
+
+PlaybackState FeedingMediaPipelineClient::lastPlaybackState()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_lastState;
 }
 
 void FeedingMediaPipelineClient::notifyDuration(int64_t) {}
@@ -386,7 +530,18 @@ void FeedingMediaPipelineClient::notifyNetworkState(NetworkState state)
 }
 void FeedingMediaPipelineClient::notifyVideoData(bool) {}
 void FeedingMediaPipelineClient::notifyAudioData(bool) {}
-void FeedingMediaPipelineClient::notifyCancelNeedMediaData(int32_t) {}
+void FeedingMediaPipelineClient::notifyCancelNeedMediaData(int32_t sourceId)
+{
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        ++m_cancelCount;
+        m_cancelledSources.insert(sourceId);
+        // A cancelled request is no longer outstanding, and the client owes no
+        // haveData for it.
+        m_pendingNeedData.erase(sourceId);
+    }
+    m_cv.notify_all();
+}
 void FeedingMediaPipelineClient::notifyQos(int32_t, const QosInfo &qosInfo)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
@@ -406,7 +561,18 @@ void FeedingMediaPipelineClient::notifyFirstFrameReceived(int32_t sourceId)
     std::lock_guard<std::mutex> lock(m_mutex);
     m_firstFrameSources.insert(sourceId);
 }
-void FeedingMediaPipelineClient::notifyPlaybackError(int32_t, PlaybackError) {}
+void FeedingMediaPipelineClient::notifyPlaybackError(int32_t, PlaybackError error)
+{
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        ++m_playbackErrorCount;
+        m_lastPlaybackError = error;
+        // The state in force when the error arrived — RC-CORE-DATA-010 asserts a
+        // non-fatal error does not move it.
+        m_stateAtLastError = m_lastState;
+    }
+    m_cv.notify_all();
+}
 void FeedingMediaPipelineClient::notifySourceFlushed(int32_t sourceId)
 {
     {

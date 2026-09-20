@@ -18,7 +18,7 @@
 set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-VER="${PKG_VERSION:-1.0.0}"
+VER="${PKG_VERSION:-1.2.0}"
 # opkg's acceptance gate only — the real constraint is the binary's ABI. Set to a
 # value in the target's `opkg print-architecture`, or install with
 # --force-architecture. Use your fleet's COMMON ARM tune (see README-opkg.md),

@@ -25,8 +25,14 @@
  * statically through UT_ADD_TEST / UT_ADD_TEST_TO_GROUP, so main only has to
  * stand the framework up and run. UT_init() parses the CLI (-a/-b, -p <profile>,
  * -e/-d <group>), loads the KVP profile, and selects the run mode; UT_run_tests()
- * executes every registered suite (group IDs are selective-run filters only) and
- * cleans up via UT_exit() on the success path.
+ * executes every registered suite and cleans up via UT_exit() on the success path.
+ *
+ * Scope (RIALTO_CONFORMANCE_SCOPE) selects one level. It is applied per case as a
+ * self-skip by ScopeGate.h, not as a GoogleTest filter — ut-core owns that flag
+ * and overwrites it during UT_run_tests(); see ScopeGate.h for the detail. All
+ * main() does is reject an unrecognised value up front, because silently running
+ * the whole suite when one level was asked for would report far more coverage
+ * than was actually exercised.
  *
  * The same binary, with the same cases, runs on every target — only the
  * cross-compiler differs. The target's applicable cases are self-selected at
@@ -34,8 +40,35 @@
  */
 
 #include "conformance/RegistrationProbe.h"
+#include "conformance/ScopeGate.h"
 
 #include <ut.h>
+
+#include <cstdio>
+#include <cstring>
+
+namespace
+{
+/**
+ * Reject an unrecognised RIALTO_CONFORMANCE_SCOPE before any case runs.
+ */
+bool scopeIsValid()
+{
+    const char *const scope = ::rialto::conformance::scopeName();
+    for (const char *const valid : {"full", "L1", "L2", "L3", "L4"})
+    {
+        if (std::strcmp(scope, valid) == 0)
+        {
+            return true;
+        }
+    }
+    std::fprintf(stderr,
+                 "[conformance] ERROR: RIALTO_CONFORMANCE_SCOPE='%s' is not one of "
+                 "full L1 L2 L3 L4\n",
+                 scope);
+    return false;
+}
+} // namespace
 
 int main(int argc, char **argv)
 {
@@ -45,6 +78,9 @@ int main(int argc, char **argv)
     // runs; otherwise this is a no-op (returns -1) and the gate proceeds.
     if (const int probeResult = rialto::conformance::runRegistrationProbeIfRequested(); probeResult >= 0)
         return probeResult;
+
+    if (!scopeIsValid())
+        return 2;
 
     UT_init(argc, argv);
     UT_run_tests();

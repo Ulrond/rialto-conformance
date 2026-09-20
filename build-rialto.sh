@@ -178,6 +178,25 @@ cmake -S "${FRAMEWORK_DIR}/rialto" -B "${FRAMEWORK_DIR}/rialto/build" \
 make -C "${FRAMEWORK_DIR}/rialto/build" -j"${JOBS}"
 make -C "${FRAMEWORK_DIR}/rialto/build" install
 
+# Rialto's install target leaves its bundled third-party shared libraries
+# (mongoose, which RialtoServerManagerSim's HTTP surface needs) in the build
+# tree, reached by an rpath into it. That is enough where the build tree is, but
+# the prefix is what gets copied to a target — to /opt/rialto on a box or in a
+# container — and there the rpath resolves to nothing:
+#   RialtoServerManagerSim: error while loading shared libraries: libmongoose.so
+# Bring them into the prefix so it stands on its own wherever it lands.
+echo "[build-rialto] completing the prefix with build-tree-only libraries"
+while IFS= read -r lib; do
+    [ -n "${lib}" ] || continue
+    echo "[build-rialto]   + $(basename "${lib}")"
+    cp -a "${lib}" "${PREFIX}/lib/"
+done < <(
+    find "${PREFIX}/bin" "${PREFIX}/lib" -type f 2>/dev/null | while IFS= read -r f; do
+        ldd "${f}" 2>/dev/null | awk '{print $3}' \
+            | grep -E "^${FRAMEWORK_DIR}/" | grep -vE "^${PREFIX}/" || true
+    done | sort -u
+)
+
 # 2. Build rialto-gstreamer natively against the installed Rialto, providing the
 #    rialtomse*sink plugin (mseSink interface).
 echo "[build-rialto] building rialto-gstreamer (NATIVE_BUILD) against ${PREFIX}"

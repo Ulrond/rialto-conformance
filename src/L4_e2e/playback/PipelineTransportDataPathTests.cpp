@@ -246,12 +246,20 @@ UT_ADD_TEST(L4PipelineTransportDataPathTests, SetPositionSetsStartThenSeeksWhile
     UT_ASSERT_TRUE_FATAL(client->waitForPlaybackState(PlaybackState::PLAYING, kPlayingTimeout));
 
     // Branch 2: after start, setPosition seeks. Must not block; the backend
-    // notifies SEEKING then SEEK_DONE. Rewind the feed so the re-requested data
-    // starts from the seek target, as an MSE app re-appending from there would.
+    // notifies SEEKING then SEEK_DONE.
+    //
+    // Rewind the feed BEFORE initiating the seek. setPosition starts the seek
+    // asynchronously, so rewinding afterwards leaves a window in which the
+    // backend re-requests data while the source is still at the pre-seek
+    // position; it then gets data inconsistent with the seek target and reports
+    // PlaybackState::FAILURE. Rewinding first means the source is already at the
+    // seek target whenever the backend asks — which is also what an MSE app
+    // re-appending from the target does.
+    client->rewindSource(sourceId);
+
     auto seekStart = std::chrono::steady_clock::now();
     const bool seekOk = pipeline->setPosition(0);
     auto seekElapsed = std::chrono::steady_clock::now() - seekStart;
-    client->rewindSource(sourceId);
     UT_ASSERT_TRUE(seekOk);
     UT_ASSERT_TRUE(seekElapsed < kNonBlockBound);
 

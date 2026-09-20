@@ -48,8 +48,14 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # The RialtoServer's playbin leaves audio-sink/video-sink unset, so autodetect
 # degrades to fakesink when the container has no display/audio device — decode
 # runs headlessly to EOS with the clock advancing.
+# openssh-server turns this image into a raft TARGET as well as a build
+# environment: docker/emulator-target-up.sh runs an sshd on a loopback port so
+# `./test.sh --slot linux-emulator` reaches the emulator over the same ssh hop it
+# uses for a VM or a real box (issue #107). openssh-client provides the scp the
+# adjudicator uses to ship the package.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git ca-certificates wget curl gnupg sudo locales \
+        openssh-server openssh-client \
         build-essential cmake pkg-config \
         unzip zip patch autoconf automake libtool m4 \
         python3 python3-pip python3-venv \

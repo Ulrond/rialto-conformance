@@ -30,11 +30,14 @@
  *              contract as the old one. Run this first; it must be green.
  *   EXTENDED — app/player-requirement conformance, layered on top.
  *
- * ut-core's group ids (UT_TESTS_L1..L4) are the LEVEL axis and are owned by
- * ut-core; tier is a SECOND axis the suite selects at runtime by self-skip — the
- * same idiom as CapabilityGate / the release gate (UT_IGNORE_TEST() == GTEST_SKIP()).
- * Because tier gating is an in-test skip, it composes with the ut-core level
- * filter (`-e UT_TESTS_L1`) without both contending for the GoogleTest filter.
+ * ut-core's group ids (UT_TESTS_L1..L4) record the LEVEL axis; tier is a SECOND
+ * axis the suite selects at runtime by self-skip — the same idiom as
+ * CapabilityGate / the release gate (UT_IGNORE_TEST() == GTEST_SKIP()).
+ *
+ * Level selection is a self-skip too, for the reasons in ScopeGate.h: ut-core's
+ * `-e/-d <group>` are inert in automated mode and its runner clobbers the
+ * GoogleTest filter. The tier macros below invoke the scope gate so that every
+ * case gets both axes from the one declaration it already makes.
  *
  * Selection is read once from the environment variable RIALTO_CONFORMANCE_TIER:
  *   "core"      run only CORE cases (the transform-safety gate)
@@ -45,6 +48,8 @@
  * capability or release requirement:
  *   UT_ADD_TEST(L1CapabilitiesTests, ...) { CONFORMANCE_CORE_TEST(); ... }
  */
+
+#include "conformance/ScopeGate.h"
 
 #include <ut.h>
 #include <ut_log.h>   // UT_LOG (ut.h's C++/gtest path does not pull it in)
@@ -105,6 +110,12 @@ inline bool tierSelected(Tier tier)
 #define CONFORMANCE_CORE_TEST()                                                                                         \
     do                                                                                                                  \
     {                                                                                                                   \
+        if (!::rialto::conformance::scopeSelected())                                                                    \
+        {                                                                                                               \
+            UT_LOG("[scope-gate] case skipped (RIALTO_CONFORMANCE_SCOPE selects another level)");                       \
+            UT_IGNORE_TEST();                                                                                           \
+            return;                                                                                                     \
+        }                                                                                                               \
         if (!::rialto::conformance::tierSelected(::rialto::conformance::Tier::Core))                                    \
         {                                                                                                               \
             UT_LOG("[tier-gate] CORE case skipped (RIALTO_CONFORMANCE_TIER selects EXTENDED only)");                    \
@@ -121,6 +132,12 @@ inline bool tierSelected(Tier tier)
 #define CONFORMANCE_EXTENDED_TEST()                                                                                     \
     do                                                                                                                  \
     {                                                                                                                   \
+        if (!::rialto::conformance::scopeSelected())                                                                    \
+        {                                                                                                               \
+            UT_LOG("[scope-gate] case skipped (RIALTO_CONFORMANCE_SCOPE selects another level)");                       \
+            UT_IGNORE_TEST();                                                                                           \
+            return;                                                                                                     \
+        }                                                                                                               \
         if (!::rialto::conformance::tierSelected(::rialto::conformance::Tier::Extended))                                \
         {                                                                                                               \
             UT_LOG("[tier-gate] EXTENDED case skipped (RIALTO_CONFORMANCE_TIER selects CORE only)");                    \
