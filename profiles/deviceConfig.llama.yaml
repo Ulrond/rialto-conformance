@@ -1,0 +1,22 @@
+# deviceConfig for vts-llama (Amlogic armv7l real target) — conservative first pass.
+# Optional features OFF so only the mandatory common surface runs unconditionally.
+deviceConfig:
+  cpe1:
+    platform: "amlogic"
+    model: "vts-llama"
+    prompt: "$ "
+    rialto:
+      control:
+        stateToggle: false
+      codecs:
+        video: {hevc: false, vp9: false, av1: false}
+        audio: {eac3: false, ac4: false, opus: false}
+      webaudio:
+        playout: false
+      drm:
+        clearkey: false
+        widevine: false
+        playready: false
+        fairplay: false
+        secureVideoPath: false
+      passthrough: {hdr: false, hfr: false, uhd4k: false, uhd8k: false, atmos: false}
